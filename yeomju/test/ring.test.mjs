@@ -18,6 +18,7 @@ import {
   stepPhase,
   classifyVerticalSwipe,
   SWIPE_MIN_DY,
+  TAP_MAX_MOVE,
   layoutChainSlots,
   bufferSlotIndices,
   onScreenSlotIndices,
@@ -171,9 +172,20 @@ describe('keyframe=스냅 · 커버리지', () => {
     assert.deepEqual([...SHARED_KEYFRAME_PCTS], [0, 1])
     assert.equal(pathProgressAtTime(0.5), 0.5)
     assert.equal(BEAD_SRC, '/common/bead-wood-v3.png')
+    assert.equal(SWIPE_MIN_DY, 12)
+    assert.ok(TAP_MAX_MOVE >= SWIPE_MIN_DY)
     assert.equal(classifyVerticalSwipe(0, -SWIPE_MIN_DY), 1)
+    assert.equal(classifyVerticalSwipe(0, -(SWIPE_MIN_DY - 1)), 0)
     assert.equal(VIRTUAL_BEADS, 12)
     assert.ok(CHAIN_ANIM_MS >= 140 && CHAIN_ANIM_MS <= 160)
+  })
+
+  it('교대 클래스 -b (재시작용)', () => {
+    assert.equal(rollClassForSlot(0, 1, { alt: false }), 'roll-next-0')
+    assert.equal(rollClassForSlot(0, 1, { alt: true }), 'roll-next-0-b')
+    const css = buildChainKeyframeCss()
+    assert.ok(css.includes('.roll-next-0-b'))
+    assert.ok(css.includes('.roll-prev-0-b'))
   })
 })
 

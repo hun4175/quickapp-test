@@ -33,28 +33,14 @@
       </div>
     </div>
 
-    <text class="label">애니 모드 (진단)</text>
-    <text class="hint">{{animHint}}</text>
+    <text class="label">입력 방식</text>
+    <text class="hint">{{inputHint}}</text>
     <div class="col">
-      <div class="chip-wide {{animMode === 'A' ? 'chip-on' : ''}}" onclick="pickModeA">
-        <text class="chip-text">A 구슬별 키프레임</text>
+      <div class="chip-wide {{inputMode === 'slide' ? 'chip-on' : ''}}" onclick="pickSlide">
+        <text class="chip-text">슬라이드 (위·아래)</text>
       </div>
-      <div class="chip-wide {{animMode === 'B' ? 'chip-on' : ''}}" onclick="pickModeB">
-        <text class="chip-text">B 애니 없음</text>
-      </div>
-      <div class="chip-wide {{animMode === 'C' ? 'chip-on' : ''}}" onclick="pickModeC">
-        <text class="chip-text">C 통 컨테이너</text>
-      </div>
-    </div>
-
-    <text class="label">지연 디버그</text>
-    <text class="hint">구석에 터치→시작·애니 ms 표시</text>
-    <div class="row">
-      <div class="chip {{debugLatency ? 'chip-on' : ''}}" onclick="setDebugOn">
-        <text class="chip-text">켜기</text>
-      </div>
-      <div class="chip {{!debugLatency ? 'chip-on' : ''}}" onclick="setDebugOff">
-        <text class="chip-text">끄기</text>
+      <div class="chip-wide {{inputMode === 'touch' ? 'chip-on' : ''}}" onclick="pickTouch">
+        <text class="chip-text">터치 (탭=한 칸 앞)</text>
       </div>
     </div>
 
@@ -68,7 +54,7 @@
       </div>
     </div>
 
-    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.1.0</text>
+    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.4.0</text>
   </div>
 </template>
 
@@ -77,9 +63,8 @@ import router from '@system.router'
 import {
   setBeadsPerRound,
   setVibrateOnBead,
-  setAnimMode,
-  setDebugLatency,
-  ANIM_MODE_HINTS
+  setInputMode,
+  INPUT_MODE_HINTS
 } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
 
@@ -88,9 +73,8 @@ export default {
     beadsPerRound: 108,
     vibrateOnBead: true,
     todayTotal: 0,
-    animMode: 'A',
-    debugLatency: false,
-    animHint: ANIM_MODE_HINTS.A
+    inputMode: 'slide',
+    inputHint: INPUT_MODE_HINTS.slide
   },
 
   onShow() {
@@ -118,9 +102,8 @@ export default {
     this.beadsPerRound = state.beadsPerRound
     this.vibrateOnBead = state.vibrateOnBead
     this.todayTotal = state.todayTotal
-    this.animMode = state.animMode || 'A'
-    this.debugLatency = !!state.debugLatency
-    this.animHint = ANIM_MODE_HINTS[this.animMode] || ANIM_MODE_HINTS.A
+    this.inputMode = state.inputMode || 'slide'
+    this.inputHint = INPUT_MODE_HINTS[this.inputMode] || INPUT_MODE_HINTS.slide
   },
 
   async persist(next) {
@@ -156,29 +139,16 @@ export default {
     await this.persist(setVibrateOnBead(this._state, false))
   },
 
-  async pickMode(mode) {
+  async pickInput(mode) {
     if (!this._state) await this.reload()
-    await this.persist(setAnimMode(this._state, mode))
+    await this.persist(setInputMode(this._state, mode))
   },
 
-  pickModeA() {
-    this.pickMode('A')
+  pickSlide() {
+    this.pickInput('slide')
   },
-  pickModeB() {
-    this.pickMode('B')
-  },
-  pickModeC() {
-    this.pickMode('C')
-  },
-
-  async setDebugOn() {
-    if (!this._state) await this.reload()
-    await this.persist(setDebugLatency(this._state, true))
-  },
-
-  async setDebugOff() {
-    if (!this._state) await this.reload()
-    await this.persist(setDebugLatency(this._state, false))
+  pickTouch() {
+    this.pickInput('touch')
   },
 
   confirmSession() {

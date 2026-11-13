@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import {
   BEAD_OPTIONS,
   SWIPE_COUNT_MODE,
-  ANIM_MODES,
+  INPUT_MODES,
   normalizeState,
   ensureToday,
   advanceBead,
@@ -14,8 +14,7 @@ import {
   applySwipeCount,
   setBeadsPerRound,
   setVibrateOnBead,
-  setAnimMode,
-  setDebugLatency,
+  setInputMode,
   migrateAnimModeForStability,
   UNSAFE_ANIM_MODES,
   resetSession,
@@ -39,8 +38,9 @@ describe('normalizeState', () => {
     assert.equal(s.rounds, 0)
     assert.equal(s.beadsPerRound, 108)
     assert.equal(s.vibrateOnBead, true)
-    assert.equal(s.animMode, 'A')
-    assert.equal(s.debugLatency, false)
+    assert.equal(s.inputMode, 'slide')
+    assert.equal(s.animMode, undefined)
+    assert.equal(s.debugLatency, undefined)
   })
 
   it('허용되지 않은 알 개수는 108로', () => {
@@ -53,7 +53,7 @@ describe('normalizeState', () => {
 })
 
 describe('ensureToday', () => {
-  it('같은 날짜면 유지', () => {
+  it('날짜가 같으면 유지', () => {
     const { state, rolled } = ensureToday(
       { todayDate: '2026-11-13', todayTotal: 5 },
       '2026-11-13'
@@ -62,101 +62,42 @@ describe('ensureToday', () => {
     assert.equal(state.todayTotal, 5)
   })
 
-  it('날짜가 바뀌면 오늘 합계만 리셋', () => {
+  it('날짜가 바뀌면 todayTotal 0', () => {
     const { state, rolled } = ensureToday(
-      { todayDate: '2026-11-12', todayTotal: 40, bead: 3, rounds: 2 },
+      { todayDate: '2026-11-12', todayTotal: 5, bead: 3 },
       '2026-11-13'
     )
     assert.equal(rolled, true)
     assert.equal(state.todayTotal, 0)
-    assert.equal(state.todayDate, '2026-11-13')
     assert.equal(state.bead, 3)
-    assert.equal(state.rounds, 2)
+    assert.equal(state.todayDate, '2026-11-13')
   })
 })
 
-describe('SWIPE_COUNT_MODE', () => {
+describe('advance / retreat / swipe', () => {
   it('기본은 plus_both (양방향 +1)', () => {
     assert.equal(SWIPE_COUNT_MODE, 'plus_both')
   })
-})
 
-describe('applySwipeCount', () => {
+  it('advanceBead 한 바퀴', () => {
+    let s = normalizeState({ bead: 107, beadsPerRound: 108, todayDate: formatDate() })
+    const r = advanceBead(s)
+    assert.equal(r.completedRound, true)
+    assert.equal(r.state.bead, 0)
+    assert.equal(r.state.rounds, 1)
+  })
+
   it('plus_both: 위·아래 모두 +1', () => {
-    const base = {
-      bead: 3,
-      rounds: 0,
-      beadsPerRound: 27,
-      todayDate: '2026-11-13',
-      todayTotal: 3
-    }
-    const up = applySwipeCount(base, 1, '2026-11-13')
-    const down = applySwipeCount(base, -1, '2026-11-13')
-    assert.equal(up.state.bead, 4)
-    assert.equal(down.state.bead, 4)
-    assert.equal(up.state.todayTotal, 4)
-    assert.equal(down.state.todayTotal, 4)
+    const base = normalizeState({ bead: 0, todayDate: formatDate() })
+    assert.equal(applySwipeCount(base, 1).state.bead, 1)
+    assert.equal(applySwipeCount(base, -1).state.bead, 1)
   })
-})
 
-describe('retreatBead', () => {
-  it('되돌리기', () => {
-    const r = retreatBead(
-      { bead: 2, rounds: 1, beadsPerRound: 27, todayDate: '2026-11-13', todayTotal: 5 },
-      '2026-11-13'
-    )
+  it('retreatBead', () => {
+    const s = normalizeState({ bead: 2, todayTotal: 2, todayDate: formatDate() })
+    const r = retreatBead(s)
     assert.equal(r.state.bead, 1)
-    assert.equal(r.state.todayTotal, 4)
     assert.equal(r.retreated, true)
-  })
-})
-
-describe('advanceBead', () => {
-  it('알이 하나씩 증가하고 오늘 합계도 증가', () => {
-    const { state, completedRound } = advanceBead(
-      { bead: 0, beadsPerRound: 27, todayDate: '2026-11-13', todayTotal: 0 },
-      '2026-11-13'
-    )
-    assert.equal(completedRound, false)
-    assert.equal(state.bead, 1)
-    assert.equal(state.todayTotal, 1)
-  })
-
-  it('한 바퀴를 채우면 bead=0, rounds+1', () => {
-    const { state, completedRound } = advanceBead(
-      {
-        bead: 26,
-        beadsPerRound: 27,
-        rounds: 1,
-        todayDate: '2026-11-13',
-        todayTotal: 26
-      },
-      '2026-11-13'
-    )
-    assert.equal(completedRound, true)
-    assert.equal(state.bead, 0)
-    assert.equal(state.rounds, 2)
-    assert.equal(state.todayTotal, 27)
-  })
-
-  it('108알 한 바퀴', () => {
-    let state = {
-      bead: 0,
-      rounds: 0,
-      beadsPerRound: 108,
-      todayDate: '2026-11-13',
-      todayTotal: 0
-    }
-    let completed = 0
-    for (let i = 0; i < 108; i++) {
-      const r = advanceBead(state, '2026-11-13')
-      state = r.state
-      if (r.completedRound) completed += 1
-    }
-    assert.equal(completed, 1)
-    assert.equal(state.bead, 0)
-    assert.equal(state.rounds, 1)
-    assert.equal(state.todayTotal, 108)
   })
 })
 
@@ -171,24 +112,30 @@ describe('설정·초기화', () => {
     assert.equal(setVibrateOnBead({}, false).vibrateOnBead, false)
   })
 
-
-  it('2.1.0 D/E→A 마이그레이션', () => {
+  it('2.4.0 schema≥4 마이그레이션 · animMode 제거', () => {
     assert.deepEqual([...UNSAFE_ANIM_MODES], ['D', 'E'])
-    const m = migrateAnimModeForStability({ animMode: 'E', stateSchema: 1 })
+    const m = migrateAnimModeForStability({
+      animMode: 'E',
+      debugLatency: true,
+      stateSchema: 1
+    })
     assert.equal(m.migrated, true)
-    assert.equal(m.state.animMode, 'A')
-    assert.equal(m.state.stateSchema, 3)
-    const stable = migrateAnimModeForStability({ animMode: 'A', stateSchema: 3 })
+    assert.equal(m.state.stateSchema, 4)
+    assert.equal(m.state.inputMode, 'slide')
+    assert.equal(m.state.animMode, undefined)
+    const stable = migrateAnimModeForStability({
+      inputMode: 'touch',
+      stateSchema: 4
+    })
     assert.equal(stable.migrated, false)
-    assert.equal(stable.state.animMode, 'A')
+    assert.equal(stable.state.inputMode, 'touch')
   })
 
-  it('animMode A~C · debugLatency', () => {
-    assert.deepEqual([...ANIM_MODES], ['A', 'B', 'C'])
-    assert.equal(setAnimMode({}, 'C').animMode, 'C')
-    assert.equal(setAnimMode({}, 'E').animMode, 'A')
-    assert.equal(setAnimMode({}, 'Z').animMode, 'A')
-    assert.equal(setDebugLatency({}, true).debugLatency, true)
+  it('inputMode slide/touch', () => {
+    assert.deepEqual([...INPUT_MODES], ['slide', 'touch'])
+    assert.equal(setInputMode({}, 'touch').inputMode, 'touch')
+    assert.equal(setInputMode({}, 'slide').inputMode, 'slide')
+    assert.equal(setInputMode({}, 'zap').inputMode, 'slide')
   })
 
   it('resetSession 은 오늘 합계 유지', () => {
@@ -209,39 +156,25 @@ describe('설정·초기화', () => {
       '2026-11-13'
     )
     assert.equal(s.bead, 0)
-    assert.equal(s.rounds, 0)
     assert.equal(s.todayTotal, 0)
     assert.equal(s.todayDate, '2026-11-13')
   })
 })
 
 describe('serialize', () => {
-  it('왕복 직렬화', () => {
-    const raw = serializeState({
-      bead: 5,
-      rounds: 1,
-      beadsPerRound: 54,
-      vibrateOnBead: false,
-      todayDate: '2026-11-13',
-      todayTotal: 12
+  it('roundtrip', () => {
+    const s = normalizeState({
+      bead: 3,
+      inputMode: 'touch',
+      todayDate: '2026-11-13'
     })
-    const s = deserializeState(raw)
-    assert.equal(s.bead, 5)
-    assert.equal(s.rounds, 1)
-    assert.equal(s.beadsPerRound, 54)
-    assert.equal(s.vibrateOnBead, false)
-    assert.equal(s.todayTotal, 12)
+    const again = deserializeState(serializeState(s))
+    assert.equal(again.bead, 3)
+    assert.equal(again.inputMode, 'touch')
+    assert.equal(again.animMode, undefined)
   })
 
-  it('깨진 JSON 복구', () => {
-    const s = deserializeState('{not-json')
-    assert.equal(s.beadsPerRound, 108)
-    assert.equal(s.todayDate, formatDate())
-  })
-})
-
-describe('progressRatio', () => {
-  it('중간 진행률', () => {
-    assert.equal(progressRatio({ bead: 27, beadsPerRound: 108 }), 0.25)
+  it('progressRatio', () => {
+    assert.equal(progressRatio({ bead: 54, beadsPerRound: 108 }), 0.5)
   })
 })

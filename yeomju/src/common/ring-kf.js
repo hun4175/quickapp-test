@@ -35,25 +35,30 @@ export const buildChainKeyframeCss = (opts = {}) => {
   const n = slots.length
   const ms = CHAIN_ANIM_MS
   const lines = []
-  const emit = (from, to, dirLabel) => {
-    const name = `${dirLabel}-${from.index}`
+  const emit = (from, to, dirLabel, alt) => {
+    const name = `${dirLabel}-${from.index}${alt ? '-b' : ''}`
+    const kfName = `kf-${dirLabel}-${from.index}`
     lines.push(`.roll-${name} {
-  animation-name: kf-${name};
+  animation-name: ${kfName};
   animation-duration: ${ms}ms;
   animation-timing-function: linear;
   animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }`)
-    const end = endKeyframeTransform(from, to)
-    lines.push(`@keyframes kf-${name} {
+    if (!alt) {
+      const end = endKeyframeTransform(from, to)
+      lines.push(`@keyframes ${kfName} {
   0% { transform: translate(0px, 0px) scale(1); }
 ${kfLine(100, end)}
 }`)
+    }
   }
   for (let i = 0; i < n; i++) {
-    emit(slots[i], slots[(i + 1) % n], 'next')
-    emit(slots[i], slots[(i - 1 + n) % n], 'prev')
+    emit(slots[i], slots[(i + 1) % n], 'next', false)
+    emit(slots[i], slots[(i + 1) % n], 'next', true)
+    emit(slots[i], slots[(i - 1 + n) % n], 'prev', false)
+    emit(slots[i], slots[(i - 1 + n) % n], 'prev', true)
   }
   return lines.join('\n')
 }

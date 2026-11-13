@@ -1,7 +1,7 @@
 <template>
   <!--
-    2.3.1: 플랫 10노드=슬롯 고정. A=0/100·origin 0 0·홈 스냅.
-    지름 확대로 간격 0.92~1.0. 리스트 재정렬 없음. 레인/opacity 금지.
+    2.4.0: 시각=2.3.1 유지. 입력 슬라이드/터치. 애니 모드·디버그 제거.
+    핫패스: 클래스 먼저 → 저장/진동 나중. 진행 중 입력은 즉시 홈스냅 후 재시작.
   -->
   <div
     class="page"
@@ -12,7 +12,7 @@
     onlongpress="onLongPress"
   >
     <stack class="stage">
-      <div class="ring-mover {{moverClass}}">
+      <div class="ring-mover">
         <div
           class="bead-wrap {{$item.animClass}}"
           for="{{chainBeads}}"
@@ -25,10 +25,6 @@
           ></image>
         </div>
       </div>
-      <div class="debug-hud" if="{{debugLatency}}">
-        <text class="debug-text">터치→시작 {{debugTouchMs}}ms</text>
-        <text class="debug-text">완료 {{debugAnimMs}}ms</text>
-      </div>
     </stack>
   </div>
 </template>
@@ -39,15 +35,12 @@ import vibrator from '@system.vibrator'
 import { applySwipeCount } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
 import {
-  VIRTUAL_BEADS,
   CHAIN_ANIM_MS,
   CHAIN_ANIM_END_SLACK_MS,
   SWIPE_MIN_DY,
-  phaseFromBead,
-  stepPhase,
+  TAP_MAX_MOVE,
   createChainBeads,
-  advanceChainBeads,
-  advanceChainBeadsWithAnim,
+  snapBeadsHome,
   withRollClasses,
   classifyVerticalSwipe
 } from '../../common/ring.js'
@@ -56,35 +49,24 @@ const MAX_PENDING = 2
 
 export default {
   private: {
-    bead: 0,
-    rounds: 0,
-    beadsPerRound: 108,
-    todayTotal: 0,
     vibrateOnBead: true,
-    animMode: 'A',
-    debugLatency: false,
-    chainBeads: [],
-    displayPhase: 0,
-    moverClass: '',
-    debugTouchMs: '-',
-    debugAnimMs: '-'
+    inputMode: 'slide',
+    chainBeads: []
   },
 
   onInit() {
     this._state = null
     this._animTimer = null
-    this._draining = false
+    this._sideTimer = null
     this._animating = false
     this._saveChain = Promise.resolve()
-    this._pendingDirs = []
-    this._animQueue = []
+    this._saveTimer = null
     this._touchX = 0
     this._touchY = 0
     this._touchActive = false
     this._gestureFired = false
-    this._saveTimer = null
-    this._gestureAt = 0
-    this._animStartAt = 0
+    this._longPressed = false
+    this._rollAlt = false
     this.chainBeads = createChainBeads()
   },
 
@@ -95,7 +77,6 @@ export default {
   onHide() {
     this.clearAnimTimers()
     this._animating = false
-    this.moverClass = ''
   },
 
   onDestroy() {
@@ -111,6 +92,10 @@ export default {
       clearTimeout(this._animTimer)
       this._animTimer = null
     }
+    if (this._sideTimer) {
+      clearTimeout(this._sideTimer)
+      this._sideTimer = null
+    }
   },
 
   onBackPress() {
@@ -119,23 +104,11 @@ export default {
 
   async reload() {
     const state = await loadState()
-    this.applyState(state, true)
-  },
-
-  applyState(state, snapVisual) {
     this._state = state
-    this.bead = state.bead
-    this.rounds = state.rounds
-    this.beadsPerRound = state.beadsPerRound
-    this.todayTotal = state.todayTotal
     this.vibrateOnBead = state.vibrateOnBead
-    this.animMode = state.animMode || 'A'
-    this.debugLatency = !!state.debugLatency
-    if (snapVisual) {
-      this.displayPhase = phaseFromBead(state.bead, VIRTUAL_BEADS)
-      this.moverClass = ''
-      this.chainBeads = createChainBeads()
-    }
+    this.inputMode = state.inputMode || 'slide'
+    this.chainBeads = createChainBeads()
+    this._animating = false
   },
 
   touchPoint(e) {
@@ -156,12 +129,18 @@ export default {
     if (!p) return
     this._touchActive = true
     this._gestureFired = false
+    this._longPressed = false
     this._touchX = p.x
     this._touchY = p.y
   },
 
+  /**
+   * 슬라이드 모드만. 임계 SWIPE_MIN_DY 에서 즉시 굴림.
+   * 터치 모드에서는 슬라이드 무시(탭만 — 오동작 방지).
+   */
   trySwipe(e) {
-    if (!this._touchActive || this._gestureFired) return false
+    if ((this.inputMode || 'slide') === 'touch') return false
+    if (!this._touchActive || this._gestureFired || this._longPressed) return false
     const p = this.touchPoint(e)
     if (!p) return false
     const dx = p.x - this._touchX
@@ -169,8 +148,7 @@ export default {
     const dir = classifyVerticalSwipe(dx, dy, { minDy: SWIPE_MIN_DY })
     if (!dir) return false
     this._gestureFired = true
-    this._gestureAt = Date.now()
-    this.enqueueSwipe(dir)
+    this.enqueueRoll(dir)
     return true
   },
 
@@ -181,7 +159,21 @@ export default {
 
   onTouchEnd(e) {
     if (!this._touchActive) return
-    this.trySwipe(e)
+    const mode = this.inputMode || 'slide'
+    if (mode === 'slide') {
+      this.trySwipe(e)
+    } else if (!this._gestureFired && !this._longPressed) {
+      // 터치 모드: 탭 = 한 칸 앞. 롱프레스 대기 없이 touchend에서 즉시.
+      const p = this.touchPoint(e)
+      if (p) {
+        const dx = p.x - this._touchX
+        const dy = p.y - this._touchY
+        if (Math.abs(dx) <= TAP_MAX_MOVE && Math.abs(dy) <= TAP_MAX_MOVE) {
+          this._gestureFired = true
+          this.enqueueRoll(1)
+        }
+      }
+    }
     this._touchActive = false
   },
 
@@ -191,43 +183,54 @@ export default {
   },
 
   onLongPress() {
+    this._longPressed = true
+    this._gestureFired = true
     router.push({ uri: '/pages/settings' })
   },
 
-  enqueueSwipe(dir) {
+  enqueueRoll(dir) {
     const d = Number(dir) < 0 ? -1 : 1
-    if (this._pendingDirs.length + this._animQueue.length >= MAX_PENDING) return
-    this._pendingDirs.push(d)
     if (!this._state) {
-      this.reload().then(() => this.drainSwipes())
+      this.reload().then(() => this.enqueueRoll(d))
       return
     }
-    this.drainSwipes()
-  },
-
-  drainSwipes() {
-    if (this._draining) return
-    this._draining = true
-    try {
-      while (this._pendingDirs.length > 0 && this._state) {
-        this.advanceOnce(this._pendingDirs.shift())
-      }
-    } finally {
-      this._draining = false
-      if (this._pendingDirs.length > 0 && this._state) this.drainSwipes()
+    // 진행 중이면 즉시 홈 스냅 후 새 애니 (큐 대기 제거)
+    if (this._animating) {
+      this.clearAnimTimers()
+      this.chainBeads = snapBeadsHome(this.chainBeads)
+      this._animating = false
     }
+    this.startRoll(d)
   },
 
-  advanceOnce(dir) {
-    const result = applySwipeCount(this._state, dir)
-    this.applyState(result.state, false)
-    if (this._animQueue.length >= MAX_PENDING) return
-    this._animQueue.push({
-      dir,
-      completedRound: !!result.completedRound,
-      state: result.state
-    })
-    this.ensureChainAnim()
+  /**
+   * 핫패스: 애니 클래스 setData를 최우선·단독.
+   * 카운트 저장·진동은 다음 틱(같은 렌더에 섞지 않음).
+   */
+  startRoll(dir) {
+    const d = Number(dir) < 0 ? -1 : 1
+    const result = applySwipeCount(this._state, d)
+    this._state = result.state
+    this._animating = true
+    this._rollAlt = !this._rollAlt
+    // 1) 클래스만 — 버퍼↔버퍼는 '' 유지
+    this.chainBeads = withRollClasses(this.chainBeads, d, { alt: this._rollAlt })
+    this.clearAnimTimers()
+    const completedRound = !!result.completedRound
+    const state = result.state
+    this._sideTimer = setTimeout(() => {
+      this._sideTimer = null
+      this.buzz(completedRound)
+      this.queueSave(state)
+    }, 0)
+    this._animTimer = setTimeout(() => {
+      this.finishRoll()
+    }, CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS)
+  },
+
+  finishRoll() {
+    this.chainBeads = snapBeadsHome(this.chainBeads)
+    this._animating = false
   },
 
   queueSave(state) {
@@ -243,105 +246,6 @@ export default {
   buzz(completedRound) {
     if (this.vibrateOnBead) vibrator.vibrate({ mode: 'short' })
     if (completedRound) vibrator.vibrate({ mode: 'long' })
-  },
-
-  markAnimStart() {
-    this._animStartAt = Date.now()
-    if (this.debugLatency && this._gestureAt) {
-      this.debugTouchMs = String(this._animStartAt - this._gestureAt)
-    }
-  },
-
-  markAnimEnd() {
-    if (this.debugLatency && this._animStartAt) {
-      this.debugAnimMs = String(Date.now() - this._animStartAt)
-    }
-  },
-
-  ensureChainAnim() {
-    if (this._animating) return
-    if (!this._animQueue.length) return
-    const mode = this.animMode || 'A'
-    if (mode === 'B') return this.runModeB()
-    if (mode === 'C') return this.runModeC()
-    return this.runModeA()
-  },
-
-  /**
-   * A: 노드=홈 슬롯 고정. animClass만 토글 → 진동.
-   * 스냅: 홈 기하 복귀 + animClass 제거를 한 할당(리스트 순서 불변).
-   * keyframe 100% 시각 = 이웃 슬롯 = 전체 패턴은 스냅 후와 동일(동일 이미지).
-   */
-  runModeA() {
-    const item = this._animQueue.shift()
-    const dir = item.dir
-    this._animating = true
-    this.moverClass = ''
-    this.chainBeads = withRollClasses(this.chainBeads, dir)
-    this.markAnimStart()
-    this.buzz(item.completedRound)
-    this.queueSave(item.state)
-    this.clearAnimTimers()
-    this._animTimer = setTimeout(() => {
-      this.finishModeA(dir)
-    }, CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS)
-  },
-
-  finishModeA(dir) {
-    this.markAnimEnd()
-    this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)
-    const nextItem = this._animQueue.length ? this._animQueue[0] : null
-    if (nextItem) {
-      const nextDir = nextItem.dir
-      this._animQueue.shift()
-      this.chainBeads = advanceChainBeadsWithAnim(this.chainBeads, dir, nextDir)
-      this.markAnimStart()
-      this.buzz(nextItem.completedRound)
-      this.queueSave(nextItem.state)
-      this.clearAnimTimers()
-      this._animTimer = setTimeout(() => {
-        this.finishModeA(nextDir)
-      }, CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS)
-      return
-    }
-    this.chainBeads = advanceChainBeads(this.chainBeads, dir)
-    this._animating = false
-    this.ensureChainAnim()
-  },
-
-  runModeB() {
-    const item = this._animQueue.shift()
-    const dir = item.dir
-    this._animating = true
-    this.moverClass = ''
-    this.markAnimStart()
-    this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)
-    this.chainBeads = advanceChainBeads(this.chainBeads, dir)
-    this.buzz(item.completedRound)
-    this.queueSave(item.state)
-    this.markAnimEnd()
-    this._animating = false
-    this.ensureChainAnim()
-  },
-
-  runModeC() {
-    const item = this._animQueue.shift()
-    const dir = item.dir
-    this._animating = true
-    this.chainBeads = this.chainBeads.map((b) => ({ ...b, animClass: '' }))
-    this.moverClass = Number(dir) < 0 ? 'mover-down' : 'mover-up'
-    this.markAnimStart()
-    this.buzz(item.completedRound)
-    this.queueSave(item.state)
-    this.clearAnimTimers()
-    this._animTimer = setTimeout(() => {
-      this.markAnimEnd()
-      this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)
-      this.moverClass = ''
-      this.chainBeads = advanceChainBeads(this.chainBeads, dir)
-      this._animating = false
-      this.ensureChainAnim()
-    }, CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS)
   }
 }
 </script>
@@ -365,48 +269,12 @@ export default {
 }
 .bead-wrap {
   position: absolute;
-  /* keyframe translate는 left/top 박스 기준 — center면 1px급 어긋남 */
   transform-origin: 0px 0px;
 }
 .bead-img {
   position: absolute;
   left: 0px;
   top: 0px;
-}
-.debug-hud {
-  position: absolute;
-  left: 8px;
-  top: 8px;
-  width: 220px;
-  flex-direction: column;
-}
-.debug-text {
-  font-size: 15px;
-  color: #c4a574;
-}
-.mover-up {
-  animation-name: kf-mover-up;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-mover-up {
-  0% { transform: translateY(0px); }
-  100% { transform: translateY(-245px); }
-}
-.mover-down {
-  animation-name: kf-mover-down;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-mover-down {
-  0% { transform: translateY(0px); }
-  100% { transform: translateY(245px); }
 }
 /* CHAIN_KF_BEGIN */
 .roll-next-0 {
@@ -421,6 +289,14 @@ export default {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(25px, -245px) scale(0.98431373); }
 }
+.roll-next-0-b {
+  animation-name: kf-next-0;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
 .roll-prev-0 {
   animation-name: kf-prev-0;
   animation-duration: 150ms;
@@ -432,6 +308,14 @@ export default {
 @keyframes kf-prev-0 {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(25px, 249px) scale(0.98431373); }
+}
+.roll-prev-0-b {
+  animation-name: kf-prev-0;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
 }
 .roll-next-1 {
   animation-name: kf-next-1;
@@ -445,6 +329,14 @@ export default {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(65px, -146px) scale(0.95219124); }
 }
+.roll-next-1-b {
+  animation-name: kf-next-1;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
 .roll-prev-1 {
   animation-name: kf-prev-1;
   animation-duration: 150ms;
@@ -456,6 +348,14 @@ export default {
 @keyframes kf-prev-1 {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(-25px, 245px) scale(1.01593625); }
+}
+.roll-prev-1-b {
+  animation-name: kf-prev-1;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
 }
 .roll-next-2 {
   animation-name: kf-next-2;
@@ -469,6 +369,14 @@ export default {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(79px, 7px) scale(0.93723849); }
 }
+.roll-next-2-b {
+  animation-name: kf-next-2;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
 .roll-prev-2 {
   animation-name: kf-prev-2;
   animation-duration: 150ms;
@@ -480,6 +388,14 @@ export default {
 @keyframes kf-prev-2 {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(-65px, 146px) scale(1.05020921); }
+}
+.roll-prev-2-b {
+  animation-name: kf-prev-2;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
 }
 .roll-next-3 {
   animation-name: kf-next-3;
@@ -493,6 +409,14 @@ export default {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(66px, 159px) scale(0.9375); }
 }
+.roll-next-3-b {
+  animation-name: kf-next-3;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
 .roll-prev-3 {
   animation-name: kf-prev-3;
   animation-duration: 150ms;
@@ -504,6 +428,14 @@ export default {
 @keyframes kf-prev-3 {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(-79px, -7px) scale(1.06696429); }
+}
+.roll-prev-3-b {
+  animation-name: kf-prev-3;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
 }
 .roll-next-4 {
   animation-name: kf-next-4;
@@ -517,6 +449,14 @@ export default {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(27px, 251px) scale(0.96666667); }
 }
+.roll-next-4-b {
+  animation-name: kf-next-4;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
 .roll-prev-4 {
   animation-name: kf-prev-4;
   animation-duration: 150ms;
@@ -528,6 +468,14 @@ export default {
 @keyframes kf-prev-4 {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(-66px, -159px) scale(1.06666667); }
+}
+.roll-prev-4-b {
+  animation-name: kf-prev-4;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
 }
 .roll-next-5 {
   animation-name: kf-next-5;
@@ -541,6 +489,14 @@ export default {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(-27px, 243px) scale(1.03448276); }
 }
+.roll-next-5-b {
+  animation-name: kf-next-5;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
 .roll-prev-5 {
   animation-name: kf-prev-5;
   animation-duration: 150ms;
@@ -552,6 +508,14 @@ export default {
 @keyframes kf-prev-5 {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(-27px, -251px) scale(1.03448276); }
+}
+.roll-prev-5-b {
+  animation-name: kf-prev-5;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
 }
 .roll-next-6 {
   animation-name: kf-next-6;
@@ -565,6 +529,14 @@ export default {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(-66px, 145px) scale(1.06666667); }
 }
+.roll-next-6-b {
+  animation-name: kf-next-6;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
 .roll-prev-6 {
   animation-name: kf-prev-6;
   animation-duration: 150ms;
@@ -576,6 +548,14 @@ export default {
 @keyframes kf-prev-6 {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(27px, -243px) scale(0.96666667); }
+}
+.roll-prev-6-b {
+  animation-name: kf-prev-6;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
 }
 .roll-next-7 {
   animation-name: kf-next-7;
@@ -589,6 +569,14 @@ export default {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(-79px, -7px) scale(1.06696429); }
 }
+.roll-next-7-b {
+  animation-name: kf-next-7;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
 .roll-prev-7 {
   animation-name: kf-prev-7;
   animation-duration: 150ms;
@@ -600,6 +588,14 @@ export default {
 @keyframes kf-prev-7 {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(66px, -145px) scale(0.9375); }
+}
+.roll-prev-7-b {
+  animation-name: kf-prev-7;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
 }
 .roll-next-8 {
   animation-name: kf-next-8;
@@ -613,6 +609,14 @@ export default {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(-65px, -158px) scale(1.05020921); }
 }
+.roll-next-8-b {
+  animation-name: kf-next-8;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
 .roll-prev-8 {
   animation-name: kf-prev-8;
   animation-duration: 150ms;
@@ -624,6 +628,14 @@ export default {
 @keyframes kf-prev-8 {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(79px, 7px) scale(0.93723849); }
+}
+.roll-prev-8-b {
+  animation-name: kf-prev-8;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
 }
 .roll-next-9 {
   animation-name: kf-next-9;
@@ -637,6 +649,14 @@ export default {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(-25px, -249px) scale(1.01593625); }
 }
+.roll-next-9-b {
+  animation-name: kf-next-9;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
 .roll-prev-9 {
   animation-name: kf-prev-9;
   animation-duration: 150ms;
@@ -648,6 +668,14 @@ export default {
 @keyframes kf-prev-9 {
   0% { transform: translate(0px, 0px) scale(1); }
   100% { transform: translate(65px, 158px) scale(0.95219124); }
+}
+.roll-prev-9-b {
+  animation-name: kf-prev-9;
+  animation-duration: 150ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
 }
 /* CHAIN_KF_END */
 </style>

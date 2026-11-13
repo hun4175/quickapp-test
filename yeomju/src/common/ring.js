@@ -1,9 +1,8 @@
 /**
- * 염주 고리 — 2.3.1 플랫 리스트.
- * - 노드 10(2.2.0과 동일). 간격은 지름 확대로 0.92~1.0 (중심거리≈2.2.0).
- * - 노드=슬롯 고정. i→i±1 애니 후 홈 스냅(동일 이미지 → 패턴 연속).
- * - 그리기 순서=슬롯 고정(뒤열→앞열 가장자리→포커스). 리스트 재정렬 없음.
- * - keyframe origin 0 0, 레인/opacity 금지.
+ * 염주 고리 — 2.4.0 (시각·기하=2.3.1 유지).
+ * - 노드 10, 지름·간격·고정 그리기 순서·홈 스냅·150ms linear.
+ * - SWIPE_MIN_DY 하향·교대 클래스명(-b)만 입력 지연용 추가.
+ * - 레인/opacity 금지.
  */
 
 export const VIRTUAL_BEADS = 12
@@ -22,8 +21,11 @@ export const CHAIN_DIR = 1
 export const CHAIN_ANIM_MS = 150
 export const CHAIN_ANIM_END_SLACK_MS = 16
 
-export const SWIPE_MIN_DY = 22
+/** 입력→애니: 22px 대기 완화 (속도 대신 거리 임계만 조정) */
+export const SWIPE_MIN_DY = 12
 export const SWIPE_VERTICAL_RATIO = 1.2
+/** 탭으로 인정하는 최대 이동(px) — 롱프레스/슬라이드와 구분 */
+export const TAP_MAX_MOVE = 14
 
 export const BEAD_SRC = '/common/bead-wood-v3.png'
 
@@ -305,7 +307,9 @@ export const rollClassForSlot = (slotIndex, dir, opts = {}) => {
   const d = Number(dir) < 0 ? -1 : 1
   const to = slots[(i + d + n) % n]
   if (!shouldAnimateTransition(slots[i], to, opts)) return ''
-  return d < 0 ? 'roll-prev-' + i : 'roll-next-' + i
+  // 같은 클래스 재적용 시 애니 미재시작 → 교대 접미사로 강제 재시작
+  const alt = opts.alt ? '-b' : ''
+  return (d < 0 ? 'roll-prev-' : 'roll-next-') + i + alt
 }
 
 const beadFromHomeSlot = (slotIdx, s, rank) => ({
@@ -372,6 +376,7 @@ export const withRollClasses = (beads, dir, opts = {}) => {
   return beads.map((b) => {
     const home = b.homeSlot != null ? b.homeSlot : b.slot
     const to = (home + d + n) % n
+    // 버퍼↔버퍼는 rollClassForSlot이 '' — 불필요 클래스 토글 없음
     return {
       ...b,
       slot: home,

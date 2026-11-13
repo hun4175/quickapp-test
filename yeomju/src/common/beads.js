@@ -6,21 +6,21 @@
 /** 한 바퀴 알 개수 선택지 (염주/묵주 관례) */
 export const BEAD_OPTIONS = [108, 54, 27, 21]
 
-/** 2.1.0: A/B/C만. D/E는 제거(저장값→A 마이그레이션) */
-export const ANIM_MODES = Object.freeze(['A', 'B', 'C'])
-/** 구버전 저장값 정리용 */
+/** 2.4.0: 애니 모드 제거. 구버전 저장값 정리용 심볼만 유지 */
+export const LEGACY_ANIM_MODES = Object.freeze(['A', 'B', 'C', 'D', 'E'])
 export const UNSAFE_ANIM_MODES = Object.freeze(['D', 'E'])
 
-export const ANIM_MODE_LABELS = Object.freeze({
-  A: 'A 구슬별 키프레임',
-  B: 'B 애니 없음',
-  C: 'C 통 컨테이너'
+/** 입력 방식: 슬라이드(기본) / 터치(탭=한 칸 앞) */
+export const INPUT_MODES = Object.freeze(['slide', 'touch'])
+
+export const INPUT_MODE_LABELS = Object.freeze({
+  slide: '슬라이드',
+  touch: '터치'
 })
 
-export const ANIM_MODE_HINTS = Object.freeze({
-  A: '플랫 6구슬·0/100 keyframe(기본)',
-  B: '즉시 스냅 — 입력 지연만',
-  C: '전체 1노드 translateY'
+export const INPUT_MODE_HINTS = Object.freeze({
+  slide: '위·아래 스와이프로 굴리기',
+  touch: '탭 1회 = 한 칸 앞으로 (슬라이드 무시)'
 })
 
 export const DEFAULT_STATE = Object.freeze({
@@ -30,9 +30,8 @@ export const DEFAULT_STATE = Object.freeze({
   vibrateOnBead: true,
   todayDate: '',
   todayTotal: 0,
-  animMode: 'A',
-  debugLatency: false,
-  stateSchema: 3
+  inputMode: 'slide',
+  stateSchema: 4
 })
 
 /**
@@ -49,7 +48,7 @@ export const formatDate = (date = new Date()) => {
 }
 
 /**
- * 저장값/부분 객체를 안전한 상태로 정규화
+ * 저장값/부분 객체를 안전한 상태로 정규화 (animMode/debug 제거)
  * @param {object} [raw]
  * @returns {object}
  */
@@ -63,9 +62,9 @@ export const normalizeState = (raw) => {
   const rounds = Math.max(0, Math.floor(Number(src.rounds) || 0))
   const todayTotal = Math.max(0, Math.floor(Number(src.todayTotal) || 0))
 
-  const animMode = ANIM_MODES.includes(String(src.animMode))
-    ? String(src.animMode)
-    : DEFAULT_STATE.animMode
+  const inputMode = INPUT_MODES.includes(String(src.inputMode))
+    ? String(src.inputMode)
+    : DEFAULT_STATE.inputMode
   const schemaRaw = Math.floor(Number(src.stateSchema) || 0)
   const stateSchema = schemaRaw > 0 ? schemaRaw : 1
 
@@ -76,29 +75,26 @@ export const normalizeState = (raw) => {
     vibrateOnBead: src.vibrateOnBead !== false,
     todayDate: typeof src.todayDate === 'string' ? src.todayDate : '',
     todayTotal,
-    animMode,
-    debugLatency: src.debugLatency === true,
+    inputMode,
     stateSchema
   }
 }
 
 /**
- * 2.1.0: D/E(또는 미지원 모드)→A, stateSchema≥3.
+ * 2.4.0: schema≥4, 레거시 animMode/debug 제거·inputMode 확보.
  * @param {object} state
  * @returns {{ state: object, migrated: boolean }}
  */
 export const migrateAnimModeForStability = (state) => {
   const s = normalizeState(state)
-  const unsupported =
-    UNSAFE_ANIM_MODES.includes(s.animMode) || !ANIM_MODES.includes(s.animMode)
-  if (s.stateSchema >= 3 && !unsupported) {
+  if (s.stateSchema >= 4) {
     return { state: s, migrated: false }
   }
   return {
     state: {
       ...s,
-      stateSchema: 3,
-      animMode: unsupported ? 'A' : s.animMode
+      stateSchema: 4,
+      inputMode: INPUT_MODES.includes(s.inputMode) ? s.inputMode : 'slide'
     },
     migrated: true
   }
@@ -127,14 +123,13 @@ export const ensureToday = (state, today) => {
 
 /**
  * 스와이프 카운트 모드.
- * - 'plus_both' : 위·아래 모두 +1 (기본 — 되돌리기 규칙이 정해지지 않음)
+ * - 'plus_both' : 위·아래 모두 +1 (기본)
  * - 'down_undo' : 위=+1, 아래=-1(되돌리기)
- * 바꾸려면 이 상수만 수정.
  */
 export const SWIPE_COUNT_MODE = 'plus_both'
 
 /**
- * 염주알 하나 전진. 한 바퀴를 채우면 bead=0, rounds+1, completedRound=true
+ * 염주알 하나 전진.
  * @param {object} state
  * @param {string} [today]
  * @returns {{ state: object, completedRound: boolean }}
@@ -168,7 +163,6 @@ export const advanceBead = (state, today = formatDate()) => {
 
 /**
  * 염주알 하나 되돌리기(아래 스와이프 undo 모드용).
- * bead=0·rounds=0 이면 변화 없음.
  * @param {object} state
  * @param {string} [today]
  * @returns {{ state: object, completedRound: boolean, retreated: boolean }}
@@ -202,9 +196,10 @@ export const retreatBead = (state, today = formatDate()) => {
 }
 
 /**
- * 스와이프 한 칸에 대한 카운트 반영.
+ * 스와이프/탭 한 칸에 대한 카운트 반영.
+ * 터치 모드 탭은 swipeDir=+1 로 호출 (plus_both·down_undo 동일 규칙).
  * @param {object} state
- * @param {number} swipeDir 1=위(앞열↑), -1=아래(앞열↓)
+ * @param {number} swipeDir 1=앞, -1=아래
  * @param {string} [today]
  * @returns {{ state: object, completedRound: boolean }}
  */
@@ -216,12 +211,6 @@ export const applySwipeCount = (state, swipeDir, today = formatDate()) => {
   return advanceBead(state, today)
 }
 
-/**
- * 바퀴당 알 개수 변경. 현재 알 인덱스는 새 주기로 맞춤.
- * @param {object} state
- * @param {number} beadsPerRound
- * @returns {object}
- */
 export const setBeadsPerRound = (state, beadsPerRound) => {
   const s = normalizeState(state)
   if (!BEAD_OPTIONS.includes(Number(beadsPerRound))) {
@@ -235,56 +224,22 @@ export const setBeadsPerRound = (state, beadsPerRound) => {
   }
 }
 
-/**
- * 진동(알마다) 토글
- * @param {object} state
- * @param {boolean} enabled
- * @returns {object}
- */
 export const setVibrateOnBead = (state, enabled) => {
   const s = normalizeState(state)
   return { ...s, vibrateOnBead: !!enabled }
 }
 
-/**
- * 진단용 애니 모드
- * @param {object} state
- * @param {string} mode A|B|C|D
- * @returns {object}
- */
-export const setAnimMode = (state, mode) => {
+export const setInputMode = (state, mode) => {
   const s = normalizeState(state)
-  const animMode = ANIM_MODES.includes(mode) ? mode : DEFAULT_STATE.animMode
-  return { ...s, animMode }
+  const inputMode = INPUT_MODES.includes(mode) ? mode : DEFAULT_STATE.inputMode
+  return { ...s, inputMode }
 }
 
-/**
- * 터치→애니 지연 디버그 표시
- * @param {object} state
- * @param {boolean} enabled
- * @returns {object}
- */
-export const setDebugLatency = (state, enabled) => {
-  const s = normalizeState(state)
-  return { ...s, debugLatency: !!enabled }
-}
-
-/**
- * 현재 바퀴의 알·바퀴 수만 초기화 (오늘 합계 유지)
- * @param {object} state
- * @returns {object}
- */
 export const resetSession = (state) => {
   const s = normalizeState(state)
   return { ...s, bead: 0, rounds: 0 }
 }
 
-/**
- * 오늘 합계 + 세션(알/바퀴) 초기화
- * @param {object} state
- * @param {string} [today]
- * @returns {object}
- */
 export const resetAll = (state, today = formatDate()) => {
   const s = normalizeState(state)
   return {
@@ -296,29 +251,14 @@ export const resetAll = (state, today = formatDate()) => {
   }
 }
 
-/**
- * 진행률 0~1 (표시용)
- * @param {object} state
- * @returns {number}
- */
 export const progressRatio = (state) => {
   const s = normalizeState(state)
   if (s.beadsPerRound <= 0) return 0
   return s.bead / s.beadsPerRound
 }
 
-/**
- * 저장용 직렬화
- * @param {object} state
- * @returns {string}
- */
 export const serializeState = (state) => JSON.stringify(normalizeState(state))
 
-/**
- * 저장값 파싱. 깨진 JSON 은 기본 상태로 복구.
- * @param {string} raw
- * @returns {object}
- */
 export const deserializeState = (raw) => {
   if (!raw || typeof raw !== 'string') {
     return normalizeState({ todayDate: formatDate() })
