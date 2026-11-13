@@ -1,0 +1,41 @@
+{
+  "version": "2.5.0",
+  "screenW": 432,
+  "screenH": 514,
+  "crop": {
+    "left": 85,
+    "top": 0,
+    "width": 347,
+    "height": 514
+  },
+  "durationMs": 150,
+  "frameCount": 4,
+  "progress": [
+    0.0,
+    0.3333333333333333,
+    0.6666666666666666,
+    1.0
+  ],
+  "colors": 32,
+  "idle": "/common/sprite/idle.png",
+  "next": [
+    "/common/sprite/idle.png",
+    "/common/sprite/next-1.png",
+    "/common/sprite/next-2.png",
+    "/common/sprite/idle.png"
+  ],
+  "prev": [
+    "/common/sprite/idle.png",
+    "/common/sprite/prev-1.png",
+    "/common/sprite/prev-2.png",
+    "/common/sprite/idle.png"
+  ],
+  "fileSizes": {
+    "idle.png": 28000,
+    "next-1.png": 35331,
+    "next-2.png": 34129,
+    "prev-1.png": 33866,
+    "prev-2.png": 35294
+  },
+  "filesSumBytes": 166620
+}

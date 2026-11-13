@@ -30,7 +30,7 @@
     <text class="label">현재 설정</text>
     <text class="line">{{flagsLine}}</text>
 
-    <text class="meta">v2.4.5 · t0=swipe|tap|e7|click</text>
+    <text class="meta">v2.5.0 · rm=S|S2|L · t0=swipe|tap|e7|click</text>
   </div>
 </template>
 
@@ -126,7 +126,9 @@ export default {
 
     const st = await loadState()
     this.flagsLine =
-      'n=' +
+      'rm=' +
+      (st.renderMode || 'S') +
+      ' n=' +
       (st.visibleBeadCount || 10) +
       ' mode=' +
       (st.inputMode || 'slide') +

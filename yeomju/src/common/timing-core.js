@@ -61,6 +61,7 @@ export const normalizeTimingList = (raw) => {
       e9: x.e9 === true,
       e5Status: typeof x.e5Status === 'string' ? x.e5Status : '',
       inputMode: typeof x.inputMode === 'string' ? x.inputMode : 'slide',
+      renderMode: typeof x.renderMode === 'string' ? x.renderMode : 'S',
       at: num(x.at, 0)
     }))
     .slice(-TIMING_AVG_N)
@@ -106,7 +107,12 @@ export const formatSampleLine = (s, idx) =>
 
 /** 세부 구간 여러 줄 */
 export const formatSampleDetailLines = (s) => [
-  't0=' + (s.t0Kind || '?') + ' mode=' + (s.inputMode || '-'),
+  't0=' +
+    (s.t0Kind || '?') +
+    ' mode=' +
+    (s.inputMode || '-') +
+    ' rm=' +
+    (s.renderMode || 'S'),
   'evtDelay ' + ms(s.evtDelay) + ' start→move ' + ms(s.startToMove),
   'move→judge ' + ms(s.moveToJudge) + ' start→end ' + ms(s.startToEnd),
   'end→set ' + ms(s.endToSet) + ' judge→h ' + ms(s.judgeToHandler),

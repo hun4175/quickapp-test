@@ -13,6 +13,19 @@ export const UNSAFE_ANIM_MODES = Object.freeze(['D', 'E'])
 /** 입력 방식: 슬라이드(기본) / 터치(탭=한 칸 앞) */
 export const INPUT_MODES = Object.freeze(['slide', 'touch'])
 
+/** 2.5.0: 렌더 모드 — S=image-animator 스프라이트 / S2=src 스왑 / L=레거시 노드 */
+export const RENDER_MODES = Object.freeze(['S', 'S2', 'L'])
+export const RENDER_MODE_LABELS = Object.freeze({
+  S: 'S 스프라이트',
+  S2: 'S2 src스왑',
+  L: 'L 노드'
+})
+export const RENDER_MODE_HINTS = Object.freeze({
+  S: '빌드타임 PNG 프레임 · image-animator 1개 (기본)',
+  S2: '단일 image src를 프레임별 교체 (animator 대체)',
+  L: '기존 10노드 CSS 키프레임 방식'
+})
+
 export const INPUT_MODE_LABELS = Object.freeze({
   slide: '슬라이드',
   touch: '터치'
@@ -84,7 +97,8 @@ export const DEFAULT_STATE = Object.freeze({
   e7TouchStartRoll: false,
   e8ClickOnly: false,
   e9NoLongpress: false,
-  stateSchema: 8
+  renderMode: 'S',
+  stateSchema: 9
 })
 
 /**
@@ -125,6 +139,9 @@ export const normalizeState = (raw) => {
   const inputMode = INPUT_MODES.includes(String(src.inputMode))
     ? String(src.inputMode)
     : DEFAULT_STATE.inputMode
+  const renderMode = RENDER_MODES.includes(String(src.renderMode))
+    ? String(src.renderMode)
+    : DEFAULT_STATE.renderMode
   const schemaRaw = Math.floor(Number(src.stateSchema) || 0)
   const stateSchema = schemaRaw > 0 ? schemaRaw : 1
 
@@ -154,25 +171,26 @@ export const normalizeState = (raw) => {
     e7TouchStartRoll: src.e7TouchStartRoll === true,
     e8ClickOnly: src.e8ClickOnly === true,
     e9NoLongpress: src.e9NoLongpress === true,
+    renderMode,
     stateSchema
   }
 }
 
 /**
- * 2.4.5: schema≥8. E7–E9 기본 off.
+ * 2.5.0: schema≥9. renderMode 기본 S.
  * @param {object} state
  * @returns {{ state: object, migrated: boolean }}
  */
 export const migrateAnimModeForStability = (state) => {
   const s = normalizeState(state)
-  if (s.stateSchema >= 8) {
+  if (s.stateSchema >= 9) {
     return { state: s, migrated: false }
   }
   const fromSingle = s.singleBeadTest === true ? 1 : s.visibleBeadCount || 10
   return {
     state: {
       ...s,
-      stateSchema: 8,
+      stateSchema: 9,
       inputMode: INPUT_MODES.includes(s.inputMode) ? s.inputMode : 'slide',
       diagnoseLatency: s.diagnoseLatency === true,
       singleBeadTest: fromSingle === 1,
@@ -183,9 +201,10 @@ export const migrateAnimModeForStability = (state) => {
       e4SkipBack: !!s.e4SkipBack,
       e5DirectDom: !!s.e5DirectDom,
       e6Solid: !!s.e6Solid,
-      e7TouchStartRoll: false,
-      e8ClickOnly: false,
-      e9NoLongpress: false
+      e7TouchStartRoll: s.stateSchema >= 8 ? !!s.e7TouchStartRoll : false,
+      e8ClickOnly: s.stateSchema >= 8 ? !!s.e8ClickOnly : false,
+      e9NoLongpress: s.stateSchema >= 8 ? !!s.e9NoLongpress : false,
+      renderMode: RENDER_MODES.includes(s.renderMode) ? s.renderMode : 'S'
     },
     migrated: true
   }
@@ -336,6 +355,12 @@ export const setE7TouchStartRoll = (state, enabled) =>
   setExpFlag(state, 'e7TouchStartRoll', enabled)
 export const setE8ClickOnly = (state, enabled) => setExpFlag(state, 'e8ClickOnly', enabled)
 export const setE9NoLongpress = (state, enabled) => setExpFlag(state, 'e9NoLongpress', enabled)
+
+export const setRenderMode = (state, mode) => {
+  const s = normalizeState(state)
+  const renderMode = RENDER_MODES.includes(String(mode)) ? String(mode) : 'S'
+  return { ...s, renderMode }
+}
 
 export const resetSession = (state) => {
   const s = normalizeState(state)

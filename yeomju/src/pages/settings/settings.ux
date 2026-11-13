@@ -60,6 +60,20 @@
       </div>
     </div>
 
+    <text class="label">렌더 모드</text>
+    <text class="hint">S=스프라이트(기본) · S2=src스왑 · L=노드</text>
+    <div class="row">
+      <div class="chip {{renderMode === 'S' ? 'chip-on' : ''}}" onclick="pickModeS">
+        <text class="chip-text">S</text>
+      </div>
+      <div class="chip {{renderMode === 'S2' ? 'chip-on' : ''}}" onclick="pickModeS2">
+        <text class="chip-text">S2</text>
+      </div>
+      <div class="chip {{renderMode === 'L' ? 'chip-on' : ''}}" onclick="pickModeL">
+        <text class="chip-text">L</text>
+      </div>
+    </div>
+
     <text class="label">표시 구슬 수</text>
     <text class="hint">1=포커스 · 3=앞열 · 6=화면 · 10=전체(기본)</text>
     <div class="row">
@@ -186,7 +200,7 @@
       </div>
     </div>
 
-    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.4.5</text>
+    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.5.0</text>
   </div>
 </template>
 
@@ -207,6 +221,7 @@ import {
   setE7TouchStartRoll,
   setE8ClickOnly,
   setE9NoLongpress,
+  setRenderMode,
   INPUT_MODE_HINTS
 } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
@@ -228,7 +243,8 @@ export default {
     e6Solid: false,
     e7TouchStartRoll: false,
     e8ClickOnly: false,
-    e9NoLongpress: false
+    e9NoLongpress: false,
+    renderMode: 'S'
   },
 
   onShow() {
@@ -269,6 +285,7 @@ export default {
     this.e7TouchStartRoll = !!state.e7TouchStartRoll
     this.e8ClickOnly = !!state.e8ClickOnly
     this.e9NoLongpress = !!state.e9NoLongpress
+    this.renderMode = state.renderMode || 'S'
   },
 
   async persist(next) {
@@ -323,6 +340,20 @@ export default {
   async setDiagOff() {
     if (!this._state) await this.reload()
     await this.persist(setDiagnoseLatency(this._state, false))
+  },
+
+  async pickRender(mode) {
+    if (!this._state) await this.reload()
+    await this.persist(setRenderMode(this._state, mode))
+  },
+  pickModeS() {
+    this.pickRender('S')
+  },
+  pickModeS2() {
+    this.pickRender('S2')
+  },
+  pickModeL() {
+    this.pickRender('L')
   },
 
   async pickCount(n) {

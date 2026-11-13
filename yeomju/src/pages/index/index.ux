@@ -1,7 +1,6 @@
 <template>
   <!--
-    2.4.3 진단: 표시 구슬 수 1/3/6/10 정적 분기 · t0–t3 타이밍 · E5/E6.
-    기본 형상=2.3.1 + E1/E3 on. 노드 수는 분기별 실제 렌더 개수.
+    2.5.0: 기본 렌더 S(스프라이트). L=레거시 노드 분기. 진단 타이밍 유지.
   -->
   <div
     class="page"
@@ -12,7 +11,34 @@
     onclick="onPageClick"
   >
     <stack class="stage">
-      <div class="ring-mover" if="{{visibleBeadCount === 1}}">
+
+      <!-- 2.5.0 Sprite: idle image 1장 + image-animator / S2 src 스왑 -->
+      <div class="sprite-layer" if="{{isSprite}}">
+        <image
+          if="{{!spritePlaying}}"
+          class="sprite-img"
+          src="{{spriteIdle}}"
+          style="left: {{spriteLeft}}px; top: {{spriteTop}}px; width: {{spriteW}}px; height: {{spriteH}}px;"
+        ></image>
+        <image-animator
+          if="{{isModeS && spritePlaying}}"
+          id="spriteAnim"
+          class="sprite-anim"
+          images="{{spriteFrames}}"
+          duration="{{spriteDuration}}"
+          iteration="1"
+          fillmode="forwards"
+          fixedsize="true"
+          style="left: {{spriteLeft}}px; top: {{spriteTop}}px; width: {{spriteW}}px; height: {{spriteH}}px;"
+        ></image-animator>
+        <image
+          if="{{isModeS2 && spritePlaying}}"
+          class="sprite-img"
+          src="{{spriteFrameSrc}}"
+          style="left: {{spriteLeft}}px; top: {{spriteTop}}px; width: {{spriteW}}px; height: {{spriteH}}px;"
+        ></image>
+      </div>
+      <div class="ring-mover" if="{{isLegacy && visibleBeadCount === 1}}">
         <div
           id="bw0"
           class="bead-wrap {{a0}}"
@@ -31,7 +57,7 @@
           ></div>
         </div>
       </div>
-      <div class="ring-mover" if="{{visibleBeadCount === 3}}">
+      <div class="ring-mover" if="{{isLegacy && visibleBeadCount === 3}}">
         <div
           id="bw0"
           class="bead-wrap {{a0}}"
@@ -84,7 +110,7 @@
           ></div>
         </div>
       </div>
-      <div class="ring-mover" if="{{visibleBeadCount === 6}}">
+      <div class="ring-mover" if="{{isLegacy && visibleBeadCount === 6}}">
         <div
           id="bw0"
           class="bead-wrap {{a0}}"
@@ -188,7 +214,7 @@
           ></div>
         </div>
       </div>
-      <div class="ring-mover" if="{{visibleBeadCount === 10}}">
+      <div class="ring-mover" if="{{isLegacy && visibleBeadCount === 10}}">
         <div
           id="bw0"
           class="bead-wrap {{a0}}"
@@ -398,6 +424,13 @@ import {
   layoutOptsFromExps,
   classifyVerticalSwipe
 } from '../../common/ring.js'
+import {
+  SPRITE_DURATION_MS,
+  SPRITE_CROP,
+  SPRITE_IDLE,
+  spriteImageFrames,
+  spriteFramesForDir
+} from '../../common/sprite-meta.js'
 
 const LONGPRESS_MS = 560
 
@@ -408,6 +441,20 @@ export default {
     diagnoseLatency: false,
     singleBeadTest: false,
     visibleBeadCount: 10,
+    renderMode: 'S',
+    isLegacy: false,
+    isSprite: true,
+    isModeS: true,
+    isModeS2: false,
+    spriteIdle: SPRITE_IDLE,
+    spritePlaying: false,
+    spriteFrames: [],
+    spriteFrameSrc: SPRITE_IDLE,
+    spriteDuration: SPRITE_DURATION_MS + 'ms',
+    spriteLeft: SPRITE_CROP.left,
+    spriteTop: SPRITE_CROP.top,
+    spriteW: SPRITE_CROP.width,
+    spriteH: SPRITE_CROP.height,
     e1Minimize: true,
     e2NoScale: false,
     e3SplitSrc: true,
@@ -507,6 +554,9 @@ export default {
     this._t2Timer = null
     this._diagFlushTimer = null
     this._pendingDiag = null
+    this._s2Timer = null
+    this._s2Idx = 0
+    this._s2List = null
     this._animating = false
     this._saveChain = Promise.resolve()
     this._saveTimer = null
@@ -594,6 +644,10 @@ export default {
       clearTimeout(this._t2Timer)
       this._t2Timer = null
     }
+    if (this._s2Timer) {
+      clearTimeout(this._s2Timer)
+      this._s2Timer = null
+    }
   },
 
   clearLpTimer() {
@@ -629,10 +683,29 @@ export default {
     this.e7TouchStartRoll = !!state.e7TouchStartRoll
     this.e8ClickOnly = !!state.e8ClickOnly
     this.e9NoLongpress = !!state.e9NoLongpress
+    this.applyRenderMode(state.renderMode || 'S')
     this.hydrateGeometry()
     this._animating = false
     this._listenersBound = false
-    this.bindAnimListeners()
+    if (this.isLegacy) this.bindAnimListeners()
+  },
+
+  applyRenderMode(mode) {
+    const m = mode === 'L' || mode === 'S2' ? mode : 'S'
+    this.renderMode = m
+    this.isLegacy = m === 'L'
+    this.isSprite = m === 'S' || m === 'S2'
+    this.isModeS = m === 'S'
+    this.isModeS2 = m === 'S2'
+    this.spriteIdle = SPRITE_IDLE
+    this.spriteFrameSrc = SPRITE_IDLE
+    this.spritePlaying = false
+    this.spriteFrames = spriteImageFrames(1)
+    this.spriteLeft = SPRITE_CROP.left
+    this.spriteTop = SPRITE_CROP.top
+    this.spriteW = SPRITE_CROP.width
+    this.spriteH = SPRITE_CROP.height
+    this.spriteDuration = SPRITE_DURATION_MS + 'ms'
   },
 
   /** animationstart/end 계측용 — $element + addEventListener */
@@ -783,6 +856,7 @@ export default {
       e9: !!this.e9NoLongpress,
       e5Status: this.e5Status || '',
       inputMode: this.inputMode || 'slide',
+      renderMode: this.renderMode || 'S',
       at: Date.now()
     }
   },
@@ -792,8 +866,8 @@ export default {
     const sample = this.buildTimingSample()
     const ms = (v) => (v >= 0 ? v + 'ms' : '-')
     this.diagLine0 =
-      'n=' +
-      sample.n +
+      'rm=' +
+      (sample.renderMode || 'S') +
       ' t0=' +
       sample.t0Kind +
       (this.e5Status ? ' ' + this.e5Status : '')
@@ -985,13 +1059,17 @@ export default {
     }
     if (this._animating) {
       this.clearAnimTimers()
-      this.clearAnimClasses()
-      this._animating = false
+      if (this.isSprite) this.finishSpriteRoll()
+      else {
+        this.clearAnimClasses()
+        this._animating = false
+      }
     }
     this.startRoll(d)
   },
 
   clearAnimClasses() {
+    if (this.isSprite) return
     const count = this.visibleBeadCount || 10
     const useE5 = !!this.e5DirectDom && this._e5Works !== false
     for (let i = 0; i < count; i++) {
@@ -1014,6 +1092,109 @@ export default {
     const result = applySwipeCount(this._state, d)
     this._state = result.state
     this._animating = true
+    if (this.isSprite) {
+      this.startSpriteRoll(d, result)
+      return
+    }
+    this.startLegacyRoll(d, result)
+  },
+
+  /** S / S2: 클래스 바인딩 대신 프레임 재생. t1=재생 개시 직후 */
+  startSpriteRoll(d, result) {
+    this.clearAnimTimers()
+    this._animEndExpected = 1
+    this._animEndCount = 0
+    this._t2 = 0
+    this._t3 = 0
+    const frames = spriteImageFrames(d)
+    const srcs = spriteFramesForDir(d)
+    if (this.isModeS) {
+      this.spriteFrames = frames
+      this.spritePlaying = true
+      this._tsClassSet = Date.now()
+      this._t1 = this._tsClassSet
+      this.markP2()
+      // stop→start: woodenFish 패턴. 바인딩 반영 후 0ms
+      this._t2Timer = setTimeout(() => {
+        this._t2Timer = null
+        if (!this._t2) this._t2 = Date.now()
+        try {
+          const el = this.$element('spriteAnim')
+          if (el) {
+            if (typeof el.stop === 'function') el.stop()
+            if (typeof el.start === 'function') el.start()
+          }
+        } catch (e) {
+          // S 실패 시 S2로 폴백하지 않음 — 타이머로 종료만
+        }
+      }, 0)
+    } else {
+      // S2: src 스왑
+      this._s2List = srcs
+      this._s2Idx = 0
+      this.spriteFrameSrc = srcs[0] || SPRITE_IDLE
+      this.spritePlaying = true
+      this._tsClassSet = Date.now()
+      this._t1 = this._tsClassSet
+      this.markP2()
+      const step = Math.max(1, Math.floor(SPRITE_DURATION_MS / Math.max(1, srcs.length - 1)))
+      this._t2Timer = setTimeout(() => {
+        this._t2Timer = null
+        if (!this._t2) this._t2 = Date.now()
+      }, 0)
+      const tick = () => {
+        this._s2Timer = null
+        this._s2Idx += 1
+        if (!this._s2List || this._s2Idx >= this._s2List.length) {
+          if (!this._t3) this._t3 = Date.now()
+          this.finishSpriteRoll()
+          this.scheduleDiagFlush(true)
+          return
+        }
+        this.spriteFrameSrc = this._s2List[this._s2Idx]
+        this._s2Timer = setTimeout(tick, step)
+      }
+      this._s2Timer = setTimeout(tick, step)
+    }
+    const completedRound = !!result.completedRound
+    const state = result.state
+    this._sideTimer = setTimeout(() => {
+      this._sideTimer = null
+      this.buzz(completedRound)
+      this.queueSave(state)
+    }, 0)
+    // S: onstop 없을 때 안전망
+    if (this.isModeS) {
+      this._animTimer = setTimeout(() => {
+        if (!this._animating) return
+        if (!this._t3) this._t3 = Date.now()
+        this.finishSpriteRoll()
+        this.scheduleDiagFlush(true)
+      }, SPRITE_DURATION_MS + CHAIN_ANIM_END_SLACK_MS)
+    }
+  },
+
+  onSpriteStop() {
+    if (!this._animating && !this.spritePlaying) return
+    if (!this._t3) this._t3 = Date.now()
+    this.finishSpriteRoll()
+    this.scheduleDiagFlush(true)
+  },
+
+  finishSpriteRoll() {
+    this.clearAnimTimers()
+    this.spritePlaying = false
+    this.spriteFrameSrc = SPRITE_IDLE
+    this._animating = false
+    try {
+      const el = this.$element('spriteAnim')
+      if (el && typeof el.stop === 'function') el.stop()
+    } catch (e) {
+      /* ignore */
+    }
+  },
+
+  startLegacyRoll(d, result) {
     this._rollAlt = !this._rollAlt
     const count = this.visibleBeadCount || 10
     const classes = animClassesForVisible(d, count, {
@@ -1036,7 +1217,6 @@ export default {
         this['a' + i] = cls
       }
     }
-    // 클래스 대입 직후 = t1 (핫패스 최우선 — 진단 텍스트/진동/저장 없음)
     this._tsClassSet = Date.now()
     this._t1 = this._tsClassSet
     if (useE5) {
@@ -1059,7 +1239,6 @@ export default {
     }, 0)
     const completedRound = !!result.completedRound
     const state = result.state
-    // 진동·저장은 클래스 set 이후 비동기
     this._sideTimer = setTimeout(() => {
       this._sideTimer = null
       this.buzz(completedRound)
@@ -1073,6 +1252,10 @@ export default {
   },
 
   finishRoll() {
+    if (this.isSprite) {
+      this.finishSpriteRoll()
+      return
+    }
     this.clearAnimClasses()
     this._animating = false
   },
@@ -1103,6 +1286,19 @@ export default {
 .stage {
   width: 432px;
   height: 514px;
+}
+.sprite-layer {
+  width: 432px;
+  height: 514px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+.sprite-img {
+  position: absolute;
+}
+.sprite-anim {
+  position: absolute;
 }
 .ring-mover {
   width: 432px;
