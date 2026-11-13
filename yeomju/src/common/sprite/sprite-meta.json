@@ -1,12 +1,11 @@
 {
-  "version": "2.6.0",
+  "version": "2.7.0",
   "crop": {
     "left": 86,
     "top": 0,
     "width": 346,
     "height": 514
   },
-  "durationMs": 150,
   "themes": {
     "default": {
       "phases": 1,
@@ -30,180 +29,72 @@
         ]
       ]
     },
-    "ommani": {
-      "phases": 6,
+    "goldwood": {
+      "phases": 1,
       "idle": [
-        "/common/sprite/ommani/idle-0.jpg",
-        "/common/sprite/ommani/idle-1.jpg",
-        "/common/sprite/ommani/idle-2.jpg",
-        "/common/sprite/ommani/idle-3.jpg",
-        "/common/sprite/ommani/idle-4.jpg",
-        "/common/sprite/ommani/idle-5.jpg"
+        "/common/sprite/goldwood/idle.jpg"
       ],
       "nextByPhase": [
         [
-          "/common/sprite/ommani/idle-0.jpg",
-          "/common/sprite/ommani/p0-next-1.jpg",
-          "/common/sprite/ommani/p0-next-2.jpg",
-          "/common/sprite/ommani/idle-1.jpg"
-        ],
-        [
-          "/common/sprite/ommani/idle-1.jpg",
-          "/common/sprite/ommani/p1-next-1.jpg",
-          "/common/sprite/ommani/p1-next-2.jpg",
-          "/common/sprite/ommani/idle-2.jpg"
-        ],
-        [
-          "/common/sprite/ommani/idle-2.jpg",
-          "/common/sprite/ommani/p2-next-1.jpg",
-          "/common/sprite/ommani/p2-next-2.jpg",
-          "/common/sprite/ommani/idle-3.jpg"
-        ],
-        [
-          "/common/sprite/ommani/idle-3.jpg",
-          "/common/sprite/ommani/p3-next-1.jpg",
-          "/common/sprite/ommani/p3-next-2.jpg",
-          "/common/sprite/ommani/idle-4.jpg"
-        ],
-        [
-          "/common/sprite/ommani/idle-4.jpg",
-          "/common/sprite/ommani/p4-next-1.jpg",
-          "/common/sprite/ommani/p4-next-2.jpg",
-          "/common/sprite/ommani/idle-5.jpg"
-        ],
-        [
-          "/common/sprite/ommani/idle-5.jpg",
-          "/common/sprite/ommani/p5-next-1.jpg",
-          "/common/sprite/ommani/p5-next-2.jpg",
-          "/common/sprite/ommani/idle-0.jpg"
+          "/common/sprite/goldwood/idle.jpg",
+          "/common/sprite/goldwood/next-1.jpg",
+          "/common/sprite/goldwood/next-2.jpg",
+          "/common/sprite/goldwood/idle.jpg"
         ]
       ],
       "prevByPhase": [
         [
-          "/common/sprite/ommani/idle-0.jpg",
-          "/common/sprite/ommani/p0-prev-1.jpg",
-          "/common/sprite/ommani/p0-prev-2.jpg",
-          "/common/sprite/ommani/idle-1.jpg"
-        ],
-        [
-          "/common/sprite/ommani/idle-1.jpg",
-          "/common/sprite/ommani/p1-prev-1.jpg",
-          "/common/sprite/ommani/p1-prev-2.jpg",
-          "/common/sprite/ommani/idle-2.jpg"
-        ],
-        [
-          "/common/sprite/ommani/idle-2.jpg",
-          "/common/sprite/ommani/p2-prev-1.jpg",
-          "/common/sprite/ommani/p2-prev-2.jpg",
-          "/common/sprite/ommani/idle-3.jpg"
-        ],
-        [
-          "/common/sprite/ommani/idle-3.jpg",
-          "/common/sprite/ommani/p3-prev-1.jpg",
-          "/common/sprite/ommani/p3-prev-2.jpg",
-          "/common/sprite/ommani/idle-4.jpg"
-        ],
-        [
-          "/common/sprite/ommani/idle-4.jpg",
-          "/common/sprite/ommani/p4-prev-1.jpg",
-          "/common/sprite/ommani/p4-prev-2.jpg",
-          "/common/sprite/ommani/idle-5.jpg"
-        ],
-        [
-          "/common/sprite/ommani/idle-5.jpg",
-          "/common/sprite/ommani/p5-prev-1.jpg",
-          "/common/sprite/ommani/p5-prev-2.jpg",
-          "/common/sprite/ommani/idle-0.jpg"
+          "/common/sprite/goldwood/idle.jpg",
+          "/common/sprite/goldwood/prev-1.jpg",
+          "/common/sprite/goldwood/prev-2.jpg",
+          "/common/sprite/goldwood/idle.jpg"
         ]
       ]
     },
-    "namu": {
-      "phases": 6,
+    "jade": {
+      "phases": 1,
       "idle": [
-        "/common/sprite/namu/idle-0.jpg",
-        "/common/sprite/namu/idle-1.jpg",
-        "/common/sprite/namu/idle-2.jpg",
-        "/common/sprite/namu/idle-3.jpg",
-        "/common/sprite/namu/idle-4.jpg",
-        "/common/sprite/namu/idle-5.jpg"
+        "/common/sprite/jade/idle.jpg"
       ],
       "nextByPhase": [
         [
-          "/common/sprite/namu/idle-0.jpg",
-          "/common/sprite/namu/p0-next-1.jpg",
-          "/common/sprite/namu/p0-next-2.jpg",
-          "/common/sprite/namu/idle-1.jpg"
-        ],
-        [
-          "/common/sprite/namu/idle-1.jpg",
-          "/common/sprite/namu/p1-next-1.jpg",
-          "/common/sprite/namu/p1-next-2.jpg",
-          "/common/sprite/namu/idle-2.jpg"
-        ],
-        [
-          "/common/sprite/namu/idle-2.jpg",
-          "/common/sprite/namu/p2-next-1.jpg",
-          "/common/sprite/namu/p2-next-2.jpg",
-          "/common/sprite/namu/idle-3.jpg"
-        ],
-        [
-          "/common/sprite/namu/idle-3.jpg",
-          "/common/sprite/namu/p3-next-1.jpg",
-          "/common/sprite/namu/p3-next-2.jpg",
-          "/common/sprite/namu/idle-4.jpg"
-        ],
-        [
-          "/common/sprite/namu/idle-4.jpg",
-          "/common/sprite/namu/p4-next-1.jpg",
-          "/common/sprite/namu/p4-next-2.jpg",
-          "/common/sprite/namu/idle-5.jpg"
-        ],
-        [
-          "/common/sprite/namu/idle-5.jpg",
-          "/common/sprite/namu/p5-next-1.jpg",
-          "/common/sprite/namu/p5-next-2.jpg",
-          "/common/sprite/namu/idle-0.jpg"
+          "/common/sprite/jade/idle.jpg",
+          "/common/sprite/jade/next-1.jpg",
+          "/common/sprite/jade/next-2.jpg",
+          "/common/sprite/jade/idle.jpg"
         ]
       ],
       "prevByPhase": [
         [
-          "/common/sprite/namu/idle-0.jpg",
-          "/common/sprite/namu/p0-prev-1.jpg",
-          "/common/sprite/namu/p0-prev-2.jpg",
-          "/common/sprite/namu/idle-1.jpg"
-        ],
+          "/common/sprite/jade/idle.jpg",
+          "/common/sprite/jade/prev-1.jpg",
+          "/common/sprite/jade/prev-2.jpg",
+          "/common/sprite/jade/idle.jpg"
+        ]
+      ]
+    },
+    "pinkjade": {
+      "phases": 1,
+      "idle": [
+        "/common/sprite/pinkjade/idle.jpg"
+      ],
+      "nextByPhase": [
         [
-          "/common/sprite/namu/idle-1.jpg",
-          "/common/sprite/namu/p1-prev-1.jpg",
-          "/common/sprite/namu/p1-prev-2.jpg",
-          "/common/sprite/namu/idle-2.jpg"
-        ],
+          "/common/sprite/pinkjade/idle.jpg",
+          "/common/sprite/pinkjade/next-1.jpg",
+          "/common/sprite/pinkjade/next-2.jpg",
+          "/common/sprite/pinkjade/idle.jpg"
+        ]
+      ],
+      "prevByPhase": [
         [
-          "/common/sprite/namu/idle-2.jpg",
-          "/common/sprite/namu/p2-prev-1.jpg",
-          "/common/sprite/namu/p2-prev-2.jpg",
-          "/common/sprite/namu/idle-3.jpg"
-        ],
-        [
-          "/common/sprite/namu/idle-3.jpg",
-          "/common/sprite/namu/p3-prev-1.jpg",
-          "/common/sprite/namu/p3-prev-2.jpg",
-          "/common/sprite/namu/idle-4.jpg"
-        ],
-        [
-          "/common/sprite/namu/idle-4.jpg",
-          "/common/sprite/namu/p4-prev-1.jpg",
-          "/common/sprite/namu/p4-prev-2.jpg",
-          "/common/sprite/namu/idle-5.jpg"
-        ],
-        [
-          "/common/sprite/namu/idle-5.jpg",
-          "/common/sprite/namu/p5-prev-1.jpg",
-          "/common/sprite/namu/p5-prev-2.jpg",
-          "/common/sprite/namu/idle-0.jpg"
+          "/common/sprite/pinkjade/idle.jpg",
+          "/common/sprite/pinkjade/prev-1.jpg",
+          "/common/sprite/pinkjade/prev-2.jpg",
+          "/common/sprite/pinkjade/idle.jpg"
         ]
       ]
     }
   },
-  "filesSumBytes": 3114301
+  "filesSumBytes": 888504
 }

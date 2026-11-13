@@ -1,19 +1,27 @@
-# 빌드 정보 — 2.6.1 (설정 버전 문구 · 프리뷰 수정)
+# 빌드 정보 — 2.7.0 (재질 테마 · 한자 폐기)
 
 ## 산출물 (사실)
 
-- `yeomju/dist/com.yeomju.mala.debug.2.6.1.rpk`
-- 크기: 3146706 bytes
-- SHA256: `ac27d1680faecdf87b52a2dfa8837169a699a108123cdfa3b3f81e0b3a746cbc`
-- versionName 2.6.1 / versionCode 28
-- 단위 테스트: 27 passed
+- `yeomju/dist/com.yeomju.mala.debug.2.7.0.rpk`
+- 크기: 930155 bytes
+- SHA256: `f3a455cfd21e2cef38233042d8688ed8c8e2ca601864e672a0f0ab33bc711ce2`
+- versionName 2.7.0 / versionCode 29
+- 단위 테스트: 25 passed
 
-## 2.6.1 변경
+## 테마 (S2 JPG q90 4:4:4 · 테마당 5프레임)
 
-1. 설정 버전 문구 `v2.6.1` — 스크롤 마지막 항목 아래, S2 제거
-2. 프리뷰 `docs/preview-2.6.1-settings.png` (상단/하단) · 한글 라벨 CJK 폰트
-3. 한자 프리뷰 라벨 □ 깨짐 수정 (WenQuanYi)
+| 테마 | 키 | bytes |
+|------|-----|------:|
+| 기본 | default | 287041 |
+| 금박 나무 | goldwood | 298783 |
+| 옥 | jade | 173700 |
+| 연핑크 옥 | pinkjade | 128980 |
+| **합계** | | **888504** |
+
+- 원본: `scripts/assets/bead-{goldwood,jade,pinkjade}-src.jpg` (원형 AA 컷)
+- 한자 테마·프레임·폰트 제거 · 구 저장값 ommani/namu → default 폴백
+- 프리뷰: `docs/preview-2.7.0-themes.png` · `docs/preview-2.7.0-settings.png`
 
 ## 미확인
 
-- 실기기 설정 스크롤 (**단정하지 않음**)
+- 실기기 재질 테마 체감 (**단정하지 않음**)

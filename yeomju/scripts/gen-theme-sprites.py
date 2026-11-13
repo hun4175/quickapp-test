@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """
-2.6.0: 기본 + 육자진언 + 나무아미타불 S2 JPG 프레임 생성.
+2.7.0: 기본 + 금박나무 + 옥 + 연핑크옥 S2 JPG 프레임.
 
-- 기본: 기존 sprite/*.jpg 유지(재생성 가능)
-- 한자 테마: phase 0..5 (6알 주기) × idle + next-1/2 + prev-1/2
-- 앞줄 각인 글자, 뒷줄 plain(글자 없음)
-- sprite-meta.js 갱신
+- 테마당 1주기(idle + next-1/2 + prev-1/2), JPG q90 4:4:4
+- 한자 테마 없음
 """
 from __future__ import annotations
 
@@ -16,29 +14,25 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT_DEFAULT = ROOT / "src" / "common" / "sprite"
-OUT_THEMES = ROOT / "src" / "common" / "sprite"
-ENGRAVED = ROOT / "scripts" / "assets" / "beads-engraved"
-SRC_PLAIN = ROOT / "scripts" / "assets" / "bead-src-cut.png"
+OUT = ROOT / "src" / "common" / "sprite"
+ASSETS = ROOT / "scripts" / "assets"
+CUT = ASSETS / "beads-cut"
 DOCS = ROOT / "docs"
-FONT = ROOT / "scripts" / "assets" / "fonts" / "NotoSerifCJKsc-Mantra.otf"
 
 W, H = 432, 514
 BG = (12, 10, 8, 255)
-PROGRESS = [0.0, 1.0 / 3.0, 2.0 / 3.0, 1.0]
 PAD = 4
 JPG_QUALITY = 90
-JPG_QUALITY_HANJA = 85
-PHASES = 6
-FRONT_DEPTH_MIN = 0.55
 
-MANTRAS = {
-    "ommani": list("唵嘛呢叭咪吽"),
-    "namu": list("南無阿彌陀佛"),
+THEMES = {
+    "default": ASSETS / "bead-src-cut.png",
+    "goldwood": CUT / "bead-goldwood-cut.png",
+    "jade": CUT / "bead-jade-cut.png",
+    "pinkjade": CUT / "bead-pinkjade-cut.png",
 }
 
 NODE = r"""
-import { DEFAULT_RING, layoutOptsFromExps, pathProgressAtTime, FRONT_DEPTH_MIN, layoutChainSlots, frontAdjacentGapRatios, SLOT_COUNT, BACK_COUNT } from './src/common/ring.js'
+import { DEFAULT_RING, layoutOptsFromExps, pathProgressAtTime, layoutChainSlots, frontAdjacentGapRatios, SLOT_COUNT, BACK_COUNT, FRONT_DEPTH_MIN } from './src/common/ring.js'
 import { layoutRing } from './scripts/lib/ring-kf.js'
 const opts = layoutOptsFromExps({ e1Minimize: true, e2NoScale: false, e3SplitSrc: true, e4SkipBack: false })
 const slots = layoutChainSlots(opts)
@@ -50,8 +44,7 @@ for (const dir of [1, -1]) {
   frames[key] = []
   for (const t of ts) {
     const boxes = layoutRing({
-      ...DEFAULT_RING,
-      ...opts,
+      ...DEFAULT_RING, ...opts,
       shiftProgress: pathProgressAtTime(t),
       chainDir: dir
     }).map(b => ({
@@ -66,18 +59,16 @@ console.log(JSON.stringify({
   meta: {
     slotCount: SLOT_COUNT,
     backCount: BACK_COUNT,
-    frontDepthMin: FRONT_DEPTH_MIN,
-    focusGap: frontAdjacentGapRatios(opts),
-    idleBoxes: frames.next[0].boxes
+    focusGap: frontAdjacentGapRatios(opts)
   }
 }))
 """
 
 
-def save_jpg(im: Image.Image, path: Path, quality: int = JPG_QUALITY) -> int:
+def save_jpg(im: Image.Image, path: Path) -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
     im.convert("RGB").save(
-        path, format="JPEG", quality=quality, subsampling=0, optimize=True
+        path, format="JPEG", quality=JPG_QUALITY, subsampling=0, optimize=True
     )
     return path.stat().st_size
 
@@ -87,19 +78,16 @@ def content_bbox(images, pad=PAD):
     found = False
     for im in images:
         px = im.load()
-        w, h = im.size
-        for y in range(h):
-            for x in range(w):
+        for y in range(im.size[1]):
+            for x in range(im.size[0]):
                 r, g, b, a = px[x, y]
                 if a < 20:
                     continue
                 if abs(r - BG[0]) + abs(g - BG[1]) + abs(b - BG[2]) <= 24:
                     continue
                 found = True
-                minx = min(minx, x)
-                miny = min(miny, y)
-                maxx = max(maxx, x)
-                maxy = max(maxy, y)
+                minx, miny = min(minx, x), min(miny, y)
+                maxx, maxy = max(maxx, x), max(maxy, y)
     if not found:
         return (0, 0, W, H)
     return (
@@ -118,191 +106,103 @@ def load_layout():
     return json.loads(line)
 
 
-def load_theme_beads(theme: str):
-    if theme == "default":
-        plain = Image.open(SRC_PLAIN).convert("RGBA")
-        return {"plain": plain, "chars": [plain] * PHASES}
-    chars = MANTRAS[theme]
-    beads = []
-    for i, ch in enumerate(chars):
-        path = ENGRAVED / theme / f"{i}-{ch}.png"
-        beads.append(Image.open(path).convert("RGBA"))
-    plain = Image.open(ENGRAVED / theme / "plain.png").convert("RGBA")
-    return {"plain": plain, "chars": beads}
-
-
-def render_full(boxes, theme_assets, phase: int):
-    """앞줄은 화면 위→아래 연속 글자(포커스=phase), 뒷줄은 plain."""
+def render_full(boxes, bead: Image.Image):
     im = Image.new("RGBA", (W, H), BG)
-    plain = theme_assets["plain"]
-    chars = theme_assets["chars"]
-    annotated = []
-    for b in boxes:
+    for b in sorted(boxes, key=lambda x: x["z"]):
         size = max(1, int(round(b["size"])))
-        depth = float(b.get("depth", 1))
-        is_back = depth < FRONT_DEPTH_MIN if "depth" in b else size <= 170
-        cy = float(b["top"]) + size * 0.5
-        annotated.append({**b, "size": size, "is_back": is_back, "cy": cy})
-
-    front = [b for b in annotated if not b["is_back"]]
-    front_sorted = sorted(front, key=lambda b: b["cy"])
-    focus_i = 0
-    if front_sorted:
-        # 포커스: 화면 중앙에 가장 가까운 앞줄
-        focus_i = min(
-            range(len(front_sorted)),
-            key=lambda i: abs(front_sorted[i]["cy"] - (H * 0.5)),
-        )
-    char_for_id = {}
-    for i, b in enumerate(front_sorted):
-        char_for_id[id(b)] = (phase + (i - focus_i)) % PHASES
-
-    for b in sorted(annotated, key=lambda x: x["z"]):
-        size = b["size"]
-        if b["is_back"]:
-            src = plain
-        else:
-            idx = char_for_id.get(id(b), phase % PHASES)
-            src = chars[idx]
-        bead = src.resize((size, size), Image.Resampling.LANCZOS)
-        im.alpha_composite(bead, (int(round(b["left"])), int(round(b["top"]))))
+        scaled = bead.resize((size, size), Image.Resampling.LANCZOS)
+        im.alpha_composite(scaled, (int(round(b["left"])), int(round(b["top"]))))
     return im
 
 
-def ensure_depth_on_boxes(payload):
-    """Attach depth from idle slot map by key when missing."""
-    idle = {int(b["key"]): b for b in payload["meta"]["idleBoxes"]}
-    for key in ("next", "prev"):
-        for fr in payload["frames"][key]:
-            for b in fr["boxes"]:
-                if "depth" not in b:
-                    ref = idle.get(int(b["key"]))
-                    if ref and "depth" in ref:
-                        b["depth"] = ref["depth"]
-                    else:
-                        b["depth"] = 1.0 if b["size"] > 170 else 0.0
-    return payload
+def cjk_font(size: int):
+    for path in (
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+    ):
+        try:
+            return ImageFont.truetype(path, size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
 
 
-def generate_theme(theme: str, payload, crop, theme_assets):
-    base = OUT_THEMES / theme if theme != "default" else OUT_DEFAULT
+def generate_theme(theme: str, bead: Image.Image, payload, crop):
+    base = OUT if theme == "default" else OUT / theme
     if theme != "default":
-        if base.exists():
-            for p in base.glob("**/*"):
-                if p.is_file() and p.suffix.lower() in (".jpg", ".jpeg", ".png", ".json"):
-                    p.unlink()
         base.mkdir(parents=True, exist_ok=True)
+        for p in base.glob("*.jpg"):
+            p.unlink()
     else:
-        base.mkdir(parents=True, exist_ok=True)
+        for p in OUT.glob("*.jpg"):
+            p.unlink()
 
     sizes = {}
-    frames_meta = {"phases": PHASES, "idle": [], "next": [], "prev": []}
 
     def crop_im(im):
         return im.crop(crop)
 
-    q = JPG_QUALITY if theme == "default" else JPG_QUALITY_HANJA
-
     def write(name: str, im: Image.Image) -> str:
-        if theme == "default":
-            path = OUT_DEFAULT / f"{name}.jpg"
-            key = path.name
-            url = f"/common/sprite/{name}.jpg"
-        else:
-            path = base / f"{name}.jpg"
-            key = f"{theme}/{path.name}"
-            url = f"/common/sprite/{theme}/{name}.jpg"
-        sizes[key] = save_jpg(crop_im(im), path, quality=q)
-        return url
+        path = (OUT / f"{name}.jpg") if theme == "default" else (base / f"{name}.jpg")
+        key = path.name if theme == "default" else f"{theme}/{path.name}"
+        sizes[key] = save_jpg(crop_im(im), path)
+        return (
+            f"/common/sprite/{name}.jpg"
+            if theme == "default"
+            else f"/common/sprite/{theme}/{name}.jpg"
+        )
 
-    # idle phases
-    idle_ims = []
-    idle_paths = []
-    for p in range(PHASES if theme != "default" else 1):
-        im = render_full(payload["frames"]["next"][0]["boxes"], theme_assets, p)
-        idle_ims.append(im)
-        if theme == "default":
-            idle_paths.append(write("idle", im))
-        else:
-            idle_paths.append(write(f"idle-{p}", im))
+    idle = render_full(payload["frames"]["next"][0]["boxes"], bead)
+    # force first==last
+    idle_path = write("idle", idle)
+    next_paths = [idle_path]
+    for i in (1, 2):
+        next_paths.append(
+            write(f"next-{i}", render_full(payload["frames"]["next"][i]["boxes"], bead))
+        )
+    next_paths.append(idle_path)
+    prev_paths = [idle_path]
+    for i in (1, 2):
+        prev_paths.append(
+            write(f"prev-{i}", render_full(payload["frames"]["prev"][i]["boxes"], bead))
+        )
+    prev_paths.append(idle_path)
 
-    if theme == "default":
-        next_paths = [idle_paths[0]]
-        for i in (1, 2):
-            im = render_full(payload["frames"]["next"][i]["boxes"], theme_assets, 0)
-            next_paths.append(write(f"next-{i}", im))
-        next_paths.append(idle_paths[0])
-        # force last==first already idle
-        prev_paths = [idle_paths[0]]
-        for i in (1, 2):
-            im = render_full(payload["frames"]["prev"][i]["boxes"], theme_assets, 0)
-            prev_paths.append(write(f"prev-{i}", im))
-        prev_paths.append(idle_paths[0])
-        frames_meta = {
-            "phases": 1,
-            "idle": idle_paths,
-            "nextByPhase": [next_paths],
-            "prevByPhase": [prev_paths],
-        }
-        return sizes, frames_meta, idle_ims
-
-    next_by = []
-    prev_by = []
-    for p in range(PHASES):
-        p2 = (p + 1) % PHASES
-        nlist = [idle_paths[p]]
-        for i in (1, 2):
-            im = render_full(payload["frames"]["next"][i]["boxes"], theme_assets, p)
-            nlist.append(write(f"p{p}-next-{i}", im))
-        nlist.append(idle_paths[p2])
-        next_by.append(nlist)
-
-        plist = [idle_paths[p]]
-        for i in (1, 2):
-            im = render_full(payload["frames"]["prev"][i]["boxes"], theme_assets, p)
-            plist.append(write(f"p{p}-prev-{i}", im))
-        plist.append(idle_paths[p2])
-        prev_by.append(plist)
-
-    frames_meta = {
-        "phases": PHASES,
-        "idle": idle_paths,
-        "nextByPhase": next_by,
-        "prevByPhase": prev_by,
+    meta = {
+        "phases": 1,
+        "idle": [idle_path],
+        "nextByPhase": [next_paths],
+        "prevByPhase": [prev_paths],
     }
-    return sizes, frames_meta, idle_ims
+    return sizes, meta, idle
 
 
-def write_sprite_meta(all_meta: dict, crop, total_bytes: int):
+def write_sprite_meta(all_meta: dict, crop, total: int):
     js = f"""/**
- * 2.6.0 스프라이트 메타 (gen-theme-sprites.py 생성 · 수동 수정 금지)
+ * 2.7.0 스프라이트 메타 (gen-theme-sprites.py 생성 · 수동 수정 금지)
  */
 export const SPRITE_DURATION_MS = 150
 export const SPRITE_FRAME_COUNT = 4
 export const SPRITE_CROP = Object.freeze({json.dumps(crop)})
-export const SPRITE_PHASES = 6
+export const SPRITE_PHASES = 1
 
 export const SPRITE_THEMES = Object.freeze({json.dumps(all_meta, ensure_ascii=False)})
 
 export const SPRITE_IDLE = SPRITE_THEMES.default.idle[0]
 export const SPRITE_NEXT = Object.freeze(SPRITE_THEMES.default.nextByPhase[0])
 export const SPRITE_PREV = Object.freeze(SPRITE_THEMES.default.prevByPhase[0])
-export const SPRITE_FILES_SUM_BYTES = {total_bytes}
+export const SPRITE_FILES_SUM_BYTES = {total}
 
-/** theme: default | ommani | namu */
-export const themePhase = (todayTotal) =>
-  ((Math.max(0, Math.floor(Number(todayTotal) || 0)) % SPRITE_PHASES) + SPRITE_PHASES) % SPRITE_PHASES
+export const themePhase = (todayTotal) => 0
 
 export const spriteIdleFor = (theme, phase = 0) => {{
   const t = SPRITE_THEMES[theme] || SPRITE_THEMES.default
-  if (t.phases <= 1) return t.idle[0]
-  return t.idle[themePhase(phase)]
+  return t.idle[0]
 }}
 
 export const spriteFramesFor = (theme, dir, phase = 0) => {{
   const t = SPRITE_THEMES[theme] || SPRITE_THEMES.default
-  const p = t.phases <= 1 ? 0 : themePhase(phase)
-  const list = Number(dir) < 0 ? t.prevByPhase[p] : t.nextByPhase[p]
+  const list = Number(dir) < 0 ? t.prevByPhase[0] : t.nextByPhase[0]
   return [...list]
 }}
 
@@ -313,110 +213,83 @@ export const spriteImageFrames = (dir) =>
   spriteFramesForDir(dir).map((src) => ({{ src }}))
 """
     (ROOT / "src" / "common" / "sprite-meta.js").write_text(js, encoding="utf-8")
-    meta_json = {
-        "version": "2.6.0",
-        "crop": crop,
-        "durationMs": 150,
-        "themes": all_meta,
-        "filesSumBytes": total_bytes,
-    }
-    (OUT_DEFAULT / "sprite-meta.json").write_text(
-        json.dumps(meta_json, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    (OUT / "sprite-meta.json").write_text(
+        json.dumps(
+            {"version": "2.7.0", "crop": crop, "themes": all_meta, "filesSumBytes": total},
+            indent=2,
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
     )
 
 
-def label_font(size: int = 22):
-    """한글+한자 라벨용 (만트라 서브셋 OTF는 한글 없음 → □ 방지)."""
-    for path in (
-        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
-        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
-        str(FONT),
-    ):
-        try:
-            return ImageFont.truetype(path, size)
-        except OSError:
-            continue
-    return ImageFont.load_default()
-
-
-def make_previews(ommani_idle, namu_idle, ommani_mid, namu_mid, payload, assets):
+def make_previews(idles: dict):
     DOCS.mkdir(parents=True, exist_ok=True)
-    font = label_font(22)
-    # strip: ommani idle/mid | namu idle/mid
+    font = cjk_font(22)
+    labels = [
+        ("default", "기본"),
+        ("goldwood", "금박 나무"),
+        ("jade", "옥"),
+        ("pinkjade", "연핑크 옥"),
+    ]
     strip = Image.new("RGBA", (W * 4, H + 36), (20, 16, 12, 255))
     d = ImageDraw.Draw(strip)
-    cols = [
-        (ommani_idle[0], "육자 idle"),
-        (ommani_mid, "육자 mid"),
-        (namu_idle[0], "나무 idle"),
-        (namu_mid, "나무 mid"),
-    ]
-    for i, (im, lab) in enumerate(cols):
-        strip.paste(im, (i * W, 36))
+    for i, (key, lab) in enumerate(labels):
+        strip.paste(idles[key], (i * W, 36))
         d.text((i * W + 8, 8), lab, fill=(200, 180, 140, 255), font=font)
-    strip.save(DOCS / "preview-2.6.0-hanja.png")
-
-    # 6-bead sequence strip for both themes
-    seq = Image.new("RGBA", (W * 6, H * 2 + 48), (20, 16, 12, 255))
-    sd = ImageDraw.Draw(seq)
-    for ti, (theme, label, idles) in enumerate(
-        [
-            ("ommani", "육자진언 唵嘛呢叭咪吽", ommani_idle),
-            ("namu", "나무아미타불 南無阿彌陀佛", namu_idle),
-        ]
-    ):
-        sd.text((8, ti * (H + 24) + 4), label, fill=(200, 180, 140, 255), font=font)
-        for p in range(6):
-            seq.paste(idles[p], (p * W, ti * (H + 24) + 24))
-    seq.save(DOCS / "preview-2.6.0-hanja-seq.png")
-    print("previews ok")
+    strip.save(DOCS / "preview-2.7.0-themes.png")
+    print("wrote preview-2.7.0-themes.png")
 
 
 def main():
-    payload = ensure_depth_on_boxes(load_layout())
+    # 한자 테마 디렉터리 제거
+    for old in ("ommani", "namu"):
+        d = OUT / old
+        if d.exists():
+            for p in d.rglob("*"):
+                if p.is_file():
+                    p.unlink()
+            for p in sorted(d.rglob("*"), reverse=True):
+                if p.is_dir():
+                    p.rmdir()
+            if d.exists():
+                d.rmdir()
+
+    payload = load_layout()
     print("geom", payload["meta"])
 
-    # crop from default renders
-    default_assets = load_theme_beads("default")
+    beads = {}
+    for theme, path in THEMES.items():
+        if not path.exists():
+            raise SystemExit(f"missing bead source: {path}")
+        beads[theme] = Image.open(path).convert("RGBA")
+        print(f"bead {theme} {beads[theme].size}")
+
     probe = []
     for key in ("next", "prev"):
         for i in range(4):
-            probe.append(render_full(payload["frames"][key][i]["boxes"], default_assets, 0))
+            probe.append(render_full(payload["frames"][key][i]["boxes"], beads["default"]))
     crop = content_bbox(probe)
     cw, ch = crop[2] - crop[0], crop[3] - crop[1]
-    print(f"crop={crop} size={cw}x{ch}")
+    print(f"crop={crop} {cw}x{ch}")
 
     all_meta = {}
     all_sizes = {}
-
-    # default
-    sizes, meta, _ = generate_theme("default", payload, crop, default_assets)
-    all_sizes.update(sizes)
-    all_meta["default"] = meta
-    print("default files", len(sizes), "sum", sum(sizes.values()))
-
-    ommani_assets = load_theme_beads("ommani")
-    sizes, meta, ommani_idle = generate_theme("ommani", payload, crop, ommani_assets)
-    all_sizes.update(sizes)
-    all_meta["ommani"] = meta
-    print("ommani files", len(sizes), "sum", sum(sizes.values()))
-    ommani_mid = render_full(payload["frames"]["next"][1]["boxes"], ommani_assets, 0)
-
-    namu_assets = load_theme_beads("namu")
-    sizes, meta, namu_idle = generate_theme("namu", payload, crop, namu_assets)
-    all_sizes.update(sizes)
-    all_meta["namu"] = meta
-    print("namu files", len(sizes), "sum", sum(sizes.values()))
-    namu_mid = render_full(payload["frames"]["next"][1]["boxes"], namu_assets, 0)
+    idles = {}
+    for theme in ("default", "goldwood", "jade", "pinkjade"):
+        sizes, meta, idle = generate_theme(theme, beads[theme], payload, crop)
+        all_sizes.update(sizes)
+        all_meta[theme] = meta
+        idles[theme] = idle
+        print(f"{theme} sum={sum(sizes.values())} files={len(sizes)}")
 
     total = sum(all_sizes.values())
-    print("TOTAL sprite bytes", total)
+    print("TOTAL", total)
     write_sprite_meta(
-        all_meta,
-        {"left": crop[0], "top": crop[1], "width": cw, "height": ch},
-        total,
+        all_meta, {"left": crop[0], "top": crop[1], "width": cw, "height": ch}, total
     )
-    make_previews(ommani_idle, namu_idle, ommani_mid, namu_mid, payload, None)
+    make_previews(idles)
 
 
 if __name__ == "__main__":

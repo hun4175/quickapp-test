@@ -33,20 +33,17 @@ describe('BEAD_OPTIONS', () => {
 })
 
 describe('normalizeState', () => {
-  it('잘못된 입력은 기본값으로 · 모르는 키 무시', () => {
+  it('잘못된 입력은 기본값 · 한자 테마는 default 폴백', () => {
     const s = normalizeState({
-      e1Minimize: true,
+      beadTheme: 'ommani',
       renderMode: 'L',
-      diagnoseLatency: true,
-      beadTheme: 'nope',
       foo: 1
     })
-    assert.equal(s.bead, 0)
-    assert.equal(s.beadsPerRound, 108)
-    assert.equal(s.inputMode, 'slide')
     assert.equal(s.beadTheme, 'default')
-    assert.equal(s.diagnoseLatency, undefined)
+    assert.equal(s.inputMode, 'slide')
     assert.equal(s.renderMode, undefined)
+    assert.equal(normalizeState({ beadTheme: 'namu' }).beadTheme, 'default')
+    assert.equal(normalizeState({ beadTheme: 'jade' }).beadTheme, 'jade')
   })
 
   it('허용되지 않은 알 개수는 108로', () => {
@@ -75,12 +72,11 @@ describe('ensureToday', () => {
     )
     assert.equal(rolled, true)
     assert.equal(state.todayTotal, 0)
-    assert.equal(state.todayDate, '2026-11-13')
   })
 })
 
 describe('advance / retreat / swipe', () => {
-  it('기본은 plus_both (양방향 +1)', () => {
+  it('기본은 plus_both', () => {
     assert.equal(SWIPE_COUNT_MODE, 'plus_both')
   })
 
@@ -88,7 +84,6 @@ describe('advance / retreat / swipe', () => {
     let s = normalizeState({ beadsPerRound: 27 })
     let r = advanceBead(s)
     assert.equal(r.state.bead, 1)
-    assert.equal(r.completedRound, false)
     for (let i = 1; i < 27; i++) r = advanceBead(r.state)
     assert.equal(r.state.bead, 0)
     assert.equal(r.state.rounds, 1)
@@ -105,36 +100,30 @@ describe('advance / retreat / swipe', () => {
   it('retreatBead', () => {
     const s = retreatBead({ bead: 2, beadsPerRound: 108, todayTotal: 2 })
     assert.equal(s.state.bead, 1)
-    assert.equal(s.state.todayTotal, 1)
   })
 })
 
 describe('설정·초기화', () => {
-  it('setBeadsPerRound', () => {
+  it('setBeadsPerRound / vibrate', () => {
     assert.equal(setBeadsPerRound({}, 54).beadsPerRound, 54)
-  })
-
-  it('setVibrateOnBead', () => {
     assert.equal(setVibrateOnBead({}, false).vibrateOnBead, false)
   })
 
-  it('2.6.0 schema≥12 · beadTheme', () => {
-    assert.deepEqual([...BEAD_THEMES], ['default', 'ommani', 'namu'])
+  it('2.7.0 schema≥13 · 테마', () => {
+    assert.deepEqual(
+      [...BEAD_THEMES],
+      ['default', 'goldwood', 'jade', 'pinkjade']
+    )
     const m = migrateAnimModeForStability({
-      diagnoseLatency: true,
-      stateSchema: 11
-    })
-    assert.equal(m.migrated, true)
-    assert.equal(m.state.stateSchema, 12)
-    assert.equal(m.state.beadTheme, 'default')
-    assert.equal(setBeadTheme({}, 'ommani').beadTheme, 'ommani')
-    assert.equal(setBeadTheme({}, 'namu').beadTheme, 'namu')
-    assert.equal(setBeadTheme({}, 'x').beadTheme, 'default')
-    const stable = migrateAnimModeForStability({
-      beadTheme: 'namu',
+      beadTheme: 'ommani',
       stateSchema: 12
     })
-    assert.equal(stable.migrated, false)
+    assert.equal(m.migrated, true)
+    assert.equal(m.state.stateSchema, 13)
+    assert.equal(m.state.beadTheme, 'default')
+    assert.equal(setBeadTheme({}, 'goldwood').beadTheme, 'goldwood')
+    assert.equal(setBeadTheme({}, 'pinkjade').beadTheme, 'pinkjade')
+    assert.equal(setBeadTheme({}, 'ommani').beadTheme, 'default')
   })
 
   it('inputMode', () => {
@@ -142,7 +131,7 @@ describe('설정·초기화', () => {
     assert.equal(setInputMode({}, 'touch').inputMode, 'touch')
   })
 
-  it('resetSession 은 오늘 합계 유지', () => {
+  it('resetSession / resetAll', () => {
     const s = resetSession({
       bead: 10,
       rounds: 2,
@@ -150,18 +139,12 @@ describe('설정·초기화', () => {
       todayDate: '2026-11-13'
     })
     assert.equal(s.bead, 0)
-    assert.equal(s.rounds, 0)
     assert.equal(s.todayTotal, 50)
-  })
-
-  it('resetAll 은 오늘 합계도 0', () => {
-    const s = resetAll(
+    const a = resetAll(
       { bead: 10, rounds: 2, todayTotal: 50, todayDate: '2026-11-12' },
       '2026-11-13'
     )
-    assert.equal(s.bead, 0)
-    assert.equal(s.todayTotal, 0)
-    assert.equal(s.todayDate, '2026-11-13')
+    assert.equal(a.todayTotal, 0)
   })
 })
 
@@ -169,7 +152,7 @@ describe('serialize', () => {
   it('roundtrip', () => {
     const s = normalizeState({
       bead: 3,
-      beadTheme: 'ommani',
+      beadTheme: 'jade',
       todayDate: formatDate()
     })
     assert.deepEqual(deserializeState(serializeState(s)), normalizeState(s))

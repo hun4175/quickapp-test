@@ -16,5 +16,6 @@ dist/*
 # 스프라이트 PNG32 비교 산출물 (rpk 미포함)
 scripts/out/
 
-# 각인 원본 PNG (생성 스크립트로 재생성 · rpk 미포함)
+# 생성 산출물 (원본 JPG/cut 스크립트로 재생성 · rpk 미포함)
 scripts/assets/beads-engraved/
+scripts/assets/beads-cut/
