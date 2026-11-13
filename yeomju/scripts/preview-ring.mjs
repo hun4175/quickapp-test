@@ -1,6 +1,6 @@
 /**
  * 432×514 레이아웃 시뮬레이션 PNG (실기기 스크린샷 아님).
- * 스와이프(위) 전 / 중간(0.5) / 후 프레임을 docs/ 에 기록.
+ * 1.5.0: 나무 구슬만, 포커스 링/옥 없음. 스와이프 전/중/후.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -11,8 +11,9 @@ import {
   VIRTUAL_BEADS,
   CHAIN_DIR,
   CHAIN_ANIM_MS,
+  FRONT_COUNT,
+  BACK_COUNT,
   layoutRing,
-  layoutFocusMarker,
   chainStepY
 } from '../src/common/ring.js'
 
@@ -39,17 +40,37 @@ const decodePng = (buf) => {
   }
   const inflated = zlib.inflateSync(Buffer.concat(idat))
   const pixels = Buffer.alloc(width * height * 4)
+  const stride = width * 4
   let i = 0
-  let p = 0
+  let prev = Buffer.alloc(stride)
   for (let y = 0; y < height; y++) {
     const filter = inflated[i++]
-    if (filter !== 0) throw new Error('png filter ' + filter)
-    for (let x = 0; x < width; x++) {
-      pixels[p++] = inflated[i++]
-      pixels[p++] = inflated[i++]
-      pixels[p++] = inflated[i++]
-      pixels[p++] = inflated[i++]
+    const row = Buffer.alloc(stride)
+    for (let x = 0; x < stride; x++) row[x] = inflated[i++]
+    const recon = Buffer.alloc(stride)
+    const paeth = (a, b, c) => {
+      const p = a + b - c
+      const pa = Math.abs(p - a)
+      const pb = Math.abs(p - b)
+      const pc = Math.abs(p - c)
+      if (pa <= pb && pa <= pc) return a
+      if (pb <= pc) return b
+      return c
     }
+    for (let x = 0; x < stride; x++) {
+      const left = x >= 4 ? recon[x - 4] : 0
+      const up = prev[x]
+      const upLeft = x >= 4 ? prev[x - 4] : 0
+      let v = row[x]
+      if (filter === 1) v = (v + left) & 255
+      else if (filter === 2) v = (v + up) & 255
+      else if (filter === 3) v = (v + ((left + up) >> 1)) & 255
+      else if (filter === 4) v = (v + paeth(left, up, upLeft)) & 255
+      else if (filter !== 0) throw new Error('png filter ' + filter)
+      recon[x] = v
+    }
+    recon.copy(pixels, y * stride)
+    prev = recon
   }
   return { width, height, pixels }
 }
@@ -163,7 +184,10 @@ const FONT = {
   R: [0x1e, 0x11, 0x11, 0x1e, 0x14, 0x12, 0x11],
   M: [0x11, 0x1b, 0x15, 0x11, 0x11, 0x11, 0x11],
   I: [0x0e, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0e],
-  D: [0x1e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1e]
+  D: [0x1e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1e],
+  U: [0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e],
+  P: [0x1e, 0x11, 0x11, 0x1e, 0x10, 0x10, 0x10],
+  W: [0x11, 0x11, 0x11, 0x15, 0x15, 0x1b, 0x11]
 }
 
 const glyph = (ch) => FONT[ch] || FONT[' ']
@@ -210,8 +234,6 @@ const fillRect = (dst, dw, dh, x, y, w, h, r, g, b, a) => {
 }
 
 const wood = loadAsset('bead-wood.png')
-const gem = loadAsset('bead-gem.png')
-const arc = loadAsset('focus-arc.png')
 
 const renderFrame = (label, phaseIndex, shiftProgress, beadCount) => {
   const rgba = Buffer.alloc(W * H * 4, 0)
@@ -226,27 +248,23 @@ const renderFrame = (label, phaseIndex, shiftProgress, beadCount) => {
     ...DEFAULT_RING,
     virtual: VIRTUAL_BEADS,
     phaseIndex,
-    shiftProgress,
-    animExtra: shiftProgress > 0 && shiftProgress < 1
+    shiftProgress
   })
   for (const b of beads) {
-    blitAlpha(rgba, W, H, b.focused ? gem : wood, b.left, b.top, b.size, b.opacity)
+    blitAlpha(rgba, W, H, wood, b.left, b.top, b.size, 1)
   }
-  const marker = layoutFocusMarker(DEFAULT_RING)
-  blitAlpha(rgba, W, H, arc, marker.left, marker.top, marker.size, 1)
 
-  fillRect(rgba, W, H, 156, 14, 120, 36, 26, 20, 16, 224)
+  fillRect(rgba, W, H, 156, 14, 120, 36, 26, 20, 16, 255)
   drawText(rgba, W, H, 'Today 0', 168, 22, 2, 232, 196, 138)
 
-  fillRect(rgba, W, H, 86, 430, 260, 54, 26, 20, 16, 230)
-  drawText(rgba, W, H, `${beadCount} / 108`, 150, 438, 3, 243, 226, 196)
+  fillRect(rgba, W, H, 76, 430, 280, 58, 26, 20, 16, 255)
+  drawText(rgba, W, H, `${beadCount} / 108`, 150, 436, 3, 243, 226, 196)
   drawText(rgba, W, H, 'Lap 0', 180, 462, 2, 184, 148, 98)
 
-  fillRect(rgba, W, H, 146, 488, 140, 22, 42, 28, 18, 242)
+  fillRect(rgba, W, H, 146, 488, 140, 22, 42, 28, 18, 255)
   drawText(rgba, W, H, 'settings', 160, 492, 2, 232, 196, 138)
 
-  // 프레임 라벨
-  fillRect(rgba, W, H, 8, 60, 160, 22, 40, 28, 18, 200)
+  fillRect(rgba, W, H, 8, 60, 180, 22, 40, 28, 18, 255)
   drawText(rgba, W, H, label, 14, 64, 2, 245, 217, 168)
 
   return { rgba, beads }
@@ -261,8 +279,11 @@ const frames = [
 ]
 
 const meta = {
+  version: '1.5.0',
   chainDir: CHAIN_DIR,
   chainAnimMs: CHAIN_ANIM_MS,
+  front: FRONT_COUNT,
+  back: BACK_COUNT,
   stepY: chainStepY(DEFAULT_RING.ry, VIRTUAL_BEADS),
   note: 'simulation preview, NOT a device screenshot',
   frames: []
@@ -272,22 +293,27 @@ for (const f of frames) {
   const { rgba, beads } = renderFrame(f.label, f.phase, f.shift, f.bead)
   const outPath = path.join(docsDir, f.file)
   writePng(outPath, W, H, rgba)
-  const focused = beads.find((b) => b.focused)
   meta.frames.push({
     file: `yeomju/docs/${f.file}`,
     label: f.label,
     phase: f.phase,
     shiftProgress: f.shift,
-    focusCenter: focused
-      ? [focused.left + focused.size / 2, focused.top + focused.size / 2]
-      : null,
     renderCount: beads.length
   })
   console.log('wrote', outPath)
 }
 
-// 기존 단일 미리보기도 after 와 동일 스냅으로 유지
-const after = renderFrame('AFTER', 1, 0, 1)
-writePng(path.join(docsDir, 'preview-432x514.png'), W, H, after.rgba)
-console.log('wrote', path.join(docsDir, 'preview-432x514.png'))
+// 대표 미리보기: 세 프레임을 가로로 이어 붙인 스트립 + after 단독
+const stripW = W * 3
+const strip = Buffer.alloc(stripW * H * 4, 0)
+const parts = frames.map((f) => renderFrame(f.label, f.phase, f.shift, f.bead).rgba)
+for (let i = 0; i < 3; i++) {
+  for (let y = 0; y < H; y++) {
+    const srcStart = y * W * 4
+    parts[i].copy(strip, y * stripW * 4 + i * W * 4, srcStart, srcStart + W * 4)
+  }
+}
+writePng(path.join(docsDir, 'preview-1.5.0.png'), stripW, H, strip)
+writePng(path.join(docsDir, 'preview-432x514.png'), W, H, parts[2])
+console.log('wrote', path.join(docsDir, 'preview-1.5.0.png'))
 console.log(JSON.stringify(meta, null, 2))

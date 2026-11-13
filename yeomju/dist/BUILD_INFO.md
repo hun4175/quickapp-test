@@ -1,41 +1,36 @@
-# 빌드 정보 — 1.4.0
+# 빌드 정보 — 1.5.0
 
 ## 패키지
 
-- versionName: `1.4.0`
-- versionCode: `5`
+- versionName: `1.5.0`
+- versionCode: `6`
 - package: `com.yeomju.mala`
 - 빌드: `cd yeomju && npm run build` (aiot-toolkit 2.0.5)
 
 ## 산출물 (사실)
 
-- 파일: `yeomju/dist/com.yeomju.mala.debug.1.4.0.rpk`
-- 크기: 124258 bytes
-- SHA256: `7751d245f3eaf1c88cfe808fec15407373cab7bd3b43fc8deccf6e9d02813e4d`
+- 파일: `yeomju/dist/com.yeomju.mala.debug.1.5.0.rpk`
+- 크기: 79411 bytes
+- SHA256: `57bf405bcf1ccafdc781a8fbc2a415868d6da450daeb9a9b4476715b00f918ba`
 
-## 1.4.0 변경 요약
+## 1.5.0 렌더 구조 (1.4.0 대비)
 
-- 체인 전체 한 칸 이동 + 앞/뒤열 반대 방향
-- 조작: **위/아래 스와이프만** (탭 카운트 제거). `touchstart`/`touchend` + `SWIPE_MIN_DY=40`
-- 카운트: `SWIPE_COUNT_MODE='plus_both'` (양방향 +1). `down_undo` 로 전환 가능
-- 애니메이션 ~180ms, 키프레임 오버슈트, 포커스 번쩍, 진동은 이동 시작 시
-- 소리 미포함
+| 항목 | 1.4.0 | 1.5.0 |
+| --- | --- | --- |
+| 그리는 구슬 | 앞3+뒤5(=8), animExtra 시 더 | 앞3+뒤3(=6) 고정 |
+| 프레임 갱신 | 굴림마다 left/top/size/opacity/src 재바인딩 + 포커스 플래시 | 슬롯 좌표 고정. 레인 2개에 `@keyframes` translate 클래스만 on/off |
+| 이미지 | wood+gem+focus-arc (256px) | wood만 240px. gem/arc 제거 |
+| 포커스 UI | 옥 구슬 + 흰 링 + 번쩍 | 없음 (전부 동일 나무) |
+| HUD | rgba 반투명 | 불투명 단색 |
+| 애니 | 180ms 오버슈트 키프레임 | 160ms 단순 ease-out |
+| 입력 큐 | pendingDirs 유지 | 동일 |
+| 진동 | 이동 시작 시 | 동일 |
 
-## 오디오 API (문서 조사, 미구현)
+## 미리보기
 
-- 문서: https://iot.mi.com/vela/quickapp/en/features/other/audio.html
-- `@system.audio` — `play`/`pause`/`stop`, `src`, volume 등
-- `streamType: voicecall` 은 시계·밴드 미지원 (music 기본)
-- REDMI Watch 6 FAQ 에 미디어 볼륨·음악 재생 UI 존재
-- **퀵앱에서 Watch 6 실기기 오디오 동작은 미검증. 1.4.0 미사용**
+- `yeomju/docs/preview-1.5.0.png` (전/중/후 가로 스트립)
+- `yeomju/docs/preview-swipe-before.png` / `mid` / `after`
 
-## 제스처 충돌 (미확인)
+## 미확인
 
-- 좌우 스와이프는 앱에서 무시. 시스템 오른쪽 스와이프 뒤로가기와 **충돌 가능성은 실기기 미검증**
-- 설정/확인 페이지만 `onswipe right` → `router.back()`
-
-## 미리보기 PNG (시뮬레이션, 실기기 스크린샷 아님)
-
-- `yeomju/docs/preview-swipe-before.png`
-- `yeomju/docs/preview-swipe-mid.png`
-- `yeomju/docs/preview-swipe-after.png`
+- 1.5.0 실기기 버벅임 개선 여부 (단정하지 않음)

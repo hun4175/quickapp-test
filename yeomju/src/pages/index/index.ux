@@ -1,33 +1,43 @@
 <template>
   <!--
-    조작: 위/아래 스와이프만 (탭으로는 카운트 안 함 — 실수 터치 방지)
-    touchstart/touchend + SWIPE_MIN_DY 임계값 (onswipe 는 거리 파라미터 없음)
-    위=+앞열↑ / 아래=+앞열↓. 카운트는 SWIPE_COUNT_MODE(기본 plus_both=+1)
+    1.5.0: 고정 슬롯 + 레인 transform 한 번.
+    슬롯 left/top/size 는 onInit 이후 재바인딩하지 않음.
+    탭 카운트 없음. touch Δy 임계값. 양방향 스와이프.
   -->
   <div
     class="page"
     ontouchstart="onTouchStart"
     ontouchend="onTouchEnd"
-    onswipe="onSwipe"
   >
     <stack class="stage">
       <stack class="ring">
-        <div
-          class="bead-wrap {{$item.wrapClass}}"
-          for="{{ringBeads}}"
-          style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px; opacity: {{$item.opacity}};"
-        >
-          <image
-            class="bead-img {{$item.flashClass}}"
-            src="{{$item.src}}"
-            style="width: {{$item.size}}px; height: {{$item.size}}px;"
-          ></image>
-        </div>
-        <image
-          class="focus-arc"
-          src="/common/focus-arc.png"
-          style="left: {{markerLeft}}px; top: {{markerTop}}px; width: {{markerSize}}px; height: {{markerSize}}px;"
-        ></image>
+        <!-- 뒤열 먼저(아래 레이어) — stack 문서순서 -->
+        <stack class="lane {{backRollClass}}">
+          <div
+            class="bead-wrap"
+            for="{{backSlots}}"
+            style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px;"
+          >
+            <image
+              class="bead-img"
+              src="{{$item.src}}"
+              style="width: {{$item.size}}px; height: {{$item.size}}px;"
+            ></image>
+          </div>
+        </stack>
+        <stack class="lane {{frontRollClass}}">
+          <div
+            class="bead-wrap"
+            for="{{frontSlots}}"
+            style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px;"
+          >
+            <image
+              class="bead-img"
+              src="{{$item.src}}"
+              style="width: {{$item.size}}px; height: {{$item.size}}px;"
+            ></image>
+          </div>
+        </stack>
         <text class="plus" show="{{showPlus}}">+1</text>
       </stack>
 
@@ -58,14 +68,11 @@ import { applySwipeCount } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
 import {
   VIRTUAL_BEADS,
-  DEFAULT_RING,
   CHAIN_ANIM_MS,
-  FOCUS_FLASH_MS,
   SWIPE_MIN_DY,
   phaseFromBead,
   stepPhase,
-  layoutRing,
-  layoutFocusMarker,
+  layoutFixedSlots,
   rollClassForLane,
   classifyVerticalSwipe
 } from '../../common/ring.js'
@@ -78,27 +85,28 @@ export default {
     todayTotal: 0,
     vibrateOnBead: true,
     showPlus: false,
-    ringBeads: [],
-    markerLeft: 0,
-    markerTop: 0,
-    markerSize: 72,
+    frontSlots: [],
+    backSlots: [],
+    frontRollClass: '',
+    backRollClass: '',
     displayPhase: 0
   },
 
   onInit() {
     this._state = null
     this._animTimer = null
-    this._flashTimer = null
     this._draining = false
     this._animating = false
     this._saveChain = Promise.resolve()
-    /** @type {number[]} 스와이프 방향 큐: 1=위, -1=아래 */
     this._pendingDirs = []
+    this._animQueue = []
     this._touchX = 0
     this._touchY = 0
     this._touchActive = false
-    this.placeMarker()
-    this.refreshRing(0, false, 0, false)
+    // 고정 슬롯 — 이후 left/top/size 재바인딩 없음
+    const slots = layoutFixedSlots()
+    this.frontSlots = slots.front
+    this.backSlots = slots.back
   },
 
   onShow() {
@@ -109,10 +117,6 @@ export default {
     if (this._animTimer) {
       clearTimeout(this._animTimer)
       this._animTimer = null
-    }
-    if (this._flashTimer) {
-      clearTimeout(this._flashTimer)
-      this._flashTimer = null
     }
   },
 
@@ -125,10 +129,6 @@ export default {
     this.applyState(state, true)
   },
 
-  /**
-   * @param {object} state
-   * @param {boolean} snapVisual
-   */
   applyState(state, snapVisual) {
     this._state = state
     this.bead = state.bead
@@ -136,41 +136,9 @@ export default {
     this.beadsPerRound = state.beadsPerRound
     this.todayTotal = state.todayTotal
     this.vibrateOnBead = state.vibrateOnBead
-    if (snapVisual || !this._animating) {
-      // 저장값 기준 초기 위상. 이후 양방향 스와이프로 displayPhase 는 독립 이동.
-      if (snapVisual) {
-        this.displayPhase = phaseFromBead(state.bead, VIRTUAL_BEADS)
-      }
-      this.refreshRing(this.displayPhase, false, 0, false)
+    if (snapVisual) {
+      this.displayPhase = phaseFromBead(state.bead, VIRTUAL_BEADS)
     }
-  },
-
-  placeMarker() {
-    const m = layoutFocusMarker(DEFAULT_RING)
-    this.markerLeft = m.left
-    this.markerTop = m.top
-    this.markerSize = m.size
-  },
-
-  /**
-   * @param {number} phaseIndex
-   * @param {boolean} animExtra
-   * @param {number} rollDir 0=정지, 1=앞열↑, -1=앞열↓
-   * @param {boolean} flashing
-   */
-  refreshRing(phaseIndex, animExtra, rollDir, flashing) {
-    // 정적 배치는 CHAIN_DIR 기본값 유지. 스와이프 방향은 CSS translate 클래스만 바꾼다.
-    const items = layoutRing({
-      ...DEFAULT_RING,
-      virtual: VIRTUAL_BEADS,
-      phaseIndex,
-      animExtra: !!animExtra
-    })
-    this.ringBeads = items.map((b) => ({
-      ...b,
-      wrapClass: rollDir ? rollClassForLane(b.lane, rollDir) : '',
-      flashClass: flashing && b.focused ? 'bead-flash' : ''
-    }))
   },
 
   touchPoint(e) {
@@ -205,21 +173,6 @@ export default {
     if (dir) this.enqueueSwipe(dir)
   },
 
-  /**
-   * 보조: 문서상 onswipe 도 up/down 제공.
-   * 좌우는 무시(시스템 뒤로가기 등과 충돌 완화). touch 로 이미 처리된 경우 중복될 수 있어
-   * touch 직후 짧은 무시 윈도우는 두지 않고, pending 큐가 같은 제스처를 두 번 넣을 수 있으므로
-   * onswipe 는 touch 좌표가 없을 때만 쓰거나 — 여기선 touch 우선, onswipe 는 up/down 만 보조.
-   * 실기기에서 touch+swipe 이중 발화 시 한 제스처에 2칸 될 수 있어 onswipe 는 비활성에 가깝게:
-   * touch 가 동작하면 onswipe 는 같은 제스처에서 거의 동시에 옴 → onswipe 미사용이 안전.
-   * 문서 확인용으로 핸들러는 두되 left/right 만 무시하고 up/down 도 무시(touch 전담).
-   */
-  onSwipe(e) {
-    // touchstart/end 임계값 경로를 주력으로 씀. onswipe 는 거리 파라미터 없음.
-    // 이중 카운트 방지를 위해 여기서는 카운트하지 않음.
-    if (!e || !e.direction) return
-  },
-
   enqueueSwipe(dir) {
     const d = Number(dir) < 0 ? -1 : 1
     this._pendingDirs.push(d)
@@ -250,9 +203,7 @@ export default {
     const result = applySwipeCount(this._state, dir)
     this.applyState(result.state, false)
     this.queueSave(result.state)
-    // 진동은 이동 시작과 동시에
     this.buzz(result.completedRound)
-    if (!this._animQueue) this._animQueue = []
     this._animQueue.push(dir)
     this.ensureChainAnim()
   },
@@ -272,29 +223,27 @@ export default {
     }
   },
 
+  /**
+   * 슬롯 좌표는 그대로 두고, 레인에 transform 클래스만 붙였다 뗌.
+   */
   ensureChainAnim() {
     if (this._animating) return
-    if (!this._animQueue || this._animQueue.length === 0) return
+    if (!this._animQueue.length) return
 
     const dir = this._animQueue.shift()
     this._animating = true
     this.showPlus = true
-    this.refreshRing(this.displayPhase, true, 0, false)
-    setTimeout(() => {
-      this.refreshRing(this.displayPhase, true, dir, false)
-    }, 16)
+    this.frontRollClass = rollClassForLane('front', dir)
+    this.backRollClass = rollClassForLane('back', dir)
 
     if (this._animTimer) clearTimeout(this._animTimer)
     this._animTimer = setTimeout(() => {
       this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)
+      this.frontRollClass = ''
+      this.backRollClass = ''
       this.showPlus = false
-      this.refreshRing(this.displayPhase, false, 0, true)
-      if (this._flashTimer) clearTimeout(this._flashTimer)
-      this._flashTimer = setTimeout(() => {
-        this.refreshRing(this.displayPhase, false, 0, false)
-        this._animating = false
-        this.ensureChainAnim()
-      }, FOCUS_FLASH_MS)
+      this._animating = false
+      this.ensureChainAnim()
     }, CHAIN_ANIM_MS)
   },
 
@@ -321,36 +270,27 @@ export default {
   height: 514px;
 }
 
+.lane {
+  width: 432px;
+  height: 514px;
+}
+
+.lane-roll-up {
+  animation-name: laneUp;
+  animation-duration: 160ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+}
+
+.lane-roll-down {
+  animation-name: laneDown;
+  animation-duration: 160ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+}
+
 .bead-wrap {
   position: absolute;
-}
-
-.bead-roll-front-up {
-  animation-name: chainFrontUp;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
-  animation-iteration-count: 1;
-}
-
-.bead-roll-back-down {
-  animation-name: chainBackDown;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
-  animation-iteration-count: 1;
-}
-
-.bead-roll-front-down {
-  animation-name: chainFrontDown;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
-  animation-iteration-count: 1;
-}
-
-.bead-roll-back-up {
-  animation-name: chainBackUp;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
-  animation-iteration-count: 1;
 }
 
 .bead-img {
@@ -359,33 +299,22 @@ export default {
   top: 0px;
 }
 
-.bead-flash {
-  animation-name: focusFlash;
-  animation-duration: 120ms;
-  animation-timing-function: ease-out;
-  animation-iteration-count: 1;
-}
-
-.focus-arc {
-  position: absolute;
-}
-
 .plus {
   position: absolute;
   left: 200px;
   top: 120px;
-  font-size: 30px;
+  font-size: 28px;
   font-weight: bold;
   color: #f5d9a8;
   animation-name: plusUp;
-  animation-duration: 180ms;
+  animation-duration: 160ms;
   animation-timing-function: ease-out;
   animation-iteration-count: 1;
 }
 
 .hud-top {
   width: 432px;
-  height: 56px;
+  height: 48px;
   margin-top: 8px;
   flex-direction: row;
   justify-content: center;
@@ -393,17 +322,17 @@ export default {
 }
 
 .hud-chip {
-  padding-left: 18px;
-  padding-right: 18px;
-  height: 40px;
-  border-radius: 20px;
-  background-color: rgba(26, 20, 16, 0.88);
+  padding-left: 16px;
+  padding-right: 16px;
+  height: 36px;
+  border-radius: 8px;
+  background-color: #1a1410;
   justify-content: center;
   align-items: center;
 }
 
 .today {
-  font-size: 22px;
+  font-size: 20px;
   color: #e8c48a;
 }
 
@@ -418,38 +347,38 @@ export default {
 
 .hud-panel {
   width: 280px;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  border-radius: 18px;
-  background-color: rgba(26, 20, 16, 0.9);
+  padding-top: 6px;
+  padding-bottom: 6px;
+  border-radius: 8px;
+  background-color: #1a1410;
   flex-direction: column;
   align-items: center;
 }
 
 .count {
-  font-size: 34px;
+  font-size: 32px;
   font-weight: bold;
   color: #f3e2c4;
 }
 
 .rounds {
   margin-top: 2px;
-  font-size: 20px;
+  font-size: 18px;
   color: #b89462;
 }
 
 .hint {
   margin-top: 4px;
-  font-size: 18px;
+  font-size: 16px;
   color: #9a7a52;
 }
 
 .btn {
   width: 140px;
-  height: 48px;
+  height: 44px;
   margin-top: 8px;
-  border-radius: 24px;
-  background-color: rgba(42, 28, 18, 0.95);
+  border-radius: 8px;
+  background-color: #2a1c12;
   justify-content: center;
   align-items: center;
   border-width: 1px;
@@ -457,70 +386,26 @@ export default {
 }
 
 .btn-text {
-  font-size: 22px;
+  font-size: 20px;
   color: #e8c48a;
 }
 
-@keyframes chainFrontUp {
+/* chainStepY ≈ 150 — 레인 단위 단순 translate (오버슈트 없음) */
+@keyframes laneUp {
   0% {
     transform: translateY(0px);
-  }
-  72% {
-    transform: translateY(-162px);
   }
   100% {
     transform: translateY(-150px);
   }
 }
 
-@keyframes chainBackDown {
+@keyframes laneDown {
   0% {
     transform: translateY(0px);
-  }
-  72% {
-    transform: translateY(162px);
   }
   100% {
     transform: translateY(150px);
-  }
-}
-
-@keyframes chainFrontDown {
-  0% {
-    transform: translateY(0px);
-  }
-  72% {
-    transform: translateY(162px);
-  }
-  100% {
-    transform: translateY(150px);
-  }
-}
-
-@keyframes chainBackUp {
-  0% {
-    transform: translateY(0px);
-  }
-  72% {
-    transform: translateY(-162px);
-  }
-  100% {
-    transform: translateY(-150px);
-  }
-}
-
-@keyframes focusFlash {
-  0% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  35% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
   }
 }
 
@@ -530,7 +415,7 @@ export default {
     opacity: 1;
   }
   100% {
-    transform: translateY(-36px);
+    transform: translateY(-28px);
     opacity: 0;
   }
 }
