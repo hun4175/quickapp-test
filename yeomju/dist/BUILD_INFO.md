@@ -1,26 +1,18 @@
-# 빌드 정보 — 2.8.2
+# 빌드 정보 — 2.8.3
 
 ## 산출물 (사실)
 
-- `yeomju/dist/com.yeomju.mala.debug.2.8.2.rpk`
-- 크기: 987367 bytes
-- SHA256: `d37077b4021ef177cf027a7394314520dae35698d5cbabbdf3e67b4879ad7bb0`
-- versionName 2.8.2 / versionCode 34
+- `yeomju/dist/com.yeomju.mala.debug.2.8.3.rpk`
+- 크기: 987118 bytes
+- SHA256: `5fa57a80277a49bd2281e52a2d4029cfb6b169d3917f22ac308bafbc88d1d715`
+- versionName 2.8.3 / versionCode 35
 - 단위 테스트: 39 passed
 
 ## 변경
 
-- 「원만 성취」문구 제거 · cele-glow + 카운트 반짝임 · 해금 안내 유지
-- 달성 진동: long(1000ms)×2 @ 0/1000ms ≈ 2초 · onHide 타이머 정리
-- 설정 `횟수 표시` 제거 · showCount 항상 true (schema 16)
-
-## 진동 근거
-
-- Quick App: long=1000ms, short=35ms
-  https://developer.huawei.com/consumer/cn/doc/quickapp-api-vibrator
-- Watch 6: vibrate만 지원 (start/stop 미지원)
+- 설정 섹션 부가설명(hint) 전부 제거
+- 달성 진동: long ×3 @ 0·500·1000ms (실기기 long이 문서보다 짧음)
 
 ## 프리뷰
 
-- `docs/preview-2.8.2-main.png`
-- `docs/preview-2.8.2-settings.png`
+- `docs/preview-2.8.3-settings.png`

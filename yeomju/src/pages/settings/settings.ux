@@ -9,7 +9,6 @@
 
     <div class="scroll">
       <text class="label">입력 방식</text>
-      <text class="hint">{{inputHint}}</text>
       <div
         class="opt {{inputMode === 'slide' ? 'opt-on' : ''}}"
         onclick="pickSlide"
@@ -26,7 +25,6 @@
       </div>
 
       <text class="label">염주</text>
-      <text class="hint">구슬 재질</text>
       <div
         class="opt {{beadTheme === 'default' ? 'opt-on' : ''}}"
         onclick="pickThemeDefault"
@@ -58,7 +56,6 @@
       </div>
 
       <text class="label">목표 횟수</text>
-      <text class="hint">달성 시 축하 후 0부터 · 변경 시 카운트 리셋</text>
       <div
         class="opt {{goalCount === 21 ? 'opt-on' : ''}}"
         onclick="pickGoal21"
@@ -89,7 +86,6 @@
       </div>
 
       <text class="label">횟수 초기화</text>
-      <text class="hint">{{resetHint}}</text>
       <div
         class="opt {{resetArmed ? 'opt-warn' : ''}}"
         onclick="onResetTap"
@@ -97,7 +93,7 @@
         <text class="opt-text">{{resetLabel}}</text>
       </div>
 
-      <text class="meta">v2.8.2</text>
+      <text class="meta">v2.8.3</text>
     </div>
   </div>
 </template>
@@ -109,21 +105,18 @@ import {
   setInputMode,
   setBeadTheme,
   setGoalCount,
-  resetTodayCount,
-  INPUT_MODE_HINTS
+  resetTodayCount
 } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
 
 export default {
   private: {
     inputMode: 'slide',
-    inputHint: INPUT_MODE_HINTS.slide,
     beadTheme: 'default',
     goalCount: 21,
     unlockGoldwood: false,
     resetArmed: false,
-    resetLabel: '초기화',
-    resetHint: '두 번 눌러 확인'
+    resetLabel: '초기화'
   },
 
   onShow() {
@@ -147,13 +140,11 @@ export default {
   disarmReset() {
     this.resetArmed = false
     this.resetLabel = '초기화'
-    this.resetHint = '두 번 눌러 확인'
   },
 
   armReset() {
     this.resetArmed = true
     this.resetLabel = '한 번 더 누르면 초기화'
-    this.resetHint = '한 번 더 누르면 카운트 0'
   },
 
   async reload() {
@@ -164,7 +155,6 @@ export default {
   applyLocal(state) {
     this._state = state
     this.inputMode = state.inputMode || 'slide'
-    this.inputHint = INPUT_MODE_HINTS[this.inputMode] || INPUT_MODE_HINTS.slide
     this.beadTheme = state.beadTheme || 'default'
     this.goalCount = state.goalCount || 21
     this.unlockGoldwood = state.unlockGoldwood === true
@@ -294,16 +284,10 @@ export default {
 }
 .label {
   width: 100%;
-  margin-top: 16px;
-  margin-bottom: 6px;
+  margin-top: 20px;
+  margin-bottom: 12px;
   font-size: 28px;
   color: #9a7b55;
-}
-.hint {
-  width: 100%;
-  margin-bottom: 12px;
-  font-size: 22px;
-  color: #6e563c;
 }
 .opt {
   width: 100%;
