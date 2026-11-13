@@ -1,42 +1,47 @@
 <template>
   <!--
-    염주 고리 UI: stack 에 타원 배치된 알 + 왼쪽 포커스 호.
-    애니메이션은 공식 문서의 @keyframes + transform 만 사용
-    (transition 의 transform/left/top 은 문서상 미지원).
+    큰 염주 고리: 화면 전체 stack. 알은 일부가 화면 밖으로 잘림.
+    z-index 미문서화 → depth 오름차순으로 stack 에 넣어 앞 알이 위에 그려짐.
+    HUD(오늘/카운트/설정)는 반투명 배경으로 구슬 위에 올림.
   -->
   <div class="page" onswipe="onSwipe">
-    <text class="today">오늘 {{todayTotal}}</text>
-
-    <stack class="ring {{rolling ? 'ring-roll' : ''}}" onclick="onTap">
-      <div
-        class="bead-wrap"
-        for="{{ringBeads}}"
-        style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px; opacity: {{$item.opacity}};"
-      >
+    <stack class="stage">
+      <stack class="ring {{rolling ? 'ring-roll' : ''}}" onclick="onTap">
+        <div
+          class="bead-wrap"
+          for="{{ringBeads}}"
+          style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px; opacity: {{$item.opacity}};"
+        >
+          <image
+            class="bead-img"
+            src="{{$item.src}}"
+            style="width: {{$item.size}}px; height: {{$item.size}}px;"
+          ></image>
+        </div>
         <image
-          class="bead-img"
-          src="{{$item.src}}"
-          style="width: {{$item.size}}px; height: {{$item.size}}px;"
+          class="focus-arc"
+          src="/common/focus-arc.png"
+          style="left: {{markerLeft}}px; top: {{markerTop}}px; width: {{markerSize}}px; height: {{markerSize}}px;"
         ></image>
+        <text class="plus" show="{{showPlus}}">+1</text>
+      </stack>
+
+      <div class="hud-top">
+        <div class="hud-chip">
+          <text class="today">오늘 {{todayTotal}}</text>
+        </div>
       </div>
-      <image
-        class="focus-arc"
-        src="/common/focus-arc.png"
-        style="left: {{markerLeft}}px; top: {{markerTop}}px; width: {{markerSize}}px; height: {{markerSize}}px;"
-      ></image>
-      <text class="plus" show="{{showPlus}}">+1</text>
+
+      <div class="hud-bottom">
+        <div class="hud-panel" onclick="onTap">
+          <text class="count">{{bead}} / {{beadsPerRound}}</text>
+          <text class="rounds">바퀴 {{rounds}}</text>
+        </div>
+        <div class="btn" onclick="goSettings">
+          <text class="btn-text">설정</text>
+        </div>
+      </div>
     </stack>
-
-    <div class="count-area" onclick="onTap">
-      <text class="count">{{bead}} / {{beadsPerRound}}</text>
-      <text class="rounds">바퀴 {{rounds}}</text>
-    </div>
-
-    <div class="bar">
-      <div class="btn" onclick="goSettings">
-        <text class="btn-text">설정</text>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -134,10 +139,6 @@ export default {
     }
   },
 
-  /**
-   * 빠른 연타 시 카운트 누락 방지: 탭마다 pending 을 쌓고 동기 전진.
-   * storage 저장은 체인으로 직렬화하되 await 로 탭을 막지 않음.
-   */
   enqueueTick() {
     this.pendingTicks += 1
     if (!this._state) {
@@ -184,7 +185,6 @@ export default {
       vibrator.vibrate({ mode: 'long' })
     }
 
-    // 키프레임을 다시 트리거하기 위해 클래스 토글
     this.rolling = false
     this.showPlus = false
     setTimeout(() => {
@@ -209,22 +209,17 @@ export default {
 .page {
   width: 100%;
   height: 100%;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
   background-color: #0c0a08;
 }
 
-.today {
-  margin-top: 18px;
-  font-size: 22px;
-  color: #9a7b55;
+.stage {
+  width: 432px;
+  height: 514px;
 }
 
 .ring {
-  width: 360px;
-  height: 380px;
-  margin-top: 4px;
+  width: 432px;
+  height: 514px;
 }
 
 .ring-roll {
@@ -250,9 +245,9 @@ export default {
 
 .plus {
   position: absolute;
-  left: 48px;
-  top: 150px;
-  font-size: 28px;
+  left: 96px;
+  top: 200px;
+  font-size: 32px;
   font-weight: bold;
   color: #f5d9a8;
   animation-name: plusUp;
@@ -261,35 +256,70 @@ export default {
   animation-iteration-count: 1;
 }
 
-.count-area {
-  margin-top: 2px;
+.hud-top {
+  width: 432px;
+  height: 64px;
+  margin-top: 10px;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+.hud-chip {
+  padding-left: 18px;
+  padding-right: 18px;
+  height: 40px;
+  border-radius: 20px;
+  background-color: #1a1410;
+  opacity: 0.88;
+  justify-content: center;
+  align-items: center;
+}
+
+.today {
+  font-size: 22px;
+  color: #e8c48a;
+}
+
+.hud-bottom {
+  width: 432px;
+  position: absolute;
+  bottom: 12px;
+  left: 0px;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hud-panel {
+  width: 280px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-radius: 18px;
+  background-color: #1a1410;
+  opacity: 0.9;
   flex-direction: column;
   align-items: center;
 }
 
 .count {
-  font-size: 40px;
+  font-size: 36px;
   font-weight: bold;
   color: #f3e2c4;
 }
 
 .rounds {
   margin-top: 2px;
-  font-size: 22px;
+  font-size: 20px;
   color: #b89462;
-}
-
-.bar {
-  margin-top: 10px;
-  flex-direction: row;
-  justify-content: center;
 }
 
 .btn {
   width: 140px;
   height: 48px;
+  margin-top: 10px;
   border-radius: 24px;
   background-color: #2a1c12;
+  opacity: 0.95;
   justify-content: center;
   align-items: center;
   border-width: 1px;
@@ -301,13 +331,12 @@ export default {
   color: #e8c48a;
 }
 
-/* 문서: @keyframes 의 transform(translate/rotate/scale) 지원 */
 @keyframes ringStep {
   0% {
     transform: translateY(0px) rotate(0deg);
   }
   45% {
-    transform: translateY(14px) rotate(-4deg);
+    transform: translateY(18px) rotate(-3deg);
   }
   100% {
     transform: translateY(0px) rotate(0deg);
@@ -320,7 +349,7 @@ export default {
     opacity: 1;
   }
   100% {
-    transform: translateY(-28px);
+    transform: translateY(-32px);
     opacity: 0;
   }
 }
