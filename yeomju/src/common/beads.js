@@ -1,6 +1,6 @@
 /**
  * 염주 카운트 순수 로직 (워치 런타임 / Node 테스트 공용).
- * 2.5.1: S2 고정. 실험 토글·렌더모드·표시수 제거.
+ * 2.5.3: S2 고정. 진단·실험 토글 제거.
  */
 
 /** 한 바퀴 알 개수 선택지 (염주/묵주 관례) — 기본 108, UI 노출 없음 */
@@ -27,8 +27,7 @@ export const DEFAULT_STATE = Object.freeze({
   todayDate: '',
   todayTotal: 0,
   inputMode: 'slide',
-  diagnoseLatency: false,
-  stateSchema: 10
+  stateSchema: 11
 })
 
 /**
@@ -75,27 +74,25 @@ export const normalizeState = (raw) => {
     todayDate: typeof src.todayDate === 'string' ? src.todayDate : '',
     todayTotal,
     inputMode,
-    diagnoseLatency: src.diagnoseLatency === true,
     stateSchema
   }
 }
 
 /**
- * 2.5.1: schema≥10. 실험/렌더모드 키 폐기.
+ * 2.5.3: schema≥11. 진단·실험 키 폐기.
  * @param {object} state
  * @returns {{ state: object, migrated: boolean }}
  */
 export const migrateAnimModeForStability = (state) => {
   const s = normalizeState(state)
-  if (s.stateSchema >= 10) {
+  if (s.stateSchema >= 11) {
     return { state: s, migrated: false }
   }
   return {
     state: {
       ...s,
-      stateSchema: 10,
-      inputMode: INPUT_MODES.includes(s.inputMode) ? s.inputMode : 'slide',
-      diagnoseLatency: s.diagnoseLatency === true
+      stateSchema: 11,
+      inputMode: INPUT_MODES.includes(s.inputMode) ? s.inputMode : 'slide'
     },
     migrated: true
   }
@@ -187,11 +184,6 @@ export const setInputMode = (state, mode) => {
   const s = normalizeState(state)
   const inputMode = INPUT_MODES.includes(String(mode)) ? String(mode) : 'slide'
   return { ...s, inputMode }
-}
-
-export const setDiagnoseLatency = (state, enabled) => {
-  const s = normalizeState(state)
-  return { ...s, diagnoseLatency: !!enabled }
 }
 
 export const resetSession = (state) => {

@@ -9,49 +9,35 @@
 
     <text class="label">입력 방식</text>
     <text class="hint">{{inputHint}}</text>
-    <div class="row">
-      <div class="chip {{inputMode === 'slide' ? 'chip-on' : ''}}" onclick="pickSlide">
-        <text class="chip-text">슬라이드</text>
-      </div>
-      <div class="chip {{inputMode === 'touch' ? 'chip-on' : ''}}" onclick="pickTouch">
-        <text class="chip-text">터치</text>
-      </div>
+
+    <div
+      class="opt {{inputMode === 'slide' ? 'opt-on' : ''}}"
+      onclick="pickSlide"
+    >
+      <text class="opt-text">슬라이드</text>
+      <text class="opt-mark" if="{{inputMode === 'slide'}}">✓</text>
+    </div>
+    <div
+      class="opt {{inputMode === 'touch' ? 'opt-on' : ''}}"
+      onclick="pickTouch"
+    >
+      <text class="opt-text">터치</text>
+      <text class="opt-mark" if="{{inputMode === 'touch'}}">✓</text>
     </div>
 
-    <text class="label">타이밍 표시</text>
-    <text class="hint">진단 패널 · 기본 끔</text>
-    <div class="row">
-      <div class="chip {{diagnoseLatency ? 'chip-on' : ''}}" onclick="setDiagOn">
-        <text class="chip-text">켜기</text>
-      </div>
-      <div class="chip {{!diagnoseLatency ? 'chip-on' : ''}}" onclick="setDiagOff">
-        <text class="chip-text">끄기</text>
-      </div>
-    </div>
-    <div class="col" if="{{diagnoseLatency}}">
-      <div class="chip-wide" onclick="openDiagLog">
-        <text class="chip-text">최근 측정값 보기</text>
-      </div>
-    </div>
-
-    <text class="meta">v2.5.2 · S2</text>
+    <text class="meta">v2.5.3 · S2</text>
   </div>
 </template>
 
 <script>
 import router from '@system.router'
-import {
-  setInputMode,
-  setDiagnoseLatency,
-  INPUT_MODE_HINTS
-} from '../../common/beads.js'
+import { setInputMode, INPUT_MODE_HINTS } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
 
 export default {
   private: {
     inputMode: 'slide',
-    inputHint: INPUT_MODE_HINTS.slide,
-    diagnoseLatency: false
+    inputHint: INPUT_MODE_HINTS.slide
   },
 
   onShow() {
@@ -76,7 +62,6 @@ export default {
     this._state = state
     this.inputMode = state.inputMode || 'slide'
     this.inputHint = INPUT_MODE_HINTS[this.inputMode] || INPUT_MODE_HINTS.slide
-    this.diagnoseLatency = !!state.diagnoseLatency
   },
 
   async persist(next) {
@@ -95,19 +80,6 @@ export default {
     this.pickInput('touch')
   },
 
-  async setDiagOn() {
-    if (!this._state) await this.reload()
-    await this.persist(setDiagnoseLatency(this._state, true))
-  },
-  async setDiagOff() {
-    if (!this._state) await this.reload()
-    await this.persist(setDiagnoseLatency(this._state, false))
-  },
-
-  openDiagLog() {
-    router.push({ uri: '/pages/diag' })
-  },
-
   goBack() {
     router.back()
   }
@@ -121,92 +93,78 @@ export default {
   flex-direction: column;
   align-items: center;
   background-color: #140e0a;
-  padding-bottom: 24px;
+  padding-left: 36px;
+  padding-right: 36px;
+  padding-top: 28px;
+  padding-bottom: 36px;
 }
 .header {
   width: 100%;
   height: 72px;
-  margin-top: 12px;
   flex-direction: row;
   align-items: center;
   justify-content: center;
+  margin-bottom: 12px;
 }
 .back {
   position: absolute;
-  left: 12px;
-  height: 48px;
-  padding-left: 8px;
-  padding-right: 8px;
+  left: 36px;
+  height: 64px;
+  padding-left: 4px;
+  padding-right: 12px;
   justify-content: center;
 }
 .back-text {
-  font-size: 24px;
+  font-size: 30px;
   color: #b89462;
 }
 .title {
-  font-size: 28px;
+  font-size: 36px;
   color: #e8c48a;
   font-weight: bold;
 }
 .label {
-  width: 90%;
-  margin-top: 18px;
-  margin-bottom: 4px;
-  font-size: 22px;
+  width: 100%;
+  margin-top: 20px;
+  margin-bottom: 6px;
+  font-size: 28px;
   color: #9a7b55;
 }
 .hint {
-  width: 90%;
-  margin-bottom: 8px;
-  font-size: 18px;
+  width: 100%;
+  margin-bottom: 16px;
+  font-size: 24px;
   color: #6e563c;
 }
-.row {
-  width: 92%;
+.opt {
+  width: 100%;
+  height: 96px;
+  margin-bottom: 14px;
+  padding-left: 22px;
+  padding-right: 22px;
   flex-direction: row;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-.col {
-  width: 92%;
-  flex-direction: column;
   align-items: center;
-  margin-top: 8px;
-}
-.chip {
-  height: 48px;
-  min-width: 96px;
-  margin: 4px;
-  padding-left: 14px;
-  padding-right: 14px;
+  justify-content: space-between;
   background-color: #2a1e14;
-  border-width: 2px;
+  border-width: 3px;
   border-color: #3a2a18;
-  justify-content: center;
-  align-items: center;
 }
-.chip-on {
+.opt-on {
   border-color: #e8c48a;
-  background-color: #3a2a18;
+  background-color: #4a3420;
 }
-.chip-wide {
-  width: 90%;
-  height: 48px;
-  margin-top: 4px;
-  background-color: #2a1e14;
-  border-width: 2px;
-  border-color: #3a2a18;
-  justify-content: center;
-  align-items: center;
-}
-.chip-text {
-  font-size: 22px;
+.opt-text {
+  font-size: 32px;
   color: #f3e2c4;
-  text-align: center;
+}
+.opt-mark {
+  font-size: 34px;
+  color: #e8c48a;
+  font-weight: bold;
 }
 .meta {
-  margin-top: 28px;
-  font-size: 16px;
+  margin-top: 24px;
+  font-size: 20px;
   color: #6e563c;
 }
 </style>

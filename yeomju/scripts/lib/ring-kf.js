@@ -16,7 +16,7 @@ import {
   SLOT_COUNT,
   createChainBeads,
   visualBoxesForBeads
-} from './ring.js'
+} from '../../src/common/ring.js'
 
 export const SHARED_KEYFRAME_PCTS = Object.freeze([0, 1])
 export { pathProgressAtTime, easeOutCubic, endKeyframeTransform, keyframeEndMatchesSnap }

@@ -15,7 +15,6 @@ import {
   setBeadsPerRound,
   setVibrateOnBead,
   setInputMode,
-  setDiagnoseLatency,
   migrateAnimModeForStability,
   resetSession,
   resetAll,
@@ -36,13 +35,14 @@ describe('normalizeState', () => {
     const s = normalizeState({
       e1Minimize: true,
       renderMode: 'L',
+      diagnoseLatency: true,
       visibleBeadCount: 3,
       foo: 1
     })
     assert.equal(s.bead, 0)
     assert.equal(s.beadsPerRound, 108)
     assert.equal(s.inputMode, 'slide')
-    assert.equal(s.diagnoseLatency, false)
+    assert.equal(s.diagnoseLatency, undefined)
     assert.equal(s.e1Minimize, undefined)
     assert.equal(s.renderMode, undefined)
   })
@@ -116,38 +116,38 @@ describe('설정·초기화', () => {
     assert.equal(setVibrateOnBead({}, false).vibrateOnBead, false)
   })
 
-  it('2.5.1 schema≥10 마이그레이션', () => {
+  it('2.5.3 schema≥11 마이그레이션 · 진단 키 폐기', () => {
     const m = migrateAnimModeForStability({
       animMode: 'E',
       e7TouchStartRoll: true,
       renderMode: 'L',
+      diagnoseLatency: true,
       stateSchema: 1
     })
     assert.equal(m.migrated, true)
-    assert.equal(m.state.stateSchema, 10)
+    assert.equal(m.state.stateSchema, 11)
     assert.equal(m.state.inputMode, 'slide')
-    assert.equal(m.state.diagnoseLatency, false)
+    assert.equal(m.state.diagnoseLatency, undefined)
     assert.equal(m.state.renderMode, undefined)
-    const from9 = migrateAnimModeForStability({
+    const from10 = migrateAnimModeForStability({
       inputMode: 'touch',
       diagnoseLatency: true,
-      stateSchema: 9
+      stateSchema: 10
     })
-    assert.equal(from9.migrated, true)
-    assert.equal(from9.state.stateSchema, 10)
-    assert.equal(from9.state.inputMode, 'touch')
-    assert.equal(from9.state.diagnoseLatency, true)
+    assert.equal(from10.migrated, true)
+    assert.equal(from10.state.stateSchema, 11)
+    assert.equal(from10.state.inputMode, 'touch')
+    assert.equal(from10.state.diagnoseLatency, undefined)
     const stable = migrateAnimModeForStability({
       inputMode: 'touch',
-      stateSchema: 10
+      stateSchema: 11
     })
     assert.equal(stable.migrated, false)
   })
 
-  it('inputMode · 진단 토글', () => {
+  it('inputMode', () => {
     assert.deepEqual([...INPUT_MODES], ['slide', 'touch'])
     assert.equal(setInputMode({}, 'touch').inputMode, 'touch')
-    assert.equal(setDiagnoseLatency({}, true).diagnoseLatency, true)
   })
 
   it('resetSession 은 오늘 합계 유지', () => {

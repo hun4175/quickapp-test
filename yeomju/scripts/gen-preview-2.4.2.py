@@ -16,7 +16,7 @@ BG = (12, 10, 8, 255)
 
 NODE = r"""
 import { createChainBeads, layoutOptsFromExps, visualBoxesForBeads, FRONT_DEPTH_MIN, animNodeCountReport, DEFAULT_RING } from './src/common/ring.js'
-import { layoutRing } from './src/common/ring-kf.js'
+import { layoutRing } from './scripts/lib/ring-kf.js'
 const base = { e1Minimize: true, e2NoScale: false, e3SplitSrc: true, e4SkipBack: false }
 const dump = (exps, progress, e4Sim) => {
   const opts = layoutOptsFromExps(exps)

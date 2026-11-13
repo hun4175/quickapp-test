@@ -1,5 +1,5 @@
 <template>
-  <!-- 2.5.1: S2 단일 image src 스왑 · 진단 기본 off -->
+  <!-- 2.5.3: S2 단일 image src 스왑 -->
   <div
     class="page"
     ontouchstart="onTouchStart"
@@ -7,27 +7,13 @@
     ontouchend="onTouchEnd"
     ontouchcancel="onTouchCancel"
   >
-    <stack class="stage">
-      <div class="sprite-layer">
-        <image
-          class="sprite-img"
-          src="{{spriteFrameSrc}}"
-          style="left: {{spriteLeft}}px; top: {{spriteTop}}px; width: {{spriteW}}px; height: {{spriteH}}px;"
-        ></image>
-      </div>
-      <div class="diag-layer" if="{{diagnoseLatency}}">
-        <div class="diag-box">
-          <div class="diag-dot p1 {{diagP1On ? 'dot-on' : ''}}"></div>
-          <div class="diag-dot p2 {{diagP2On ? 'dot-on' : ''}}"></div>
-          <text class="diag-l0">{{diagLine0}}</text>
-          <text class="diag-l1">{{diagLine1}}</text>
-          <text class="diag-l2">{{diagLine2}}</text>
-          <text class="diag-l3">{{diagLine3}}</text>
-          <text class="diag-l4">{{diagLine4}}</text>
-          <text class="diag-l5">{{diagLine5}}</text>
-        </div>
-      </div>
-    </stack>
+    <div class="sprite-layer">
+      <image
+        class="sprite-img"
+        src="{{spriteFrameSrc}}"
+        style="left: {{spriteLeft}}px; top: {{spriteTop}}px; width: {{spriteW}}px; height: {{spriteH}}px;"
+      ></image>
+    </div>
   </div>
 </template>
 
@@ -36,8 +22,6 @@ import router from '@system.router'
 import vibrator from '@system.vibrator'
 import { applySwipeCount, normalizeState, formatDate } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
-import { pushTimingSample, TIMING_AVG_N } from '../../common/timing.js'
-import { eventDeliveryDelay, deltaMs } from '../../common/timing-core.js'
 import {
   SWIPE_MIN_DY,
   TAP_MAX_MOVE,
@@ -57,20 +41,11 @@ export default {
   private: {
     vibrateOnBead: true,
     inputMode: 'slide',
-    diagnoseLatency: false,
     spriteFrameSrc: SPRITE_IDLE,
     spriteLeft: SPRITE_CROP.left,
     spriteTop: SPRITE_CROP.top,
     spriteW: SPRITE_CROP.width,
-    spriteH: SPRITE_CROP.height,
-    diagP1On: false,
-    diagP2On: false,
-    diagLine0: 't0=-',
-    diagLine1: 'in→set:-',
-    diagLine2: 'set→start:-',
-    diagLine3: 'anim:-',
-    diagLine4: 'end→set:-',
-    diagLine5: 'evtDelay:-'
+    spriteH: SPRITE_CROP.height
   },
 
   onInit() {
@@ -78,9 +53,6 @@ export default {
     this._animTimer = null
     this._sideTimer = null
     this._lpTimer = null
-    this._t2Timer = null
-    this._diagFlushTimer = null
-    this._pendingDiag = null
     this._s2Timer = null
     this._s2Idx = 0
     this._s2List = null
@@ -92,19 +64,6 @@ export default {
     this._touchActive = false
     this._gestureFired = false
     this._longPressed = false
-    this._t0 = 0
-    this._t0Kind = ''
-    this._t1 = 0
-    this._t2 = 0
-    this._t3 = 0
-    this._tsTouchStart = 0
-    this._tsFirstMove = 0
-    this._tsSwipeJudge = 0
-    this._tsTouchEnd = 0
-    this._tsHandler = 0
-    this._tsClassSet = 0
-    this._evtDelay = -1
-    this._timingHist = []
   },
 
   onReady() {
@@ -139,17 +98,9 @@ export default {
       clearTimeout(this._sideTimer)
       this._sideTimer = null
     }
-    if (this._t2Timer) {
-      clearTimeout(this._t2Timer)
-      this._t2Timer = null
-    }
     if (this._s2Timer) {
       clearTimeout(this._s2Timer)
       this._s2Timer = null
-    }
-    if (this._diagFlushTimer) {
-      clearTimeout(this._diagFlushTimer)
-      this._diagFlushTimer = null
     }
   },
 
@@ -167,7 +118,6 @@ export default {
     this._state = state
     this.vibrateOnBead = state.vibrateOnBead !== false
     this.inputMode = state.inputMode || 'slide'
-    this.diagnoseLatency = !!state.diagnoseLatency
     this.spriteFrameSrc = SPRITE_IDLE
     this.spriteLeft = SPRITE_CROP.left
     this.spriteTop = SPRITE_CROP.top
@@ -189,99 +139,7 @@ export default {
     return { x: Number(x), y: Number(y) }
   },
 
-  /** 진단 off면 no-op (핫패스 비용 0) */
-  markP1() {
-    if (!this.diagnoseLatency) return
-    this.diagP1On = !this.diagP1On
-    this.diagP2On = false
-  },
-
-  markP2() {
-    if (!this.diagnoseLatency) return
-    this.diagP2On = !this.diagP2On
-  },
-
-  scheduleDiagFlush(finalize) {
-    if (!this.diagnoseLatency) return
-    this._pendingDiag = { finalize: !!finalize }
-    if (this._diagFlushTimer) return
-    this._diagFlushTimer = setTimeout(() => {
-      this._diagFlushTimer = null
-      const p = this._pendingDiag
-      this._pendingDiag = null
-      if (p) this.flushDiagText(p.finalize)
-    }, 0)
-  },
-
-  buildTimingSample() {
-    const t0 = this._t0 || 0
-    const t1 = this._tsClassSet || this._t1 || 0
-    const t2 = this._t2 || 0
-    const t3 = this._t3 || 0
-    return {
-      inSet: deltaMs(t1, t0),
-      setStart: deltaMs(t2, t1),
-      animLen: t2 && t3 ? deltaMs(t3, t2) : deltaMs(t3, t1),
-      t0Kind: this._t0Kind || 'judge',
-      evtDelay: this._evtDelay,
-      startToMove: deltaMs(this._tsFirstMove, this._tsTouchStart),
-      moveToJudge: deltaMs(this._tsSwipeJudge, this._tsFirstMove),
-      startToEnd: deltaMs(this._tsTouchEnd, this._tsTouchStart),
-      endToSet: deltaMs(t1, this._tsTouchEnd),
-      judgeToHandler: deltaMs(this._tsHandler, t0),
-      handlerToSet: deltaMs(t1, this._tsHandler),
-      inputMode: this.inputMode || 'slide',
-      at: Date.now()
-    }
-  },
-
-  flushDiagText(finalize) {
-    if (!this.diagnoseLatency) return
-    const sample = this.buildTimingSample()
-    const ms = (v) => (v >= 0 ? v + 'ms' : '-')
-    this.diagLine0 = 't0=' + sample.t0Kind
-    this.diagLine1 = 'in→set:' + ms(sample.inSet)
-    this.diagLine2 = 'set→start:' + ms(sample.setStart)
-    this.diagLine3 = 'anim:' + ms(sample.animLen)
-    if (sample.inputMode === 'touch' || sample.t0Kind === 'tap') {
-      this.diagLine4 =
-        'end→set:' + ms(sample.endToSet) + ' s→e:' + ms(sample.startToEnd)
-    } else {
-      this.diagLine4 =
-        'mv→jd:' + ms(sample.moveToJudge) + ' h→set:' + ms(sample.handlerToSet)
-    }
-    this.diagLine5 = 'evtDelay:' + ms(sample.evtDelay)
-    if (finalize && sample.inSet >= 0) {
-      this._timingHist.push(sample)
-      if (this._timingHist.length > TIMING_AVG_N) this._timingHist.shift()
-      pushTimingSample(sample).catch(() => false)
-      const h = this._timingHist
-      const avg = (key) => {
-        const vals = h.map((x) => x[key]).filter((v) => v >= 0)
-        if (!vals.length) return -1
-        return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
-      }
-      this.diagLine5 =
-        'avg in/ss/an:' +
-        ms(avg('inSet')) +
-        '/' +
-        ms(avg('setStart')) +
-        '/' +
-        ms(avg('animLen'))
-    }
-  },
-
   onTouchStart(e) {
-    const diag = this.diagnoseLatency
-    const now = diag ? Date.now() : 0
-    if (diag) {
-      const del = eventDeliveryDelay(e, now)
-      this._evtDelay = del.delay
-      this._tsTouchStart = now
-      this._tsFirstMove = 0
-      this._tsSwipeJudge = 0
-      this._tsTouchEnd = 0
-    }
     const p = this.touchPoint(e)
     if (!p) return
     this._touchActive = true
@@ -289,7 +147,6 @@ export default {
     this._longPressed = false
     this._touchX = p.x
     this._touchY = p.y
-    this.markP1()
     this.clearLpTimer()
     this._lpTimer = setTimeout(() => {
       this._lpTimer = null
@@ -307,7 +164,6 @@ export default {
     if (!this._touchActive || this._gestureFired || this._longPressed) return false
     const p = this.touchPoint(e)
     if (!p) return false
-    if (this.diagnoseLatency && !this._tsFirstMove) this._tsFirstMove = Date.now()
     const dx = p.x - this._touchX
     const dy = p.y - this._touchY
     if (Math.abs(dx) > TAP_MAX_MOVE || Math.abs(dy) > TAP_MAX_MOVE) {
@@ -315,21 +171,18 @@ export default {
     }
     const dir = classifyVerticalSwipe(dx, dy, { minDy: SWIPE_MIN_DY })
     if (!dir) return false
-    if (this.diagnoseLatency) this._tsSwipeJudge = Date.now()
     this._gestureFired = true
     this.clearLpTimer()
-    this.enqueueRoll(dir, 'swipe')
+    this.enqueueRoll(dir)
     return true
   },
 
   onTouchMove(e) {
     if (!this._touchActive) return
-    if (this.diagnoseLatency && !this._tsFirstMove) this._tsFirstMove = Date.now()
     this.trySwipe(e)
   },
 
   onTouchEnd(e) {
-    if (this.diagnoseLatency) this._tsTouchEnd = Date.now()
     if (!this._touchActive) return
     this.clearLpTimer()
     const mode = this.inputMode || 'slide'
@@ -342,7 +195,7 @@ export default {
         const dy = p.y - this._touchY
         if (Math.abs(dx) <= TAP_MAX_MOVE && Math.abs(dy) <= TAP_MAX_MOVE) {
           this._gestureFired = true
-          this.enqueueRoll(1, 'tap')
+          this.enqueueRoll(1)
         }
       }
     }
@@ -355,18 +208,8 @@ export default {
     this._gestureFired = false
   },
 
-  enqueueRoll(dir, kind) {
+  enqueueRoll(dir) {
     const d = Number(dir) < 0 ? -1 : 1
-    if (this.diagnoseLatency) {
-      const now = Date.now()
-      this._t0 = now
-      this._t0Kind = kind || 'judge'
-      if (kind === 'swipe' && this._tsSwipeJudge) this._t0 = this._tsSwipeJudge
-      this._t1 = 0
-      this._t2 = 0
-      this._t3 = 0
-      this._tsClassSet = 0
-    }
     if (!this._state) {
       this._state = normalizeState({ todayDate: formatDate() })
     }
@@ -378,7 +221,6 @@ export default {
   },
 
   startRoll(dir) {
-    if (this.diagnoseLatency) this._tsHandler = Date.now()
     const d = Number(dir) < 0 ? -1 : 1
     const result = applySwipeCount(this._state, d)
     this._state = result.state
@@ -388,15 +230,6 @@ export default {
     this._s2List = srcs
     this._s2Idx = 0
     this.spriteFrameSrc = srcs[0] || SPRITE_IDLE
-    if (this.diagnoseLatency) {
-      this._tsClassSet = Date.now()
-      this._t1 = this._tsClassSet
-      this.markP2()
-      this._t2Timer = setTimeout(() => {
-        this._t2Timer = null
-        if (!this._t2) this._t2 = Date.now()
-      }, 0)
-    }
     const step = Math.max(
       1,
       Math.floor(SPRITE_DURATION_MS / Math.max(1, srcs.length - 1))
@@ -405,9 +238,7 @@ export default {
       this._s2Timer = null
       this._s2Idx += 1
       if (!this._s2List || this._s2Idx >= this._s2List.length) {
-        if (this.diagnoseLatency && !this._t3) this._t3 = Date.now()
         this.finishRoll()
-        this.scheduleDiagFlush(true)
         return
       }
       this.spriteFrameSrc = this._s2List[this._s2Idx]
@@ -423,9 +254,7 @@ export default {
     }, 0)
     this._animTimer = setTimeout(() => {
       if (!this._animating) return
-      if (this.diagnoseLatency && !this._t3) this._t3 = Date.now()
       this.finishRoll()
-      this.scheduleDiagFlush(true)
     }, SPRITE_DURATION_MS + ANIM_SLACK_MS)
   },
 
@@ -458,10 +287,6 @@ export default {
   height: 100%;
   background-color: #0c0a08;
 }
-.stage {
-  width: 432px;
-  height: 514px;
-}
 .sprite-layer {
   width: 432px;
   height: 514px;
@@ -471,91 +296,5 @@ export default {
 }
 .sprite-img {
   position: absolute;
-}
-.diag-layer {
-  position: absolute;
-  left: 0px;
-  top: 0px;
-  width: 432px;
-  height: 514px;
-  z-index: 999;
-}
-.diag-box {
-  position: absolute;
-  left: 24px;
-  top: 290px;
-  width: 384px;
-  height: 214px;
-  background-color: #120e0a;
-}
-.diag-dot {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  top: 10px;
-  background-color: #3a2a18;
-}
-.diag-dot.p1 {
-  left: 12px;
-}
-.diag-dot.p2 {
-  left: 40px;
-}
-.dot-on {
-  background-color: #ffffff;
-}
-.diag-l0 {
-  position: absolute;
-  left: 68px;
-  top: 6px;
-  width: 300px;
-  height: 34px;
-  font-size: 24px;
-  color: #ffffff;
-}
-.diag-l1 {
-  position: absolute;
-  left: 12px;
-  top: 40px;
-  width: 360px;
-  height: 34px;
-  font-size: 24px;
-  color: #ffffff;
-}
-.diag-l2 {
-  position: absolute;
-  left: 12px;
-  top: 74px;
-  width: 360px;
-  height: 34px;
-  font-size: 24px;
-  color: #ffffff;
-}
-.diag-l3 {
-  position: absolute;
-  left: 12px;
-  top: 108px;
-  width: 360px;
-  height: 34px;
-  font-size: 24px;
-  color: #ffffff;
-}
-.diag-l4 {
-  position: absolute;
-  left: 12px;
-  top: 142px;
-  width: 360px;
-  height: 34px;
-  font-size: 24px;
-  color: #ffffff;
-}
-.diag-l5 {
-  position: absolute;
-  left: 12px;
-  top: 176px;
-  width: 360px;
-  height: 34px;
-  font-size: 24px;
-  color: #ffffff;
 }
 </style>

@@ -19,7 +19,7 @@ import {
   frontAdjacentGapRatios,
   keyframeEndCoverageMatchesSnap
 } from '../src/common/ring.js'
-import { layoutRing } from '../src/common/ring-kf.js'
+import { layoutRing } from './lib/ring-kf.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const W = 432

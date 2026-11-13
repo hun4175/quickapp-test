@@ -25,7 +25,7 @@ import {
   BEAD_BACK_DISPLAY,
   buildChainAngles
 } from '../src/common/ring.js'
-import { layoutRing } from '../src/common/ring-kf.js'
+import { layoutRing } from '../scripts/lib/ring-kf.js'
 
 describe('swipe classify', () => {
   it('수직 임계', () => {

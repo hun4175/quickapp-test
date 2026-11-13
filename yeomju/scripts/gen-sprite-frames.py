@@ -28,7 +28,7 @@ JPG_QUALITY = 90
 
 NODE = r"""
 import { DEFAULT_RING, layoutOptsFromExps, pathProgressAtTime } from './src/common/ring.js'
-import { layoutRing } from './src/common/ring-kf.js'
+import { layoutRing } from './scripts/lib/ring-kf.js'
 const opts = layoutOptsFromExps({ e1Minimize: true, e2NoScale: false, e3SplitSrc: true, e4SkipBack: false })
 const ts = [0, 1/3, 2/3, 1]
 const frames = {}
