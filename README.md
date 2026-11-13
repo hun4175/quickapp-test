@@ -3,17 +3,28 @@
 REDMI Watch 6 **글로벌판** (`M2523W1`, productId `miwear.watch.p65`, 화면 432×514) 대상 염주(묵주) 카운터 퀵앱입니다.  
 Watch 6 Active(`M2564W1`)와는 다른 기기입니다. 혼동하지 마세요.
 
-> **실기기 테스트(미확인):** 펌웨어 `3.200.085` 실기기에서의 설치·실행은 이 저장소에서 검증하지 않았습니다.
+> **실기기:** 사용자가 REDMI Watch 6 글로벌판 펌웨어 `3.200.085` 에 **1.0.0** `.rpk` 설치·실행을 확인했습니다. **1.1.0** 염주 고리 UI 는 이 저장소에서 실기기 재검증하지 않았습니다.
 
 ## 기능
 
-- 화면(염주 영역) 탭 또는 위/왼쪽 스와이프 → 알 1개 전진 + 굴림 애니메이션
+- 세로 타원 고리로 꿰어진 나무/보석 구슬 UI (16알 가시, 원근 스케일)
+- 탭 또는 위/왼쪽 스와이프 → 고리가 한 알만큼 회전 + `@keyframes` 굴림
 - 한 바퀴(기본 108알, 설정에서 108/54/27/21 선택) 완료 시 긴 진동 + 바퀴 수 증가
 - 알마다 짧은 진동 (`system.vibrator`, 켜기/끄기)
 - `system.storage` 로 카운트·바퀴·설정·오늘 합계 저장 (자정 지나면 오늘 합계만 리셋)
+- 빠른 연타 시 pending 큐로 카운트 누락 방지
 - 초기화는 확인 페이지를 거침 (세션만 / 오늘 합계 포함)
 - `onBackPress` 처리 (설정·확인 페이지)
 - **네트워크 권한/feature 없음**
+
+## 애니메이션 방식 (문서 근거)
+
+| 수단 | 사용 | 근거 |
+| --- | --- | --- |
+| `@keyframes` + `transform` (translate/rotate) | 사용 | [Animation Styles](https://iot.mi.com/vela/quickapp/en/components/general/animation-style.html) 지원 |
+| `stack` + `left`/`top` 절대 배치 | 사용 | [stack](https://iot.mi.com/vela/quickapp/en/components/container/stack.html) |
+| `transition` 의 `transform` / `left` / `top` | **미사용** | 동일 문서: transition-property 에서 미지원 |
+| `canvas` | **미사용** | 공식 컴포넌트 목록에 없음 |
 
 ## 참고한 앱·문서
 
@@ -56,9 +67,11 @@ Watch 6 Active(`M2564W1`)와는 다른 기기입니다. 혼동하지 마세요.
     │   ├── app.ux
     │   ├── config-watch.json
     │   ├── common/
-    │   │   ├── beads.js      # 순수 카운트 로직 (테스트 대상)
-    │   │   ├── persist.js    # system.storage 래퍼
-    │   │   └── logo.png
+│   │   ├── beads.js      # 순수 카운트 로직
+│   │   ├── ring.js       # 타원 고리 배치·위상
+│   │   ├── persist.js    # system.storage 래퍼
+│   │   ├── bead-wood.png / bead-gem.png / focus-arc.png
+│   │   └── logo.png
     │   └── pages/
     │       ├── index/        # 메인 카운터
     │       ├── settings/     # 알 개수·진동·초기화 진입

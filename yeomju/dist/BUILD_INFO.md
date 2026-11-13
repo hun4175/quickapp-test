@@ -1,22 +1,22 @@
 # 빌드 결과 (사실)
 
 - **상태:** 성공
-- **시각(UTC):** 2026-11-13T04:16:54Z
+- **버전:** 1.1.0 (versionCode 2)
+- **시각(UTC):** 2026-11-13T04:34:50Z
 - **명령:** `cd yeomju && npm run build` (`aiot build`, aiot-toolkit 2.0.5)
 - **Node:** v22.23.4
-- **산출물:** `yeomju/dist/com.yeomju.mala.debug.1.0.0.rpk`
-- **크기:** 30265 bytes
-- **SHA256:** `ac3dd0a35aa8d45ebf8614bde26c599573fd6ea4c861c292916add68081828fc`
+- **산출물:** `yeomju/dist/com.yeomju.mala.debug.1.1.0.rpk`
+- **크기:** 53544 bytes
+- **SHA256:** `3fd7a02fa737472e703d760cfbde63fa3fef06fb96e4aa84bb0bb8b1239fc974`
 
 ## 빌드 로그 요약
 
 ```
-✅ Project build and generate files：.../com.yeomju.mala.debug.1.0.0.rpk
-✅ build success
+✅ Project build and generate files：.../com.yeomju.mala.debug.1.1.0.rpk
+✅ build success: 961ms
 ```
 
 ## 참고
 
-- 프로젝트 디렉터리가 파일시스템 루트 직하위(`/workspace`)이면 aiot-toolkit 이 `/.temp_workspace` 생성을 시도해 EACCES 가 난다.
-- 이 저장소는 `yeomju/` 하위에서 빌드하여 `/workspace/.temp_yeomju` 를 사용한다.
-- 서명은 toolkit 기본 debug PEM 을 사용했다. 기기 설치·실행은 미확인.
+- `yeomju/` 하위에서 빌드 (`/workspace` 루트 직속 빌드 시 `/.temp_workspace` EACCES).
+- debug PEM 서명. 1.1.0 염주 고리 UI 실기기 재검증은 미확인.

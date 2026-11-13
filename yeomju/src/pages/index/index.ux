@@ -1,21 +1,35 @@
 <template>
-  <!-- 메인: 탭/스와이프로 염주알 전진. 우측 스와이프 복귀는 onBackPress 가 담당. -->
+  <!--
+    염주 고리 UI: stack 에 타원 배치된 알 + 왼쪽 포커스 호.
+    애니메이션은 공식 문서의 @keyframes + transform 만 사용
+    (transition 의 transform/left/top 은 문서상 미지원).
+  -->
   <div class="page" onswipe="onSwipe">
-    <div class="top">
-      <text class="brand">염주굴리기</text>
-      <text class="today">오늘 {{todayTotal}}</text>
-    </div>
+    <text class="today">오늘 {{todayTotal}}</text>
 
-    <div class="stage" onclick="onTap">
-      <div class="halo {{rolling ? 'halo-roll' : ''}}"></div>
-      <div class="bead {{rolling ? 'bead-roll' : ''}}"></div>
+    <stack class="ring {{rolling ? 'ring-roll' : ''}}" onclick="onTap">
+      <div
+        class="bead-wrap"
+        for="{{ringBeads}}"
+        style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px; opacity: {{$item.opacity}};"
+      >
+        <image
+          class="bead-img"
+          src="{{$item.src}}"
+          style="width: {{$item.size}}px; height: {{$item.size}}px;"
+        ></image>
+      </div>
+      <image
+        class="focus-arc"
+        src="/common/focus-arc.png"
+        style="left: {{markerLeft}}px; top: {{markerTop}}px; width: {{markerSize}}px; height: {{markerSize}}px;"
+      ></image>
       <text class="plus" show="{{showPlus}}">+1</text>
-    </div>
+    </stack>
 
     <div class="count-area" onclick="onTap">
       <text class="count">{{bead}} / {{beadsPerRound}}</text>
       <text class="rounds">바퀴 {{rounds}}</text>
-      <text class="hint">탭 또는 위로/왼쪽 스와이프</text>
     </div>
 
     <div class="bar">
@@ -31,6 +45,13 @@ import router from '@system.router'
 import vibrator from '@system.vibrator'
 import { advanceBead } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
+import {
+  VISIBLE_BEADS,
+  DEFAULT_RING,
+  phaseFromBead,
+  layoutRing,
+  layoutFocusMarker
+} from '../../common/ring.js'
 
 export default {
   private: {
@@ -41,12 +62,20 @@ export default {
     vibrateOnBead: true,
     rolling: false,
     showPlus: false,
-    busy: false
+    ringBeads: [],
+    markerLeft: 0,
+    markerTop: 0,
+    markerSize: 72,
+    pendingTicks: 0
   },
 
   onInit() {
     this._state = null
     this._animTimer = null
+    this._draining = false
+    this._saveChain = Promise.resolve()
+    this.placeMarker()
+    this.refreshRing(0)
   },
 
   onShow() {
@@ -60,10 +89,6 @@ export default {
     }
   },
 
-  /**
-   * 홈에서는 시스템 기본 복귀(앱 종료)를 따름.
-   * 설정/확인 페이지에서만 가로채기.
-   */
   onBackPress() {
     return false
   },
@@ -80,34 +105,75 @@ export default {
     this.beadsPerRound = state.beadsPerRound
     this.todayTotal = state.todayTotal
     this.vibrateOnBead = state.vibrateOnBead
+    this.refreshRing(phaseFromBead(state.bead, VISIBLE_BEADS))
+  },
+
+  placeMarker() {
+    const m = layoutFocusMarker(DEFAULT_RING)
+    this.markerLeft = m.left
+    this.markerTop = m.top
+    this.markerSize = m.size
+  },
+
+  refreshRing(phaseIndex) {
+    this.ringBeads = layoutRing({
+      ...DEFAULT_RING,
+      visible: VISIBLE_BEADS,
+      phaseIndex
+    })
   },
 
   onTap() {
-    this.tick()
+    this.enqueueTick()
   },
 
   onSwipe(e) {
     if (!e || !e.direction) return
-    // 오른쪽은 시스템 복귀와 겹칠 수 있어 카운트에서 제외
     if (e.direction === 'up' || e.direction === 'left') {
-      this.tick()
+      this.enqueueTick()
     }
   },
 
-  async tick() {
-    if (this.busy) return
-    this.busy = true
-    try {
-      if (!this._state) {
-        await this.reload()
-      }
-      const result = advanceBead(this._state)
-      this.applyState(result.state)
-      await saveState(result.state)
-      this.playFeedback(result.completedRound)
-    } finally {
-      this.busy = false
+  /**
+   * 빠른 연타 시 카운트 누락 방지: 탭마다 pending 을 쌓고 동기 전진.
+   * storage 저장은 체인으로 직렬화하되 await 로 탭을 막지 않음.
+   */
+  enqueueTick() {
+    this.pendingTicks += 1
+    if (!this._state) {
+      this.reload().then(() => this.drainTicks())
+      return
     }
+    this.drainTicks()
+  },
+
+  drainTicks() {
+    if (this._draining) return
+    this._draining = true
+    try {
+      while (this.pendingTicks > 0 && this._state) {
+        this.pendingTicks -= 1
+        this.advanceOnce()
+      }
+    } finally {
+      this._draining = false
+      if (this.pendingTicks > 0 && this._state) {
+        this.drainTicks()
+      }
+    }
+  },
+
+  advanceOnce() {
+    const result = advanceBead(this._state)
+    this.applyState(result.state)
+    this.queueSave(result.state)
+    this.playFeedback(result.completedRound)
+  },
+
+  queueSave(state) {
+    this._saveChain = this._saveChain
+      .then(() => saveState(state))
+      .catch(() => false)
   },
 
   playFeedback(completedRound) {
@@ -115,13 +181,12 @@ export default {
       vibrator.vibrate({ mode: 'short' })
     }
     if (completedRound) {
-      // 한 바퀴 완료: 긴 진동으로 구분 (문서상 REDMI Watch 6 지원 vibrate short/long)
       vibrator.vibrate({ mode: 'long' })
     }
 
+    // 키프레임을 다시 트리거하기 위해 클래스 토글
     this.rolling = false
     this.showPlus = false
-    // 다음 프레임에서 애니메이션 클래스 재적용
     setTimeout(() => {
       this.rolling = true
       this.showPlus = true
@@ -131,7 +196,7 @@ export default {
     this._animTimer = setTimeout(() => {
       this.rolling = false
       this.showPlus = false
-    }, 280)
+    }, 240)
   },
 
   goSettings() {
@@ -147,115 +212,84 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  /* 단색 배경 — Vela CSS 그라데이션 지원은 기기별 미확인 */
-  background-color: #1a120c;
-}
-
-.top {
-  width: 100%;
-  margin-top: 28px;
-  flex-direction: column;
-  align-items: center;
-}
-
-.brand {
-  font-size: 34px;
-  font-weight: bold;
-  color: #e8c48a;
+  background-color: #0c0a08;
 }
 
 .today {
-  margin-top: 6px;
+  margin-top: 18px;
   font-size: 22px;
   color: #9a7b55;
 }
 
-.stage {
-  width: 220px;
-  height: 220px;
-  margin-top: 28px;
-  justify-content: center;
-  align-items: center;
+.ring {
+  width: 360px;
+  height: 380px;
+  margin-top: 4px;
 }
 
-.halo {
+.ring-roll {
+  animation-name: ringStep;
+  animation-duration: 240ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+}
+
+.bead-wrap {
   position: absolute;
-  width: 200px;
-  height: 200px;
-  border-radius: 100px;
-  border-width: 3px;
-  border-color: #6b4a2a;
-  background-color: #503018;
-  opacity: 0.4;
 }
 
-.halo-roll {
-  animation-name: haloPulse;
-  animation-duration: 280ms;
-  animation-timing-function: ease-out;
+.bead-img {
+  position: absolute;
+  left: 0px;
+  top: 0px;
 }
 
-.bead {
-  width: 72px;
-  height: 72px;
-  border-radius: 36px;
-  background-color: #c48a4a;
-  border-width: 2px;
-  border-color: #f0d2a0;
-}
-
-.bead-roll {
-  animation-name: beadSpin;
-  animation-duration: 280ms;
-  animation-timing-function: ease-out;
+.focus-arc {
+  position: absolute;
 }
 
 .plus {
   position: absolute;
-  top: 18px;
-  right: 28px;
+  left: 48px;
+  top: 150px;
   font-size: 28px;
   font-weight: bold;
   color: #f5d9a8;
   animation-name: plusUp;
-  animation-duration: 280ms;
+  animation-duration: 240ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
 }
 
 .count-area {
-  margin-top: 18px;
+  margin-top: 2px;
   flex-direction: column;
   align-items: center;
 }
 
 .count {
-  font-size: 48px;
+  font-size: 40px;
   font-weight: bold;
   color: #f3e2c4;
 }
 
 .rounds {
-  margin-top: 4px;
-  font-size: 26px;
+  margin-top: 2px;
+  font-size: 22px;
   color: #b89462;
 }
 
-.hint {
-  margin-top: 12px;
-  font-size: 18px;
-  color: #6e563c;
-}
-
 .bar {
-  margin-top: 28px;
+  margin-top: 10px;
   flex-direction: row;
   justify-content: center;
 }
 
 .btn {
-  width: 160px;
-  height: 56px;
-  border-radius: 28px;
-  background-color: #3a2818;
+  width: 140px;
+  height: 48px;
+  border-radius: 24px;
+  background-color: #2a1c12;
   justify-content: center;
   align-items: center;
   border-width: 1px;
@@ -263,34 +297,20 @@ export default {
 }
 
 .btn-text {
-  font-size: 24px;
+  font-size: 22px;
   color: #e8c48a;
 }
 
-@keyframes beadSpin {
+/* 문서: @keyframes 의 transform(translate/rotate/scale) 지원 */
+@keyframes ringStep {
   0% {
     transform: translateY(0px) rotate(0deg);
   }
   45% {
-    transform: translateY(-18px) rotate(120deg);
+    transform: translateY(14px) rotate(-4deg);
   }
   100% {
-    transform: translateY(0px) rotate(240deg);
-  }
-}
-
-@keyframes haloPulse {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.06);
-    opacity: 0.85;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
+    transform: translateY(0px) rotate(0deg);
   }
 }
 
@@ -300,7 +320,7 @@ export default {
     opacity: 1;
   }
   100% {
-    transform: translateY(-36px);
+    transform: translateY(-28px);
     opacity: 0;
   }
 }
