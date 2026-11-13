@@ -58,7 +58,7 @@
       </div>
 
       <text class="label">목표 횟수</text>
-      <text class="hint">달성 시 축하 · 배수마다 반복</text>
+      <text class="hint">달성 시 축하 후 0부터 · 변경 시 카운트 리셋</text>
       <div
         class="opt {{goalCount === 21 ? 'opt-on' : ''}}"
         onclick="pickGoal21"
@@ -114,7 +114,7 @@
         <text class="opt-text">{{resetLabel}}</text>
       </div>
 
-      <text class="meta">v2.8.0</text>
+      <text class="meta">v2.8.1</text>
     </div>
   </div>
 </template>

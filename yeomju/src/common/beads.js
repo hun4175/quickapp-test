@@ -1,6 +1,6 @@
 /**
  * 염주 카운트 순수 로직 (워치 런타임 / Node 테스트 공용).
- * 2.8.0: 목표 횟수 · 금박 나무 해금.
+ * 2.8.1: 현재/목표 표시 · 달성 시 0 리셋 · 1080 목표 해금.
  */
 
 /** 한 바퀴 알 개수 선택지 (염주/묵주 관례) — 기본 108, UI 노출 없음 */
@@ -241,27 +241,30 @@ export const applySwipeCount = (state, dir) => {
 
 /**
  * 카운트 증가 후 목표·해금 이벤트.
- * 카운트는 계속 증가. 목표 배수마다 축하.
+ * 목표 달성 시 todayTotal→0 리셋(다시 시작). 배수 재축하 없음.
+ * 금박 해금: goalCount===1080 이고 방금 달성했을 때만.
  * @param {number} prevTotal
  * @param {object} state  advance 이후 상태
- * @returns {{ state: object, goalReached: boolean, unlockJustNow: boolean, milestone: number }}
+ * @returns {{ state: object, goalReached: boolean, unlockJustNow: boolean }}
  */
 export const evaluateGoalEvents = (prevTotal, state) => {
   const s = normalizeState(state)
   const prev = Math.max(0, Math.floor(Number(prevTotal) || 0))
   const next = s.todayTotal
   const goal = s.goalCount > 0 ? s.goalCount : DEFAULT_STATE.goalCount
-  const prevM = Math.floor(prev / goal)
-  const nextM = Math.floor(next / goal)
-  const goalReached = nextM > prevM
-  const milestone = goalReached ? nextM * goal : 0
+  // 방금 목표에 도달(또는 넘어감). 이미 리셋된 0에서는 발동하지 않음.
+  const goalReached = next >= goal && prev < goal
+
+  if (!goalReached) {
+    return { state: s, goalReached: false, unlockJustNow: false }
+  }
 
   let unlockJustNow = false
-  let nextState = s
-  if (!s.unlockGoldwood && next >= GOLDWOOD_UNLOCK_AT) {
+  let nextState = { ...s, todayTotal: 0 }
+  if (!s.unlockGoldwood && goal === GOLDWOOD_UNLOCK_AT) {
     unlockJustNow = true
     nextState = {
-      ...s,
+      ...nextState,
       unlockGoldwood: true,
       beadTheme: 'goldwood'
     }
@@ -269,9 +272,8 @@ export const evaluateGoalEvents = (prevTotal, state) => {
 
   return {
     state: nextState,
-    goalReached: goalReached || unlockJustNow,
-    unlockJustNow,
-    milestone
+    goalReached: true,
+    unlockJustNow
   }
 }
 
@@ -312,9 +314,17 @@ export const setShowCount = (state, enabled) => {
   return { ...s, showCount: !!enabled }
 }
 
+/**
+ * 목표 변경 시 현재 카운트 0으로 리셋.
+ * @param {object} state
+ * @param {number} n
+ * @returns {object}
+ */
 export const setGoalCount = (state, n) => {
   const s = normalizeState(state)
-  return { ...s, goalCount: resolveGoal(n) }
+  const goalCount = resolveGoal(n)
+  if (goalCount === s.goalCount) return s
+  return { ...s, goalCount, todayTotal: 0 }
 }
 
 /**

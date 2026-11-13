@@ -148,34 +148,27 @@ describe('advance / retreat / swipe', () => {
 })
 
 describe('목표·해금', () => {
-  it('목표 배수마다 축하 · 카운트 계속 증가', () => {
+  it('목표 달성 시 축하 후 카운트 0 · 배수 재축하 없음', () => {
     const a = evaluateGoalEvents(20, {
       todayTotal: 21,
       goalCount: 21,
       unlockGoldwood: false
     })
     assert.equal(a.goalReached, true)
-    assert.equal(a.milestone, 21)
     assert.equal(a.unlockJustNow, false)
-    assert.equal(a.state.todayTotal, 21)
+    assert.equal(a.state.todayTotal, 0)
 
-    const b = evaluateGoalEvents(41, {
-      todayTotal: 42,
+    // 리셋 후 다시 굴리면 배수(42)에서 자동 재축하하지 않음
+    const b = evaluateGoalEvents(0, {
+      todayTotal: 1,
       goalCount: 21,
       unlockGoldwood: false
     })
-    assert.equal(b.goalReached, true)
-    assert.equal(b.milestone, 42)
-
-    const c = evaluateGoalEvents(21, {
-      todayTotal: 22,
-      goalCount: 21,
-      unlockGoldwood: false
-    })
-    assert.equal(c.goalReached, false)
+    assert.equal(b.goalReached, false)
+    assert.equal(b.state.todayTotal, 1)
   })
 
-  it('1080 달성 시 금박 나무 해금·자동 전환', () => {
+  it('목표 1080 설정에서만 금박 해금', () => {
     const r = evaluateGoalEvents(1079, {
       todayTotal: 1080,
       goalCount: 1080,
@@ -186,19 +179,31 @@ describe('목표·해금', () => {
     assert.equal(r.goalReached, true)
     assert.equal(r.state.unlockGoldwood, true)
     assert.equal(r.state.beadTheme, 'goldwood')
-    assert.equal(r.state.todayTotal, 1080)
+    assert.equal(r.state.todayTotal, 0)
   })
 
-  it('목표 21이어도 1080 도달 시 해금', () => {
-    const r = evaluateGoalEvents(1079, {
-      todayTotal: 1080,
+  it('목표 21로 1080 누적이어도 해금 안 됨(달성 시 0 리셋)', () => {
+    // 목표 21이면 21에서 리셋되므로 1080까지 한 번에 가지 않음
+    const r = evaluateGoalEvents(20, {
+      todayTotal: 21,
       goalCount: 21,
       unlockGoldwood: false,
       beadTheme: 'default'
     })
-    assert.equal(r.unlockJustNow, true)
-    assert.equal(r.state.unlockGoldwood, true)
-    assert.equal(r.state.beadTheme, 'goldwood')
+    assert.equal(r.unlockJustNow, false)
+    assert.equal(r.state.unlockGoldwood, false)
+    assert.equal(r.state.todayTotal, 0)
+  })
+
+  it('목표 변경 시 카운트 0', () => {
+    const next = setGoalCount(
+      { todayTotal: 15, goalCount: 21, unlockGoldwood: true },
+      108
+    )
+    assert.equal(next.goalCount, 108)
+    assert.equal(next.todayTotal, 0)
+    assert.equal(next.unlockGoldwood, true)
+    assert.equal(setGoalCount({ todayTotal: 5, goalCount: 21 }, 21).todayTotal, 5)
   })
 
   it('visibleBeadThemes · 미해금 시 goldwood 숨김', () => {
@@ -224,7 +229,7 @@ describe('목표·해금', () => {
 
   it('횟수 초기화해도 해금 유지', () => {
     const next = resetTodayCount({
-      todayTotal: 1080,
+      todayTotal: 50,
       unlockGoldwood: true,
       beadTheme: 'goldwood',
       goalCount: 108
@@ -240,7 +245,8 @@ describe('설정·초기화', () => {
   it('setBeadsPerRound / vibrate / goal', () => {
     assert.equal(setBeadsPerRound({}, 54).beadsPerRound, 54)
     assert.equal(setVibrateOnBead({}, false).vibrateOnBead, false)
-    assert.equal(setGoalCount({}, 108).goalCount, 108)
+    assert.equal(setGoalCount({ todayTotal: 3 }, 108).goalCount, 108)
+    assert.equal(setGoalCount({ todayTotal: 3 }, 108).todayTotal, 0)
     assert.equal(setGoalCount({}, 999).goalCount, 21)
   })
 

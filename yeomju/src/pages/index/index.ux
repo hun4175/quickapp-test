@@ -1,5 +1,5 @@
 <template>
-  <!-- 2.8.0: S2 · 목표 축하 · 해금 안내 -->
+  <!-- 2.8.1: 현재/목표 · 달성 리셋 · 단일 오버레이 축하 -->
   <div
     class="page"
     ontouchstart="onTouchStart"
@@ -13,13 +13,19 @@
         src="{{spriteFrameSrc}}"
         style="left: {{spriteLeft}}px; top: {{spriteTop}}px; width: {{spriteW}}px; height: {{spriteH}}px;"
       ></image>
+      <image
+        class="cele-glow"
+        if="{{celeVisible}}"
+        src="/common/cele-glow.png"
+        style="left: {{spriteLeft}}px; top: {{spriteTop}}px; width: {{spriteW}}px; height: {{spriteH}}px; opacity: {{celeOpacity}};"
+      ></image>
     </div>
-    <text
-      class="count"
-      if="{{showCount}}"
-      style="color: {{countColor}};"
-    >{{countText}}</text>
-    <text class="banner" if="{{bannerText}}">{{bannerText}}</text>
+    <text class="cele-msg" if="{{celeMsg}}">{{celeMsg}}</text>
+    <div class="count-row" if="{{showCount}}">
+      <text class="count-cur" style="color: {{countColor}};">{{countCurrent}}</text>
+      <text class="count-sep"> / </text>
+      <text class="count-goal">{{countGoal}}</text>
+    </div>
   </div>
 </template>
 
@@ -50,8 +56,7 @@ const LONGPRESS_MS = 560
 const ANIM_SLACK_MS = 16
 const COUNT_COLOR_NORMAL = '#fff4d6'
 const COUNT_COLOR_GLOW = '#ffd700'
-const CELEBRATE_MS = 720
-const BANNER_MS = 1800
+const CELEBRATE_MS = 1200
 
 export default {
   private: {
@@ -59,9 +64,12 @@ export default {
     inputMode: 'slide',
     beadTheme: 'default',
     showCount: true,
-    countText: '0',
+    countCurrent: '0',
+    countGoal: '21',
     countColor: COUNT_COLOR_NORMAL,
-    bannerText: '',
+    celeVisible: false,
+    celeOpacity: 0,
+    celeMsg: '',
     spriteFrameSrc: '/common/sprite/idle.jpg',
     spriteLeft: SPRITE_CROP.left,
     spriteTop: SPRITE_CROP.top,
@@ -75,8 +83,7 @@ export default {
     this._sideTimer = null
     this._lpTimer = null
     this._s2Timer = null
-    this._glowTimer = null
-    this._bannerTimer = null
+    this._celeTimers = []
     this._s2Idx = 0
     this._s2List = null
     this._animating = false
@@ -130,14 +137,16 @@ export default {
   },
 
   clearCelebrateTimers() {
-    if (this._glowTimer) {
-      clearTimeout(this._glowTimer)
-      this._glowTimer = null
+    if (this._celeTimers && this._celeTimers.length) {
+      for (let i = 0; i < this._celeTimers.length; i++) {
+        clearTimeout(this._celeTimers[i])
+      }
     }
-    if (this._bannerTimer) {
-      clearTimeout(this._bannerTimer)
-      this._bannerTimer = null
-    }
+    this._celeTimers = []
+    this.celeVisible = false
+    this.celeOpacity = 0
+    this.celeMsg = ''
+    this.countColor = COUNT_COLOR_NORMAL
   },
 
   clearAllTimers() {
@@ -150,8 +159,14 @@ export default {
   },
 
   syncCount() {
-    const n = this._state ? Math.max(0, Math.floor(Number(this._state.todayTotal) || 0)) : 0
-    this.countText = String(n)
+    const n = this._state
+      ? Math.max(0, Math.floor(Number(this._state.todayTotal) || 0))
+      : 0
+    const g = this._state
+      ? Math.max(1, Math.floor(Number(this._state.goalCount) || 21))
+      : 21
+    this.countCurrent = String(n)
+    this.countGoal = String(g)
   },
 
   currentIdle() {
@@ -325,39 +340,36 @@ export default {
   },
 
   /**
-   * 가벼운 금색 반짝임 + 선택적 해금 안내. 입력 막지 않음 · S2와 독립 타이머.
+   * 단일 프리합성 PNG opacity 전환 + 짧은 문구.
+   * 다수 image keyframes 없음 · 입력 비차단 · ~1.2s.
    */
   playCelebrate(unlockJustNow) {
-    if (this._glowTimer) {
-      clearTimeout(this._glowTimer)
-      this._glowTimer = null
-    }
-    if (this._bannerTimer) {
-      clearTimeout(this._bannerTimer)
-      this._bannerTimer = null
-    }
+    this.clearCelebrateTimers()
+    this.celeVisible = true
+    this.celeOpacity = 0.9
     this.countColor = COUNT_COLOR_GLOW
-    let flashes = 0
-    const flash = () => {
-      this._glowTimer = null
-      flashes += 1
-      this.countColor =
-        flashes % 2 === 0 ? COUNT_COLOR_GLOW : COUNT_COLOR_NORMAL
-      if (flashes < 4) {
-        this._glowTimer = setTimeout(flash, Math.floor(CELEBRATE_MS / 4))
-      } else {
-        this.countColor = COUNT_COLOR_NORMAL
-      }
-    }
-    this._glowTimer = setTimeout(flash, Math.floor(CELEBRATE_MS / 4))
+    this.celeMsg = unlockJustNow ? '금박 나무 염주 해금' : '원만 성취'
 
-    if (unlockJustNow) {
-      this.bannerText = '금박 나무 염주 해금'
-      this._bannerTimer = setTimeout(() => {
-        this._bannerTimer = null
-        this.bannerText = ''
-      }, BANNER_MS)
+    const schedule = (ms, fn) => {
+      const id = setTimeout(fn, ms)
+      this._celeTimers.push(id)
     }
+
+    schedule(350, () => {
+      this.celeOpacity = 0.55
+      this.countColor = COUNT_COLOR_NORMAL
+    })
+    schedule(700, () => {
+      this.celeOpacity = 0.3
+      this.countColor = COUNT_COLOR_GLOW
+    })
+    schedule(CELEBRATE_MS, () => {
+      this.celeVisible = false
+      this.celeOpacity = 0
+      this.celeMsg = ''
+      this.countColor = COUNT_COLOR_NORMAL
+      this._celeTimers = []
+    })
   },
 
   queueSave(state) {
@@ -370,15 +382,11 @@ export default {
     }, 280)
   },
 
-  /**
-   * Vela @system.vibrator.vibrate({ mode }) — REDMI Watch 6 지원.
-   * start/stop 은 Watch 6 미지원 → 사용하지 않음. 실패 시 무시.
-   */
   safeVibrate(mode) {
     try {
       vibrator.vibrate({ mode: mode || 'short' })
     } catch (e) {
-      // 미지원·런타임 오류 무시
+      // ignore
     }
   },
 
@@ -409,29 +417,46 @@ export default {
 .sprite-img {
   position: absolute;
 }
-.count {
+.cele-glow {
   position: absolute;
-  left: 0px;
-  bottom: 36px;
-  width: 432px;
-  height: 56px;
-  font-size: 48px;
-  font-weight: bold;
-  color: #fff4d6;
-  text-align: center;
-  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
 }
-.banner {
+.cele-msg {
   position: absolute;
-  left: 24px;
-  right: 24px;
-  top: 56px;
-  width: 384px;
-  height: 40px;
-  font-size: 26px;
+  left: 20px;
+  right: 20px;
+  top: 200px;
+  width: 392px;
+  height: 44px;
+  font-size: 30px;
   font-weight: bold;
   color: #ffd700;
   text-align: center;
-  text-shadow: 0px 1px 3px #000000;
+  text-shadow: 0px 1px 4px #000000;
+}
+.count-row {
+  position: absolute;
+  left: 12px;
+  bottom: 32px;
+  width: 408px;
+  height: 56px;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-end;
+}
+.count-cur {
+  font-size: 48px;
+  font-weight: bold;
+  color: #fff4d6;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.count-sep {
+  font-size: 28px;
+  color: #a89068;
+  margin-bottom: 6px;
+}
+.count-goal {
+  font-size: 28px;
+  color: #a89068;
+  margin-bottom: 6px;
 }
 </style>
