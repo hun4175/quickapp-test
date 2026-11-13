@@ -1,9 +1,8 @@
 /**
- * 염주 고리 — 1.7.0 체인 슬롯.
+ * 염주 고리 — 1.8.0 체인 슬롯.
  *
- * 1.6.0 2단 이동 원인: 키프레임 0/50/100 + 구간마다 ease-out
- * → 50%에서 감속·재가속. 1.7.0은 앞열 직선은 0→100% 단일 ease-out,
- *   가장자리만 0/25/50/75/100 + linear(위치값에 ease-out 베이크).
+ * 1.7.0: 앞열 0→100% ease-out vs 가장자리 다점+linear 로 속도 곡선이 달라
+ * 전면 아래 구슬이 늦게 움직이는 체감. 1.8.0은 전 구슬 동일 키프레임·동일 timing.
  */
 
 export const VIRTUAL_BEADS = 12
@@ -13,12 +12,16 @@ export const BACK_COUNT = 3
 export const VISIBLE_BEADS = SLOT_COUNT
 
 export const CHAIN_DIR = 1
-/** 한 칸 duration — 프레임 간 이동거리 완화 */
-export const CHAIN_ANIM_MS = 240
+/** 반응성: 180~200ms */
+export const CHAIN_ANIM_MS = 190
 
-export const SWIPE_MIN_DY = 40
+/** touchmove 즉시 판정용 (1.7.0=40 → 낮춤) */
+export const SWIPE_MIN_DY = 22
 export const SWIPE_VERTICAL_RATIO = 1.2
 export const BEAD_SRC = '/common/bead-wood.png'
+
+/** 전 구슬 공유 키프레임 퍼센트 (시간축). 위치는 pathProgressAtTime 으로 베이크 */
+export const SHARED_KEYFRAME_PCTS = Object.freeze([0, 0.25, 0.5, 0.75, 1])
 
 /** scale 변화 완화용 (스냅과 동일 기하 유지) */
 export const DEFAULT_RING = Object.freeze({
@@ -209,9 +212,17 @@ export const slotTransition = (fromSlot, toSlot, opts = {}) => {
 }
 
 /**
- * @param {number} slotIndex
- * @param {number} dir
- * @returns {string} 빈 문자열이면 애니 생략(화면 밖)
+ * 시간 진행률 t(0..1) → 경로 진행률 u. 전 구슬 동일 함수.
+ */
+export const pathProgressAtTime = (t) => {
+  const x = Math.max(0, Math.min(1, Number(t) || 0))
+  if (x <= 0) return 0
+  if (x >= 1) return 1
+  return easeOutCubic(x)
+}
+
+/**
+ * 구슬별 애니 클래스. 보이는 슬롯만 클래스 부여(전원 동일 CSS 곡선).
  */
 export const rollClassForSlot = (slotIndex, dir, opts = {}) => {
   const slots = layoutChainSlots(ringOpts(opts))
@@ -227,51 +238,45 @@ const kfLine = (pct, tr) =>
   `  ${pct}% { transform: translate(${tr.tx}px, ${tr.ty}px) scale(${tr.scale}); }`
 
 /**
- * 키프레임 CSS.
- * - 직선: 0→100, ease-out
- * - 곡선: 0/25/50/75/100, linear + 위치 ease-out 베이크
+ * 전 구슬 동일: SHARED_KEYFRAME_PCTS + linear + pathProgressAtTime 베이크.
  */
 export const buildChainKeyframeCss = (opts = {}) => {
   const slots = layoutChainSlots(ringOpts(opts))
   const n = slots.length
   const ms = CHAIN_ANIM_MS
   const lines = []
-  const emit = (name, from, to, dirLabel) => {
-    const curve = isCurveTransition(from, to)
-    const timing = curve ? 'linear' : 'ease-out'
+  const emit = (from, to, dirLabel) => {
     const cls = `roll-${dirLabel}-${from.index}`
     lines.push(`.${cls} {
   animation-name: kf-${dirLabel}-${from.index};
   animation-duration: ${ms}ms;
-  animation-timing-function: ${timing};
+  animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }`)
-    if (!curve) {
-      const end = transformAtProgress(from, to, 1, opts)
-      lines.push(`@keyframes kf-${dirLabel}-${from.index} {
-  0% { transform: translate(0px, 0px) scale(1); }
-${kfLine(100, end)}
-}`)
-    } else {
-      const keys = [0, 0.25, 0.5, 0.75, 1]
-      const body = keys
-        .map((k) => {
-          const u = k === 0 ? 0 : k === 1 ? 1 : easeOutCubic(k)
-          const tr = transformAtProgress(from, to, u, opts)
-          return kfLine(Math.round(k * 100), tr)
-        })
-        .join('\n')
-      lines.push(`@keyframes kf-${dirLabel}-${from.index} {
+    const body = SHARED_KEYFRAME_PCTS.map((k) => {
+      const u = pathProgressAtTime(k)
+      const tr = transformAtProgress(from, to, u, opts)
+      return kfLine(Math.round(k * 100), tr)
+    }).join('\n')
+    lines.push(`@keyframes kf-${dirLabel}-${from.index} {
 ${body}
 }`)
-    }
   }
   for (let i = 0; i < n; i++) {
-    emit('next', slots[i], slots[(i + 1) % n], 'next')
-    emit('prev', slots[i], slots[(i - 1 + n) % n], 'prev')
+    emit(slots[i], slots[(i + 1) % n], 'next')
+    emit(slots[i], slots[(i - 1 + n) % n], 'prev')
   }
   return lines.join('\n')
+}
+
+/**
+ * 테스트용: 시각 t 에서 모든 슬롯의 경로 진행률(동일해야 함).
+ */
+export const pathProgressesAtTime = (t) => {
+  const u = pathProgressAtTime(t)
+  return layoutChainSlots().map(() => u)
 }
 
 export const createChainBeads = (opts = {}) => {

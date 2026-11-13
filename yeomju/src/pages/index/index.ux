@@ -1,12 +1,14 @@
 <template>
   <!--
-    1.7.0: 앞열 0→100% 단일 ease-out / 가장자리 다점+linear(ease 베이크).
-    1.6.0 2단 이동(0/50/100+구간 ease) 제거. HUD 숨김, longpress 설정.
+    1.8.0: touchmove 즉시 트리거, 전 구슬 동일 키프레임/linear+ease 베이크,
+    애니 시작 후 진동·저장 디퍼. HUD 숨김, longpress 설정.
   -->
   <div
     class="page"
     ontouchstart="onTouchStart"
+    ontouchmove="onTouchMove"
     ontouchend="onTouchEnd"
+    ontouchcancel="onTouchCancel"
     onlongpress="onLongPress"
   >
     <stack class="stage">
@@ -66,6 +68,8 @@ export default {
     this._touchX = 0
     this._touchY = 0
     this._touchActive = false
+    this._gestureFired = false
+    this._saveTimer = null
     this.chainBeads = createChainBeads()
   },
 
@@ -77,6 +81,10 @@ export default {
     if (this._animTimer) {
       clearTimeout(this._animTimer)
       this._animTimer = null
+    }
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer)
+      this._saveTimer = null
     }
   },
 
@@ -118,19 +126,42 @@ export default {
     const p = this.touchPoint(e)
     if (!p) return
     this._touchActive = true
+    this._gestureFired = false
     this._touchX = p.x
     this._touchY = p.y
   },
 
-  onTouchEnd(e) {
-    if (!this._touchActive) return
-    this._touchActive = false
+  /**
+   * 1.8.0: touchmove 에서 |dy|≥SWIPE_MIN_DY 순간 1회 트리거.
+   * touchend 대기하지 않음. 같은 제스처 재트리거 금지.
+   */
+  trySwipe(e) {
+    if (!this._touchActive || this._gestureFired) return false
     const p = this.touchPoint(e)
-    if (!p) return
+    if (!p) return false
     const dx = p.x - this._touchX
     const dy = p.y - this._touchY
     const dir = classifyVerticalSwipe(dx, dy, { minDy: SWIPE_MIN_DY })
-    if (dir) this.enqueueSwipe(dir)
+    if (!dir) return false
+    this._gestureFired = true
+    this.enqueueSwipe(dir)
+    return true
+  },
+
+  onTouchMove(e) {
+    if (!this._touchActive) return
+    this.trySwipe(e)
+  },
+
+  onTouchEnd(e) {
+    if (!this._touchActive) return
+    this.trySwipe(e)
+    this._touchActive = false
+  },
+
+  onTouchCancel() {
+    this._touchActive = false
+    this._gestureFired = false
   },
 
   onLongPress() {
@@ -166,16 +197,24 @@ export default {
   advanceOnce(dir) {
     const result = applySwipeCount(this._state, dir)
     this.applyState(result.state, false)
-    this.queueSave(result.state)
-    this.buzz(result.completedRound)
-    this._animQueue.push(dir)
+    // 큐 항목에 진동/저장 메타 첨부 — 애니 시작 시점에 처리
+    this._animQueue.push({
+      dir,
+      completedRound: !!result.completedRound,
+      state: result.state
+    })
     this.ensureChainAnim()
   },
 
   queueSave(state) {
-    this._saveChain = this._saveChain
-      .then(() => saveState(state))
-      .catch(() => false)
+    // 디바운스: 애니 시작 경로를 막지 않음
+    if (this._saveTimer) clearTimeout(this._saveTimer)
+    this._saveTimer = setTimeout(() => {
+      this._saveTimer = null
+      this._saveChain = this._saveChain
+        .then(() => saveState(state))
+        .catch(() => false)
+    }, 280)
   },
 
   buzz(completedRound) {
@@ -188,19 +227,25 @@ export default {
   },
 
   /**
-   * 클래스 부여는 굴림당 1회. 타이머 종료 시 기하 스냅+클래스 제거를 한 번에
-   * (fill-mode forwards 끝 위치 = to 슬롯, 스냅 무튐).
+   * 1.8.0: 전 구슬 동일 틱에 클래스 적용 → 그 다음 진동 → 저장 디바운스.
+   * 리플로우용 클래스 제거→다음 틱 재추가 없음.
    */
   ensureChainAnim() {
     if (this._animating) return
     if (!this._animQueue.length) return
 
-    const dir = this._animQueue.shift()
+    const item = this._animQueue.shift()
+    const dir = item.dir
     this._animating = true
+    // 한 번에 map → 단일 바인딩 갱신 (슬롯 순서 지연 없음)
     this.chainBeads = this.chainBeads.map((b) => ({
       ...b,
       animClass: rollClassForSlot(b.slot, dir)
     }))
+
+    // 애니 클래스 적용 직후 진동 · 저장은 디바운스
+    this.buzz(item.completedRound)
+    this.queueSave(item.state)
 
     if (this._animTimer) clearTimeout(this._animTimer)
     this._animTimer = setTimeout(() => {
@@ -244,30 +289,39 @@ export default {
 /* CHAIN_KF_BEGIN */
 .roll-next-0 {
   animation-name: kf-next-0;
-  animation-duration: 240ms;
-  animation-timing-function: ease-out;
+  animation-duration: 190ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
 @keyframes kf-next-0 {
   0% { transform: translate(0px, 0px) scale(1); }
+  25% { transform: translate(12px, -132px) scale(0.985); }
+  50% { transform: translate(27px, -190px) scale(0.977); }
+  75% { transform: translate(34px, -210px) scale(0.974); }
   100% { transform: translate(35px, -212px) scale(0.974); }
 }
 .roll-prev-0 {
   animation-name: kf-prev-0;
-  animation-duration: 240ms;
-  animation-timing-function: ease-out;
+  animation-duration: 190ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
 @keyframes kf-prev-0 {
   0% { transform: translate(0px, 0px) scale(1); }
+  25% { transform: translate(12px, 132px) scale(0.985); }
+  50% { transform: translate(27px, 190px) scale(0.977); }
+  75% { transform: translate(34px, 210px) scale(0.974); }
   100% { transform: translate(35px, 212px) scale(0.974); }
 }
 .roll-next-1 {
   animation-name: kf-next-1;
-  animation-duration: 240ms;
+  animation-duration: 190ms;
   animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
@@ -280,19 +334,24 @@ export default {
 }
 .roll-prev-1 {
   animation-name: kf-prev-1;
-  animation-duration: 240ms;
-  animation-timing-function: ease-out;
+  animation-duration: 190ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
 @keyframes kf-prev-1 {
   0% { transform: translate(0px, 0px) scale(1); }
+  25% { transform: translate(-29px, 114px) scale(1.016); }
+  50% { transform: translate(-34px, 183px) scale(1.024); }
+  75% { transform: translate(-35px, 208px) scale(1.027); }
   100% { transform: translate(-35px, 212px) scale(1.027); }
 }
 .roll-next-2 {
   animation-name: kf-next-2;
-  animation-duration: 240ms;
+  animation-duration: 190ms;
   animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
@@ -305,8 +364,9 @@ export default {
 }
 .roll-prev-2 {
   animation-name: kf-prev-2;
-  animation-duration: 240ms;
+  animation-duration: 190ms;
   animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
@@ -319,8 +379,9 @@ export default {
 }
 .roll-next-3 {
   animation-name: kf-next-3;
-  animation-duration: 240ms;
+  animation-duration: 190ms;
   animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
@@ -333,8 +394,9 @@ export default {
 }
 .roll-prev-3 {
   animation-name: kf-prev-3;
-  animation-duration: 240ms;
+  animation-duration: 190ms;
   animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
@@ -347,8 +409,9 @@ export default {
 }
 .roll-next-4 {
   animation-name: kf-next-4;
-  animation-duration: 240ms;
+  animation-duration: 190ms;
   animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
@@ -361,8 +424,9 @@ export default {
 }
 .roll-prev-4 {
   animation-name: kf-prev-4;
-  animation-duration: 240ms;
+  animation-duration: 190ms;
   animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
@@ -375,8 +439,9 @@ export default {
 }
 .roll-next-5 {
   animation-name: kf-next-5;
-  animation-duration: 240ms;
+  animation-duration: 190ms;
   animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
@@ -389,8 +454,9 @@ export default {
 }
 .roll-prev-5 {
   animation-name: kf-prev-5;
-  animation-duration: 240ms;
+  animation-duration: 190ms;
   animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
@@ -403,8 +469,9 @@ export default {
 }
 .roll-next-6 {
   animation-name: kf-next-6;
-  animation-duration: 240ms;
+  animation-duration: 190ms;
   animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
@@ -417,8 +484,9 @@ export default {
 }
 .roll-prev-6 {
   animation-name: kf-prev-6;
-  animation-duration: 240ms;
+  animation-duration: 190ms;
   animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
@@ -431,19 +499,24 @@ export default {
 }
 .roll-next-7 {
   animation-name: kf-next-7;
-  animation-duration: 240ms;
-  animation-timing-function: ease-out;
+  animation-duration: 190ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
 @keyframes kf-next-7 {
   0% { transform: translate(0px, 0px) scale(1); }
+  25% { transform: translate(-29px, -114px) scale(1.016); }
+  50% { transform: translate(-34px, -183px) scale(1.024); }
+  75% { transform: translate(-35px, -208px) scale(1.027); }
   100% { transform: translate(-35px, -212px) scale(1.027); }
 }
 .roll-prev-7 {
   animation-name: kf-prev-7;
-  animation-duration: 240ms;
+  animation-duration: 190ms;
   animation-timing-function: linear;
+  animation-delay: 0ms;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }

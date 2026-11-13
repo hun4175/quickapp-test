@@ -1,5 +1,5 @@
 /**
- * 염주 고리 1.7.0 — 단일 구간 / 베이크드 ease 테스트
+ * 염주 고리 1.8.0 — 동일 타이밍 곡선 / touchmove 임계값 테스트
  */
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
@@ -15,16 +15,18 @@ import {
   stepPhase,
   classifyVerticalSwipe,
   SWIPE_MIN_DY,
+  SHARED_KEYFRAME_PCTS,
   layoutChainSlots,
   layoutRing,
   createChainBeads,
   advanceChainBeads,
   rollClassForSlot,
-  isCurveTransition,
   transformAtProgress,
   snapMatchesEndKeyframe,
   buildChainKeyframeCss,
   easeOutCubic,
+  pathProgressAtTime,
+  pathProgressesAtTime,
   focusDeltaYOnAdvance,
   focusCenterNear
 } from '../src/common/ring.js'
@@ -37,9 +39,14 @@ describe('phase', () => {
   })
 })
 
-describe('1.7.0 timing / slots', () => {
-  it('duration 220~260ms', () => {
-    assert.ok(CHAIN_ANIM_MS >= 220 && CHAIN_ANIM_MS <= 260)
+describe('1.8.0 timing / swipe', () => {
+  it('duration 180~200ms', () => {
+    assert.ok(CHAIN_ANIM_MS >= 180 && CHAIN_ANIM_MS <= 200)
+  })
+  it('SWIPE_MIN_DY 20~25', () => {
+    assert.ok(SWIPE_MIN_DY >= 20 && SWIPE_MIN_DY <= 25)
+    assert.equal(classifyVerticalSwipe(0, -SWIPE_MIN_DY), 1)
+    assert.equal(classifyVerticalSwipe(0, -(SWIPE_MIN_DY - 1)), 0)
   })
   it('슬롯 8, 포커스 중앙, 위 방향', () => {
     assert.equal(SLOT_COUNT, 8)
@@ -50,35 +57,38 @@ describe('1.7.0 timing / slots', () => {
   it('나무만', () => {
     assert.equal(BEAD_SRC, '/common/bead-wood.png')
   })
-  it('easeOutCubic', () => {
-    assert.equal(easeOutCubic(0), 0)
-    assert.equal(easeOutCubic(1), 1)
-    assert.ok(easeOutCubic(0.5) > 0.5)
+  it('pathProgressAtTime = easeOutCubic', () => {
+    assert.equal(pathProgressAtTime(0), 0)
+    assert.equal(pathProgressAtTime(1), 1)
+    assert.equal(pathProgressAtTime(0.5), easeOutCubic(0.5))
+    assert.ok(pathProgressAtTime(0.5) > 0.5)
   })
 })
 
-describe('2단 이동 방지 키프레임', () => {
-  it('앞열 직선은 curve 아님', () => {
-    const slots = layoutChainSlots()
-    assert.equal(isCurveTransition(slots[0], slots[1]), false)
-    assert.equal(isCurveTransition(slots[7], slots[0]), false)
+describe('전 구슬 동일 타이밍', () => {
+  it('SHARED_KEYFRAME_PCTS 0/25/50/75/100', () => {
+    assert.deepEqual([...SHARED_KEYFRAME_PCTS], [0, 0.25, 0.5, 0.75, 1])
   })
-  it('가장자리는 curve', () => {
-    const slots = layoutChainSlots()
-    assert.equal(isCurveTransition(slots[2], slots[3]), true)
+  it('임의 t 에서 모든 구슬 경로 진행률 동일', () => {
+    for (const t of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+      const progresses = pathProgressesAtTime(t)
+      assert.equal(progresses.length, SLOT_COUNT)
+      const u = pathProgressAtTime(t)
+      assert.ok(progresses.every((p) => p === u), `t=${t}`)
+    }
   })
-  it('CSS: 직선은 0/100+ease-out, 곡선은 다점+linear', () => {
+  it('CSS: 전 클래스 linear + 다점 키프레임 + delay 0 + 동일 duration', () => {
     const css = buildChainKeyframeCss()
-    assert.ok(css.includes('animation-duration: 240ms'))
-    // next-0 직선
-    assert.match(css, /\.roll-next-0 \{[\s\S]*?ease-out/)
-    assert.match(css, /@keyframes kf-next-0 \{[\s\S]*?0%[\s\S]*?100%/)
-    assert.ok(!/@keyframes kf-next-0 \{[^}]*50%/.test(css))
-    // next-2 곡선
-    assert.match(css, /\.roll-next-2 \{[\s\S]*?linear/)
-    assert.ok(css.includes('@keyframes kf-next-2'))
+    assert.ok(css.includes(`animation-duration: ${CHAIN_ANIM_MS}ms`))
+    assert.equal((css.match(/animation-timing-function: linear/g) || []).length, 16)
+    assert.equal((css.match(/animation-delay: 0ms/g) || []).length, 16)
+    assert.ok(!css.includes('ease-out'))
     assert.ok(css.includes('25%'))
+    assert.ok(css.includes('50%'))
     assert.ok(css.includes('75%'))
+    // 앞열·가장자리 모두 동일 퍼센트 세트
+    assert.match(css, /@keyframes kf-next-0 \{[\s\S]*?25%[\s\S]*?50%[\s\S]*?75%[\s\S]*?100%/)
+    assert.match(css, /@keyframes kf-next-2 \{[\s\S]*?25%[\s\S]*?50%[\s\S]*?75%[\s\S]*?100%/)
   })
   it('100% 키프레임 = 스냅 기하', () => {
     const slots = layoutChainSlots()
@@ -106,6 +116,5 @@ describe('chain beads', () => {
     assert.ok(depthAtAngle(Math.PI) > 0.99)
     assert.equal(VIRTUAL_BEADS, 12)
     assert.equal(DEFAULT_RING.maxSize, 228)
-    assert.equal(classifyVerticalSwipe(0, -SWIPE_MIN_DY), 1)
   })
 })

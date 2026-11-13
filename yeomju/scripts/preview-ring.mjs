@@ -1,11 +1,17 @@
 /**
- * 1.7.0 미리보기: 0/25/50/75/100% (라벨은 프레임 위 여백).
+ * 1.8.0 미리보기: 0/25/50/75/100% 시간축 (pathProgressAtTime 베이크와 동일).
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import { fileURLToPath } from 'node:url'
-import { DEFAULT_RING, SLOT_COUNT, CHAIN_ANIM_MS, layoutRing } from '../src/common/ring.js'
+import {
+  DEFAULT_RING,
+  SLOT_COUNT,
+  CHAIN_ANIM_MS,
+  layoutRing,
+  pathProgressAtTime
+} from '../src/common/ring.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const W = 432
@@ -188,10 +194,10 @@ const renderWatch = (shiftProgress) => {
     rgba[i * 4 + 2] = 8
     rgba[i * 4 + 3] = 255
   }
-  // bakeEase false: 키프레임 % 와 동일 샘플(곡선용 linear 시간축)
+  // 시간축 t → pathProgressAtTime (CSS linear + ease 베이크와 동일)
   const beads = layoutRing({
     ...DEFAULT_RING,
-    shiftProgress,
+    shiftProgress: pathProgressAtTime(shiftProgress),
     chainDir: 1,
     bakeEase: false
   })
@@ -234,6 +240,6 @@ for (let i = 0; i < parts.length; i++) {
   }
   drawText(strip, stripW, stripH, Math.round(parts[i].p * 100) + '%', i * W + 8, 6, 2, 200, 180, 140)
 }
-writePng(path.join(docsDir, 'preview-1.7.0.png'), stripW, stripH, strip)
+writePng(path.join(docsDir, 'preview-1.8.0.png'), stripW, stripH, strip)
 writePng(path.join(docsDir, 'preview-432x514.png'), W, H, parts[0].rgba)
-console.log(JSON.stringify({ version: '1.7.0', slots: SLOT_COUNT, ms: CHAIN_ANIM_MS }, null, 2))
+console.log(JSON.stringify({ version: '1.8.0', slots: SLOT_COUNT, ms: CHAIN_ANIM_MS }, null, 2))
