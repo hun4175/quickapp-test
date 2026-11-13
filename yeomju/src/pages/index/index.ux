@@ -1,7 +1,7 @@
 <template>
   <!--
-    1.8.0: touchmove 즉시 트리거, 전 구슬 동일 키프레임/linear+ease 베이크,
-    애니 시작 후 진동·저장 디퍼. HUD 숨김, longpress 설정.
+    1.9.0 진단: 애니 모드 A/B/C/D, 지연 디버그.
+    Mode A: 스냅+다음 클래스 동일 틱, 종료=duration+slack.
   -->
   <div
     class="page"
@@ -12,7 +12,7 @@
     onlongpress="onLongPress"
   >
     <stack class="stage">
-      <stack class="ring">
+      <div class="ring-mover {{moverClass}}">
         <div
           class="bead-wrap {{$item.animClass}}"
           for="{{chainBeads}}"
@@ -24,7 +24,11 @@
             style="width: {{$item.size}}px; height: {{$item.size}}px;"
           ></image>
         </div>
-      </stack>
+      </div>
+      <div class="debug-hud" if="{{debugLatency}}">
+        <text class="debug-text">터치→시작 {{debugTouchMs}}ms</text>
+        <text class="debug-text">애니 {{debugAnimMs}}ms</text>
+      </div>
     </stack>
   </div>
 </template>
@@ -37,13 +41,18 @@ import { loadState, saveState } from '../../common/persist.js'
 import {
   VIRTUAL_BEADS,
   CHAIN_ANIM_MS,
+  CHAIN_ANIM_END_SLACK_MS,
   SWIPE_MIN_DY,
+  JS_FRAME_MS,
+  JS_FRAME_BEAD_COUNT,
   phaseFromBead,
   stepPhase,
   createChainBeads,
   advanceChainBeads,
+  advanceChainBeadsWithAnim,
   rollClassForSlot,
-  classifyVerticalSwipe
+  classifyVerticalSwipe,
+  sampleChainBeadsAtTime
 } from '../../common/ring.js'
 
 export default {
@@ -53,13 +62,19 @@ export default {
     beadsPerRound: 108,
     todayTotal: 0,
     vibrateOnBead: true,
+    animMode: 'A',
+    debugLatency: false,
     chainBeads: [],
-    displayPhase: 0
+    displayPhase: 0,
+    moverClass: '',
+    debugTouchMs: '-',
+    debugAnimMs: '-'
   },
 
   onInit() {
     this._state = null
     this._animTimer = null
+    this._jsTimer = null
     this._draining = false
     this._animating = false
     this._saveChain = Promise.resolve()
@@ -70,6 +85,12 @@ export default {
     this._touchActive = false
     this._gestureFired = false
     this._saveTimer = null
+    this._gestureAt = 0
+    this._animStartAt = 0
+    this._jsFrame = 0
+    this._jsFrames = 0
+    this._jsDir = 1
+    this._jsBaseBeads = null
     this.chainBeads = createChainBeads()
   },
 
@@ -78,13 +99,21 @@ export default {
   },
 
   onDestroy() {
+    this.clearAnimTimers()
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer)
+      this._saveTimer = null
+    }
+  },
+
+  clearAnimTimers() {
     if (this._animTimer) {
       clearTimeout(this._animTimer)
       this._animTimer = null
     }
-    if (this._saveTimer) {
-      clearTimeout(this._saveTimer)
-      this._saveTimer = null
+    if (this._jsTimer) {
+      clearTimeout(this._jsTimer)
+      this._jsTimer = null
     }
   },
 
@@ -104,8 +133,12 @@ export default {
     this.beadsPerRound = state.beadsPerRound
     this.todayTotal = state.todayTotal
     this.vibrateOnBead = state.vibrateOnBead
+    this.animMode = state.animMode || 'A'
+    this.debugLatency = !!state.debugLatency
     if (snapVisual) {
       this.displayPhase = phaseFromBead(state.bead, VIRTUAL_BEADS)
+      this.moverClass = ''
+      this.chainBeads = createChainBeads()
     }
   },
 
@@ -131,10 +164,6 @@ export default {
     this._touchY = p.y
   },
 
-  /**
-   * 1.8.0: touchmove 에서 |dy|≥SWIPE_MIN_DY 순간 1회 트리거.
-   * touchend 대기하지 않음. 같은 제스처 재트리거 금지.
-   */
   trySwipe(e) {
     if (!this._touchActive || this._gestureFired) return false
     const p = this.touchPoint(e)
@@ -144,6 +173,7 @@ export default {
     const dir = classifyVerticalSwipe(dx, dy, { minDy: SWIPE_MIN_DY })
     if (!dir) return false
     this._gestureFired = true
+    this._gestureAt = Date.now()
     this.enqueueSwipe(dir)
     return true
   },
@@ -197,7 +227,6 @@ export default {
   advanceOnce(dir) {
     const result = applySwipeCount(this._state, dir)
     this.applyState(result.state, false)
-    // 큐 항목에 진동/저장 메타 첨부 — 애니 시작 시점에 처리
     this._animQueue.push({
       dir,
       completedRound: !!result.completedRound,
@@ -207,7 +236,6 @@ export default {
   },
 
   queueSave(state) {
-    // 디바운스: 애니 시작 경로를 막지 않음
     if (this._saveTimer) clearTimeout(this._saveTimer)
     this._saveTimer = setTimeout(() => {
       this._saveTimer = null
@@ -226,34 +254,154 @@ export default {
     }
   },
 
+  markAnimStart() {
+    this._animStartAt = Date.now()
+    if (this.debugLatency && this._gestureAt) {
+      this.debugTouchMs = String(this._animStartAt - this._gestureAt)
+    }
+  },
+
+  markAnimEnd() {
+    if (this.debugLatency && this._animStartAt) {
+      this.debugAnimMs = String(Date.now() - this._animStartAt)
+    }
+  },
+
   /**
-   * 1.8.0: 전 구슬 동일 틱에 클래스 적용 → 그 다음 진동 → 저장 디바운스.
-   * 리플로우용 클래스 제거→다음 틱 재추가 없음.
+   * Mode A 수정:
+   * - 종료: duration+slack (setTimeout 조기 스냅 방지)
+   * - 다음 큐 있으면 스냅+다음 클래스를 한 바인딩에 (클리어→재적용 원점 복귀 방지)
+   * - fill-mode forwards 유지, 클래스 일괄 map
    */
   ensureChainAnim() {
     if (this._animating) return
     if (!this._animQueue.length) return
 
+    const mode = this.animMode || 'A'
+    if (mode === 'B') {
+      this.runModeB()
+      return
+    }
+    if (mode === 'C') {
+      this.runModeC()
+      return
+    }
+    if (mode === 'D') {
+      this.runModeD()
+      return
+    }
+    this.runModeA()
+  },
+
+  runModeA() {
     const item = this._animQueue.shift()
     const dir = item.dir
     this._animating = true
-    // 한 번에 map → 단일 바인딩 갱신 (슬롯 순서 지연 없음)
+    this.moverClass = ''
     this.chainBeads = this.chainBeads.map((b) => ({
       ...b,
       animClass: rollClassForSlot(b.slot, dir)
     }))
-
-    // 애니 클래스 적용 직후 진동 · 저장은 디바운스
+    this.markAnimStart()
     this.buzz(item.completedRound)
     this.queueSave(item.state)
 
-    if (this._animTimer) clearTimeout(this._animTimer)
+    this.clearAnimTimers()
     this._animTimer = setTimeout(() => {
+      this.finishModeA(dir)
+    }, CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS)
+  },
+
+  finishModeA(dir) {
+    this.markAnimEnd()
+    this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)
+    const nextItem = this._animQueue.length ? this._animQueue[0] : null
+    if (nextItem) {
+      // 스냅 + 다음 굴림 클래스를 동일 할당 — 중간 원점 프레임 제거
+      const nextDir = nextItem.dir
+      this._animQueue.shift()
+      this.chainBeads = advanceChainBeadsWithAnim(this.chainBeads, dir, nextDir)
+      this.markAnimStart()
+      this.buzz(nextItem.completedRound)
+      this.queueSave(nextItem.state)
+      this.clearAnimTimers()
+      this._animTimer = setTimeout(() => {
+        this.finishModeA(nextDir)
+      }, CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS)
+      return
+    }
+    this.chainBeads = advanceChainBeads(this.chainBeads, dir)
+    this._animating = false
+    this.ensureChainAnim()
+  },
+
+  runModeB() {
+    const item = this._animQueue.shift()
+    const dir = item.dir
+    this._animating = true
+    this.moverClass = ''
+    this.markAnimStart()
+    this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)
+    this.chainBeads = advanceChainBeads(this.chainBeads, dir)
+    this.buzz(item.completedRound)
+    this.queueSave(item.state)
+    this.markAnimEnd()
+    this._animating = false
+    this.ensureChainAnim()
+  },
+
+  runModeC() {
+    const item = this._animQueue.shift()
+    const dir = item.dir
+    this._animating = true
+    this.chainBeads = this.chainBeads.map((b) => ({ ...b, animClass: '' }))
+    this.moverClass = Number(dir) < 0 ? 'mover-down' : 'mover-up'
+    this.markAnimStart()
+    this.buzz(item.completedRound)
+    this.queueSave(item.state)
+    this.clearAnimTimers()
+    this._animTimer = setTimeout(() => {
+      this.markAnimEnd()
       this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)
+      this.moverClass = ''
       this.chainBeads = advanceChainBeads(this.chainBeads, dir)
       this._animating = false
       this.ensureChainAnim()
-    }, CHAIN_ANIM_MS)
+    }, CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS)
+  },
+
+  runModeD() {
+    const item = this._animQueue.shift()
+    const dir = item.dir
+    this._animating = true
+    this.moverClass = ''
+    this._jsDir = dir
+    this._jsBaseBeads = this.chainBeads.map((b) => ({ ...b, animClass: '' }))
+    this._jsFrames = Math.max(2, Math.round(CHAIN_ANIM_MS / JS_FRAME_MS))
+    this._jsFrame = 0
+    this.markAnimStart()
+    this.buzz(item.completedRound)
+    this.queueSave(item.state)
+    this.tickModeD()
+  },
+
+  tickModeD() {
+    this._jsFrame += 1
+    const t = Math.min(1, this._jsFrame / this._jsFrames)
+    this.chainBeads = sampleChainBeadsAtTime(this._jsBaseBeads, this._jsDir, t, {
+      frameBeadCount: JS_FRAME_BEAD_COUNT
+    })
+    if (t >= 1) {
+      this.markAnimEnd()
+      this.displayPhase = stepPhase(this.displayPhase, this._jsDir, VIRTUAL_BEADS)
+      this.chainBeads = advanceChainBeads(this._jsBaseBeads, this._jsDir)
+      this._jsBaseBeads = null
+      this._animating = false
+      this.ensureChainAnim()
+      return
+    }
+    this.clearAnimTimers()
+    this._jsTimer = setTimeout(() => this.tickModeD(), JS_FRAME_MS)
   }
 }
 </script>
@@ -270,9 +418,12 @@ export default {
   height: 514px;
 }
 
-.ring {
+.ring-mover {
   width: 432px;
   height: 514px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
 }
 
 .bead-wrap {
@@ -284,6 +435,44 @@ export default {
   position: absolute;
   left: 0px;
   top: 0px;
+}
+
+.debug-hud {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 200px;
+  flex-direction: column;
+}
+
+.debug-text {
+  font-size: 16px;
+  color: #c4a574;
+}
+
+.mover-up {
+  animation-name: kf-mover-up;
+  animation-duration: 190ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes kf-mover-up {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(-209px); }
+}
+.mover-down {
+  animation-name: kf-mover-down;
+  animation-duration: 190ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes kf-mover-down {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(209px); }
 }
 
 /* CHAIN_KF_BEGIN */
@@ -529,4 +718,5 @@ export default {
 }
 
 /* CHAIN_KF_END */
+
 </style>

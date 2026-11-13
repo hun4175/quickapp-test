@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import {
   BEAD_OPTIONS,
   SWIPE_COUNT_MODE,
+  ANIM_MODES,
   normalizeState,
   ensureToday,
   advanceBead,
@@ -13,6 +14,8 @@ import {
   applySwipeCount,
   setBeadsPerRound,
   setVibrateOnBead,
+  setAnimMode,
+  setDebugLatency,
   resetSession,
   resetAll,
   progressRatio,
@@ -34,6 +37,8 @@ describe('normalizeState', () => {
     assert.equal(s.rounds, 0)
     assert.equal(s.beadsPerRound, 108)
     assert.equal(s.vibrateOnBead, true)
+    assert.equal(s.animMode, 'A')
+    assert.equal(s.debugLatency, false)
   })
 
   it('허용되지 않은 알 개수는 108로', () => {
@@ -162,6 +167,13 @@ describe('설정·초기화', () => {
 
   it('setVibrateOnBead', () => {
     assert.equal(setVibrateOnBead({}, false).vibrateOnBead, false)
+  })
+
+  it('animMode A~D · debugLatency', () => {
+    assert.deepEqual([...ANIM_MODES], ['A', 'B', 'C', 'D'])
+    assert.equal(setAnimMode({}, 'C').animMode, 'C')
+    assert.equal(setAnimMode({}, 'Z').animMode, 'A')
+    assert.equal(setDebugLatency({}, true).debugLatency, true)
   })
 
   it('resetSession 은 오늘 합계 유지', () => {

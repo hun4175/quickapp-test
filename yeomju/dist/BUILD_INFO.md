@@ -1,43 +1,45 @@
-# 빌드 정보 — 1.8.0
+# 빌드 정보 — 1.9.0 (진단)
 
 ## 산출물 (사실)
 
-- `yeomju/dist/com.yeomju.mala.debug.1.8.0.rpk`
-- 크기: 81619 bytes
-- SHA256: `297801fdb4a5a2199a43dbe56245f70136d4affa9e85b71c9a1da6fe6eea6f84`
-- versionName 1.8.0 / versionCode 9
-- 단위 테스트: 31 passed
+- `yeomju/dist/com.yeomju.mala.debug.1.9.0.rpk`
+- 크기: 169482 bytes
+- SHA256: `3214ea0fed52f72782a8e74aa2f3190c84a6fd5a4f316e36e6e399d8bfefe2a4`
+- versionName 1.9.0 / versionCode 10
+- 단위 테스트: 34 passed
 
-## 1.7.0 지연 원인 (코드 근거)
+## 자산 교체
 
-1. **touchend 대기**: `index.ux` `onTouchEnd` 에서만 `classifyVerticalSwipe` → 손 뗄 때까지 애니 시작 없음.
-2. **애니 전 동기 작업**: `advanceOnce` 가 `queueSave` → `buzz`(vibrator) → 그 다음 `_animQueue`/`ensureChainAnim`. 진동·storage가 클래스 부여보다 앞.
-3. **pending 큐**: `_animating` 중이면 `_animQueue` 에 쌓여 이전 애니(`CHAIN_ANIM_MS`) 종료 후 다음 시작 — 연속 스와이프 시 체감 지연.
-4. **임계값**: `SWIPE_MIN_DY=40` 으로 판정까지 이동량 큼.
-5. **duration**: 240ms.
+- `yeomju/src/common/bead-wood.png` — 240×240 RGBA, **91537** bytes (신규 나무 구슬)
+- `yeomju/src/common/logo.png` — 192×192 RGBA, **43511** bytes (신규 아이콘, manifest `/common/logo.png`)
+- `yeomju/docs/preview-1.9.0.png`, `yeomju/docs/icon-preview.png`
+- 이전 구슬/아이콘 바이트는 동일 경로에 덮어씀 → rpk에 구버전 잔존 없음
 
-(리플로우용 클래스 제거→`setTimeout` 재추가는 1.7에 없었음.)
+## 2단 이동·지연 후보 (코드 근거)와 수정
 
-## 아래 구슬 지연 원인 (코드 근거)
+| 후보 | 1.8.0 근거 | 1.9.0 Mode A 수정 |
+|------|-----------|-------------------|
+| 종료 스냅+클래스 제거 | `advanceChainBeads`가 left/top/size와 `animClass:''`를 **한 map**에서 처리 → 동일 할당 | 유지 |
+| 연속 굴림 클리어→재적용 | `advance` 후 `ensureChainAnim`이 **두 번** 바인딩 → 원점(transform 0) 1프레임 가능 | `advanceChainBeadsWithAnim`으로 스냅+다음 클래스를 **한 할당** |
+| setTimeout vs 애니 | `setTimeout(CHAIN_ANIM_MS)`만 사용. 타이머가 CSS보다 빠르면 중도 스냅→2단 | `CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS(16)`. animationend 미사용(플랫폼 불확실) |
+| fill-mode | `forwards` 이미 적용 | 유지 |
+| 다중 노드 클래스 | `chainBeads = map(...)` 단일 할당 | 유지 |
 
-1.7.0 `buildChainKeyframeCss`: `isCurveTransition` 분기.
-- 앞열 직선: `0%→100%` + `animation-timing-function: ease-out`
-- 가장자리/전환: `0/25/50/75/100` + `linear` + 위치 `easeOutCubic` 베이크
+입력 지연(touchmove 임계·큐)은 1.8 경로 유지. Mode B로 입력만 분리 체감.
 
-같은 wall-clock `t` 에서 CSS ease-out 진행률 ≠ 베이크드 linear 진행률 → 전면 위·중앙과 아래(전환) 구슬 속도 곡선 불일치.
+## 애니 모드 (설정 → 애니 모드)
 
-## 1.8.0 변경
+길게 눌러 설정. 기본 **A**.
 
-- **입력**: `ontouchmove` 에서 `|dy|≥SWIPE_MIN_DY` 순간 1회 트리거, `_gestureFired` 로 손 뗄 때까지 재트리거 금지; `touchend` 는 미발사 보완만.
-- **순서**: 애니 클래스 일괄 적용 → `buzz` → `queueSave` 디바운스(280ms).
-- **일체감**: 전 구슬 `SHARED_KEYFRAME_PCTS` + `linear` + `pathProgressAtTime`(easeOutCubic 베이크) + `delay:0` + duration 190ms.
-- `SWIPE_MIN_DY` 40→**22**, `CHAIN_ANIM_MS` 240→**190**.
-- HUD 숨김 / longpress 설정 / 양방향 / 카운트 모드 / pending / 진동 유지.
+- **A** 키프레임(수정) — 위 버그 수정본
+- **B** 애니 없음 — 즉시 스냅
+- **C** 컨테이너 이동 — `ring-mover` 하나 `translateY` ±209px
+- **D** JS 프레임 — 24ms 간격, 깊이 상위 6구슬 스타일 갱신
 
-## 미리보기
+## 지연 디버그
 
-- `yeomju/docs/preview-1.8.0.png` (0/25/50/75/100%)
+설정 → 지연 디버그 켜기. 메인 좌상단에 `터치→시작 Nms`, `애니 Nms` (Date.now).
 
 ## 미확인
 
-- 실기기 반응성·일체감 개선 여부 (단정하지 않음)
+- 실기기에서 어느 모드가 나은지, 디버그 ms 수치 (**단정하지 않음**)

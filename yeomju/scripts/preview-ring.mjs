@@ -1,5 +1,5 @@
 /**
- * 1.8.0 미리보기: 0/25/50/75/100% 시간축 (pathProgressAtTime 베이크와 동일).
+ * 1.9.0 미리보기: 0/25/50/75/100% 시간축 (새 나무 구슬 텍스처).
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -240,6 +240,6 @@ for (let i = 0; i < parts.length; i++) {
   }
   drawText(strip, stripW, stripH, Math.round(parts[i].p * 100) + '%', i * W + 8, 6, 2, 200, 180, 140)
 }
-writePng(path.join(docsDir, 'preview-1.8.0.png'), stripW, stripH, strip)
+writePng(path.join(docsDir, 'preview-1.9.0.png'), stripW, stripH, strip)
 writePng(path.join(docsDir, 'preview-432x514.png'), W, H, parts[0].rgba)
-console.log(JSON.stringify({ version: '1.8.0', slots: SLOT_COUNT, ms: CHAIN_ANIM_MS }, null, 2))
+console.log(JSON.stringify({ version: '1.9.0', slots: SLOT_COUNT, ms: CHAIN_ANIM_MS }, null, 2))

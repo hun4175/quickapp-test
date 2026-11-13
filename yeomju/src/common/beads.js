@@ -6,13 +6,32 @@
 /** 한 바퀴 알 개수 선택지 (염주/묵주 관례) */
 export const BEAD_OPTIONS = [108, 54, 27, 21]
 
+/** 진단용 애니 모드: A 키프레임 / B 즉시스냅 / C 컨테이너 / D JS프레임 */
+export const ANIM_MODES = Object.freeze(['A', 'B', 'C', 'D'])
+
+export const ANIM_MODE_LABELS = Object.freeze({
+  A: 'A 키프레임(수정)',
+  B: 'B 애니 없음',
+  C: 'C 컨테이너 이동',
+  D: 'D JS 프레임'
+})
+
+export const ANIM_MODE_HINTS = Object.freeze({
+  A: '구슬별 CSS 키프레임(버그 수정본)',
+  B: '즉시 다음 슬롯 — 입력 지연만 체감',
+  C: '통째 translateY 한 번 — 다중 노드 비용 비교',
+  D: 'JS가 소수 프레임으로 위치 갱신'
+})
+
 export const DEFAULT_STATE = Object.freeze({
   bead: 0,
   rounds: 0,
   beadsPerRound: 108,
   vibrateOnBead: true,
   todayDate: '',
-  todayTotal: 0
+  todayTotal: 0,
+  animMode: 'A',
+  debugLatency: false
 })
 
 /**
@@ -43,13 +62,17 @@ export const normalizeState = (raw) => {
   const rounds = Math.max(0, Math.floor(Number(src.rounds) || 0))
   const todayTotal = Math.max(0, Math.floor(Number(src.todayTotal) || 0))
 
+  const animMode = ANIM_MODES.includes(src.animMode) ? src.animMode : DEFAULT_STATE.animMode
+
   return {
     bead: beadNum % beadsPerRound,
     rounds,
     beadsPerRound,
     vibrateOnBead: src.vibrateOnBead !== false,
     todayDate: typeof src.todayDate === 'string' ? src.todayDate : '',
-    todayTotal
+    todayTotal,
+    animMode,
+    debugLatency: src.debugLatency === true
   }
 }
 
@@ -193,6 +216,29 @@ export const setBeadsPerRound = (state, beadsPerRound) => {
 export const setVibrateOnBead = (state, enabled) => {
   const s = normalizeState(state)
   return { ...s, vibrateOnBead: !!enabled }
+}
+
+/**
+ * 진단용 애니 모드
+ * @param {object} state
+ * @param {string} mode A|B|C|D
+ * @returns {object}
+ */
+export const setAnimMode = (state, mode) => {
+  const s = normalizeState(state)
+  const animMode = ANIM_MODES.includes(mode) ? mode : 'A'
+  return { ...s, animMode }
+}
+
+/**
+ * 터치→애니 지연 디버그 표시
+ * @param {object} state
+ * @param {boolean} enabled
+ * @returns {object}
+ */
+export const setDebugLatency = (state, enabled) => {
+  const s = normalizeState(state)
+  return { ...s, debugLatency: !!enabled }
 }
 
 /**

@@ -33,6 +33,34 @@
       </div>
     </div>
 
+    <text class="label">애니 모드 (진단)</text>
+    <text class="hint">{{animHint}}</text>
+    <div class="col">
+      <div class="chip-wide {{animMode === 'A' ? 'chip-on' : ''}}" onclick="pickModeA">
+        <text class="chip-text">A 키프레임(수정)</text>
+      </div>
+      <div class="chip-wide {{animMode === 'B' ? 'chip-on' : ''}}" onclick="pickModeB">
+        <text class="chip-text">B 애니 없음</text>
+      </div>
+      <div class="chip-wide {{animMode === 'C' ? 'chip-on' : ''}}" onclick="pickModeC">
+        <text class="chip-text">C 컨테이너 이동</text>
+      </div>
+      <div class="chip-wide {{animMode === 'D' ? 'chip-on' : ''}}" onclick="pickModeD">
+        <text class="chip-text">D JS 프레임</text>
+      </div>
+    </div>
+
+    <text class="label">지연 디버그</text>
+    <text class="hint">구석에 터치→시작·애니 ms 표시</text>
+    <div class="row">
+      <div class="chip {{debugLatency ? 'chip-on' : ''}}" onclick="setDebugOn">
+        <text class="chip-text">켜기</text>
+      </div>
+      <div class="chip {{!debugLatency ? 'chip-on' : ''}}" onclick="setDebugOff">
+        <text class="chip-text">끄기</text>
+      </div>
+    </div>
+
     <text class="label">데이터</text>
     <div class="col">
       <div class="action" onclick="confirmSession">
@@ -43,20 +71,29 @@
       </div>
     </div>
 
-    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만</text>
+    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v1.9.0</text>
   </div>
 </template>
 
 <script>
 import router from '@system.router'
-import { setBeadsPerRound, setVibrateOnBead } from '../../common/beads.js'
+import {
+  setBeadsPerRound,
+  setVibrateOnBead,
+  setAnimMode,
+  setDebugLatency,
+  ANIM_MODE_HINTS
+} from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
 
 export default {
   private: {
     beadsPerRound: 108,
     vibrateOnBead: true,
-    todayTotal: 0
+    todayTotal: 0,
+    animMode: 'A',
+    debugLatency: false,
+    animHint: ANIM_MODE_HINTS.A
   },
 
   onShow() {
@@ -76,18 +113,22 @@ export default {
 
   async reload() {
     const state = await loadState()
+    this.applyLocal(state)
+  },
+
+  applyLocal(state) {
     this._state = state
     this.beadsPerRound = state.beadsPerRound
     this.vibrateOnBead = state.vibrateOnBead
     this.todayTotal = state.todayTotal
+    this.animMode = state.animMode || 'A'
+    this.debugLatency = !!state.debugLatency
+    this.animHint = ANIM_MODE_HINTS[this.animMode] || ANIM_MODE_HINTS.A
   },
 
   async persist(next) {
-    this._state = next
-    this.beadsPerRound = next.beadsPerRound
-    this.vibrateOnBead = next.vibrateOnBead
-    this.todayTotal = next.todayTotal
     await saveState(next)
+    this.applyLocal(next)
   },
 
   async pickBeads(n) {
@@ -116,6 +157,34 @@ export default {
   async setVibrateOff() {
     if (!this._state) await this.reload()
     await this.persist(setVibrateOnBead(this._state, false))
+  },
+
+  async pickMode(mode) {
+    if (!this._state) await this.reload()
+    await this.persist(setAnimMode(this._state, mode))
+  },
+
+  pickModeA() {
+    this.pickMode('A')
+  },
+  pickModeB() {
+    this.pickMode('B')
+  },
+  pickModeC() {
+    this.pickMode('C')
+  },
+  pickModeD() {
+    this.pickMode('D')
+  },
+
+  async setDebugOn() {
+    if (!this._state) await this.reload()
+    await this.persist(setDebugLatency(this._state, true))
+  },
+
+  async setDebugOff() {
+    if (!this._state) await this.reload()
+    await this.persist(setDebugLatency(this._state, false))
   },
 
   confirmSession() {
@@ -180,9 +249,16 @@ export default {
 .label {
   width: 90%;
   margin-top: 20px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   font-size: 20px;
   color: #9a7b55;
+}
+
+.hint {
+  width: 90%;
+  margin-bottom: 10px;
+  font-size: 16px;
+  color: #6e563c;
 }
 
 .row {
@@ -202,6 +278,18 @@ export default {
   width: 88px;
   height: 48px;
   margin: 4px;
+  border-radius: 24px;
+  background-color: #2a1c12;
+  justify-content: center;
+  align-items: center;
+  border-width: 1px;
+  border-color: #4a3420;
+}
+
+.chip-wide {
+  width: 92%;
+  height: 48px;
+  margin-top: 6px;
   border-radius: 24px;
   background-color: #2a1c12;
   justify-content: center;

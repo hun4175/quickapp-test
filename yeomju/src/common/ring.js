@@ -1,8 +1,7 @@
 /**
- * 염주 고리 — 1.8.0 체인 슬롯.
+ * 염주 고리 — 1.9.0 진단 모드(A/B/C/D) + 1.8 일체감 키프레임.
  *
- * 1.7.0: 앞열 0→100% ease-out vs 가장자리 다점+linear 로 속도 곡선이 달라
- * 전면 아래 구슬이 늦게 움직이는 체감. 1.8.0은 전 구슬 동일 키프레임·동일 timing.
+ * 1.8.0 실기기: 일체감 OK, 반응 지연·2단 이동 잔존 → 런타임 클래스/타이머 후보 점검용.
  */
 
 export const VIRTUAL_BEADS = 12
@@ -14,6 +13,11 @@ export const VISIBLE_BEADS = SLOT_COUNT
 export const CHAIN_DIR = 1
 /** 반응성: 180~200ms */
 export const CHAIN_ANIM_MS = 190
+/**
+ * setTimeout 이 CSS 애니보다 먼저 끝나면 중도 스냅→2단 체감.
+ * 종료 대기 = duration + slack (animationend 미지원 대비).
+ */
+export const CHAIN_ANIM_END_SLACK_MS = 16
 
 /** touchmove 즉시 판정용 (1.7.0=40 → 낮춤) */
 export const SWIPE_MIN_DY = 22
@@ -22,6 +26,10 @@ export const BEAD_SRC = '/common/bead-wood.png'
 
 /** 전 구슬 공유 키프레임 퍼센트 (시간축). 위치는 pathProgressAtTime 으로 베이크 */
 export const SHARED_KEYFRAME_PCTS = Object.freeze([0, 0.25, 0.5, 0.75, 1])
+
+/** Mode D: JS 프레임 간격·애니 구슬 수 */
+export const JS_FRAME_MS = 24
+export const JS_FRAME_BEAD_COUNT = 6
 
 /** scale 변화 완화용 (스냅과 동일 기하 유지) */
 export const DEFAULT_RING = Object.freeze({
@@ -314,6 +322,74 @@ export const advanceChainBeads = (beads, dir, opts = {}) => {
       size: s.size,
       depth: s.depth,
       src: BEAD_SRC,
+      animClass: ''
+    }
+  })
+  next.sort((a, b) => a.depth - b.depth || a.slot - b.slot)
+  return next
+}
+
+/**
+ * 스냅과 다음 굴림 클래스를 한 번에 적용.
+ * 클래스 제거→별도 틱 재적용 시 원점 복귀 프레임(2단) 방지.
+ */
+export const advanceChainBeadsWithAnim = (beads, dir, nextDir, opts = {}) => {
+  const slots = layoutChainSlots(ringOpts(opts))
+  const n = slots.length
+  const d = Number(dir) < 0 ? -1 : 1
+  const next = beads.map((b) => {
+    const slot = (b.slot + d + n) % n
+    const s = slots[slot]
+    const animClass =
+      nextDir == null || nextDir === 0 ? '' : rollClassForSlot(slot, nextDir, opts)
+    return {
+      id: b.id,
+      slot,
+      left: s.left,
+      top: s.top,
+      size: s.size,
+      depth: s.depth,
+      src: BEAD_SRC,
+      animClass
+    }
+  })
+  next.sort((a, b) => a.depth - b.depth || a.slot - b.slot)
+  return next
+}
+
+/** Mode C: 포커스 슬롯 한 칸에 해당하는 translateY (dir=1 → 음수=위로) */
+export const containerShiftY = (dir, opts = {}) => {
+  const dy = focusDeltaYOnAdvance(opts)
+  return Number(dir) < 0 ? -dy : dy
+}
+
+/**
+ * Mode D: 시각 t(0..1) 에서 구슬 위치 샘플.
+ * 깊이 상위 count 개만 보간, 나머지는 시작 기하 유지(비용 제한).
+ */
+export const sampleChainBeadsAtTime = (beads, dir, t, opts = {}) => {
+  const slots = layoutChainSlots(ringOpts(opts))
+  const n = slots.length
+  const d = Number(dir) < 0 ? -1 : 1
+  const u = pathProgressAtTime(t)
+  const count = opts.frameBeadCount != null ? opts.frameBeadCount : JS_FRAME_BEAD_COUNT
+  const ranked = [...beads].sort((a, b) => b.depth - a.depth || a.slot - b.slot)
+  const active = new Set(ranked.slice(0, count).map((b) => b.id))
+  const next = beads.map((b) => {
+    if (!active.has(b.id) || u <= 0) {
+      return { ...b, animClass: '' }
+    }
+    const from = slots[b.slot]
+    const to = slots[(b.slot + d + n) % n]
+    const tr = transformAtProgress(from, to, u, opts)
+    const size = Math.round(from.size * tr.scale)
+    const cx = from.cx + tr.tx
+    const cy = from.cy + tr.ty
+    return {
+      ...b,
+      left: Math.round(cx - size / 2),
+      top: Math.round(cy - size / 2),
+      size,
       animClass: ''
     }
   })
