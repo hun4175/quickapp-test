@@ -1,6 +1,5 @@
 /**
- * 432×514 레이아웃 시뮬레이션 PNG (실기기 스크린샷 아님).
- * 1.5.0: 나무 구슬만, 포커스 링/옥 없음. 스와이프 전/중/후.
+ * 1.6.0 미리보기: 전/중/후. 라벨은 프레임 밖 여백(파일명으로도 구분).
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -8,18 +7,16 @@ import zlib from 'node:zlib'
 import { fileURLToPath } from 'node:url'
 import {
   DEFAULT_RING,
-  VIRTUAL_BEADS,
-  CHAIN_DIR,
+  SLOT_COUNT,
   CHAIN_ANIM_MS,
-  FRONT_COUNT,
-  BACK_COUNT,
   layoutRing,
-  chainStepY
+  layoutChainSlots
 } from '../src/common/ring.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const W = 432
 const H = 514
+const PAD = 28
 const docsDir = path.join(__dirname, '../docs')
 
 const decodePng = (buf) => {
@@ -78,7 +75,7 @@ const decodePng = (buf) => {
 const loadAsset = (name) =>
   decodePng(fs.readFileSync(path.join(__dirname, '../src/common', name)))
 
-const blitAlpha = (dst, dw, dh, src, dx, dy, size, opacity) => {
+const blitAlpha = (dst, dw, dh, src, dx, dy, size) => {
   const sw = src.width
   const sh = src.height
   for (let y = 0; y < size; y++) {
@@ -90,7 +87,7 @@ const blitAlpha = (dst, dw, dh, src, dx, dy, size, opacity) => {
       const dx2 = dx + x
       if (dx2 < 0 || dx2 >= dw) continue
       const si = (sy * sw + sx) * 4
-      const a = (src.pixels[si + 3] / 255) * opacity
+      const a = src.pixels[si + 3] / 255
       if (a <= 0) continue
       const di = (dy2 * dw + dx2) * 4
       const inv = 1 - a
@@ -160,42 +157,24 @@ const FONT = {
   4: [0x02, 0x06, 0x0a, 0x12, 0x1f, 0x02, 0x02],
   5: [0x1f, 0x10, 0x1e, 0x01, 0x01, 0x11, 0x0e],
   6: [0x06, 0x08, 0x10, 0x1e, 0x11, 0x11, 0x0e],
-  7: [0x1f, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08],
-  8: [0x0e, 0x11, 0x11, 0x0e, 0x11, 0x11, 0x0e],
-  9: [0x0e, 0x11, 0x11, 0x0f, 0x01, 0x02, 0x0c],
-  '/': [0x01, 0x02, 0x04, 0x08, 0x10, 0x00, 0x00],
-  T: [0x1f, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04],
-  o: [0x00, 0x0e, 0x11, 0x11, 0x11, 0x0e, 0x00],
-  d: [0x01, 0x01, 0x0f, 0x11, 0x11, 0x0f, 0x00],
+  '.': [0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x0c],
+  '-': [0x00, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00],
   a: [0x00, 0x0e, 0x01, 0x0f, 0x11, 0x0f, 0x00],
-  y: [0x00, 0x11, 0x11, 0x0f, 0x01, 0x0e, 0x00],
-  L: [0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1f],
-  p: [0x00, 0x1e, 0x11, 0x1e, 0x10, 0x10, 0x00],
-  s: [0x00, 0x0f, 0x10, 0x0e, 0x01, 0x1e, 0x00],
+  b: [0x10, 0x10, 0x1e, 0x11, 0x11, 0x1e, 0x00],
   e: [0x00, 0x0e, 0x11, 0x1f, 0x10, 0x0e, 0x00],
-  t: [0x08, 0x08, 0x1c, 0x08, 0x08, 0x08, 0x06],
+  f: [0x06, 0x08, 0x08, 0x1e, 0x08, 0x08, 0x08],
   i: [0x04, 0x00, 0x0c, 0x04, 0x04, 0x04, 0x0e],
-  n: [0x00, 0x1e, 0x11, 0x11, 0x11, 0x11, 0x00],
-  g: [0x00, 0x0f, 0x11, 0x0f, 0x01, 0x0e, 0x00],
   m: [0x00, 0x1b, 0x15, 0x15, 0x15, 0x15, 0x00],
-  B: [0x1e, 0x11, 0x11, 0x1e, 0x11, 0x11, 0x1e],
-  A: [0x0e, 0x11, 0x11, 0x1f, 0x11, 0x11, 0x11],
-  F: [0x1f, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x10],
-  R: [0x1e, 0x11, 0x11, 0x1e, 0x14, 0x12, 0x11],
-  M: [0x11, 0x1b, 0x15, 0x11, 0x11, 0x11, 0x11],
-  I: [0x0e, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0e],
-  D: [0x1e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1e],
-  U: [0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e],
-  P: [0x1e, 0x11, 0x11, 0x1e, 0x10, 0x10, 0x10],
-  W: [0x11, 0x11, 0x11, 0x15, 0x15, 0x1b, 0x11]
+  o: [0x00, 0x0e, 0x11, 0x11, 0x11, 0x0e, 0x00],
+  r: [0x00, 0x16, 0x19, 0x10, 0x10, 0x10, 0x00],
+  t: [0x08, 0x08, 0x1c, 0x08, 0x08, 0x08, 0x06],
+  w: [0x00, 0x11, 0x11, 0x15, 0x15, 0x0a, 0x00]
 }
-
-const glyph = (ch) => FONT[ch] || FONT[' ']
 
 const drawText = (dst, dw, dh, text, x0, y0, scale, r, g, b) => {
   let x = x0
   for (const ch of text) {
-    const rows = glyph(ch)
+    const rows = FONT[ch] || FONT[' ']
     for (let row = 0; row < 7; row++) {
       for (let col = 0; col < 5; col++) {
         if ((rows[row] >> (4 - col)) & 1) {
@@ -218,24 +197,9 @@ const drawText = (dst, dw, dh, text, x0, y0, scale, r, g, b) => {
   }
 }
 
-const fillRect = (dst, dw, dh, x, y, w, h, r, g, b, a) => {
-  for (let yy = y; yy < y + h; yy++) {
-    if (yy < 0 || yy >= dh) continue
-    for (let xx = x; xx < x + w; xx++) {
-      if (xx < 0 || xx >= dw) continue
-      const i = (yy * dw + xx) * 4
-      const aa = a / 255
-      dst[i] = Math.round(r * aa + dst[i] * (1 - aa))
-      dst[i + 1] = Math.round(g * aa + dst[i + 1] * (1 - aa))
-      dst[i + 2] = Math.round(b * aa + dst[i + 2] * (1 - aa))
-      dst[i + 3] = 255
-    }
-  }
-}
-
 const wood = loadAsset('bead-wood.png')
 
-const renderFrame = (label, phaseIndex, shiftProgress, beadCount) => {
+const renderWatch = (shiftProgress) => {
   const rgba = Buffer.alloc(W * H * 4, 0)
   for (let i = 0; i < W * H; i++) {
     rgba[i * 4] = 12
@@ -243,77 +207,61 @@ const renderFrame = (label, phaseIndex, shiftProgress, beadCount) => {
     rgba[i * 4 + 2] = 8
     rgba[i * 4 + 3] = 255
   }
-
-  const beads = layoutRing({
-    ...DEFAULT_RING,
-    virtual: VIRTUAL_BEADS,
-    phaseIndex,
-    shiftProgress
-  })
+  const beads = layoutRing({ ...DEFAULT_RING, shiftProgress, chainDir: 1 })
   for (const b of beads) {
-    blitAlpha(rgba, W, H, wood, b.left, b.top, b.size, 1)
+    blitAlpha(rgba, W, H, wood, b.left, b.top, b.size)
   }
-
-  fillRect(rgba, W, H, 156, 14, 120, 36, 26, 20, 16, 255)
-  drawText(rgba, W, H, 'Today 0', 168, 22, 2, 232, 196, 138)
-
-  fillRect(rgba, W, H, 76, 430, 280, 58, 26, 20, 16, 255)
-  drawText(rgba, W, H, `${beadCount} / 108`, 150, 436, 3, 243, 226, 196)
-  drawText(rgba, W, H, 'Lap 0', 180, 462, 2, 184, 148, 98)
-
-  fillRect(rgba, W, H, 146, 488, 140, 22, 42, 28, 18, 255)
-  drawText(rgba, W, H, 'settings', 160, 492, 2, 232, 196, 138)
-
-  fillRect(rgba, W, H, 8, 60, 180, 22, 40, 28, 18, 255)
-  drawText(rgba, W, H, label, 14, 64, 2, 245, 217, 168)
-
   return { rgba, beads }
 }
 
 fs.mkdirSync(docsDir, { recursive: true })
 
 const frames = [
-  { file: 'preview-swipe-before.png', label: 'BEFORE', phase: 0, shift: 0, bead: 0 },
-  { file: 'preview-swipe-mid.png', label: 'MID UP', phase: 0, shift: 0.5, bead: 1 },
-  { file: 'preview-swipe-after.png', label: 'AFTER', phase: 1, shift: 0, bead: 1 }
+  { file: 'preview-swipe-before.png', tag: 'before', shift: 0 },
+  { file: 'preview-swipe-mid.png', tag: 'mid', shift: 0.45 },
+  { file: 'preview-swipe-after.png', tag: 'after', shift: 0 }
 ]
 
-const meta = {
-  version: '1.5.0',
-  chainDir: CHAIN_DIR,
-  chainAnimMs: CHAIN_ANIM_MS,
-  front: FRONT_COUNT,
-  back: BACK_COUNT,
-  stepY: chainStepY(DEFAULT_RING.ry, VIRTUAL_BEADS),
-  note: 'simulation preview, NOT a device screenshot',
-  frames: []
-}
-
+const parts = []
 for (const f of frames) {
-  const { rgba, beads } = renderFrame(f.label, f.phase, f.shift, f.bead)
-  const outPath = path.join(docsDir, f.file)
-  writePng(outPath, W, H, rgba)
-  meta.frames.push({
-    file: `yeomju/docs/${f.file}`,
-    label: f.label,
-    phase: f.phase,
-    shiftProgress: f.shift,
-    renderCount: beads.length
-  })
-  console.log('wrote', outPath)
+  // after = one step settled: use shift 0 but note filename; mid shows paths
+  const { rgba, beads } = renderWatch(f.shift)
+  // after frame: show next-slot static by advancing layout visually via shift≈1 then snap — use 0 for after as settled identical look
+  writePng(path.join(docsDir, f.file), W, H, rgba)
+  parts.push({ tag: f.tag, rgba, count: beads.length })
+  console.log('wrote', f.file, 'beads', beads.length)
 }
 
-// 대표 미리보기: 세 프레임을 가로로 이어 붙인 스트립 + after 단독
+// after should look like before (identical wood chain) — regenerate after as before clone for settled state is OK;
+// for strip, mid must show divergent paths
 const stripW = W * 3
-const strip = Buffer.alloc(stripW * H * 4, 0)
-const parts = frames.map((f) => renderFrame(f.label, f.phase, f.shift, f.bead).rgba)
+const stripH = H + PAD
+const strip = Buffer.alloc(stripW * stripH * 4, 0)
+for (let i = 0; i < strip.length; i += 4) {
+  strip[i] = 20
+  strip[i + 1] = 16
+  strip[i + 2] = 12
+  strip[i + 3] = 255
+}
 for (let i = 0; i < 3; i++) {
   for (let y = 0; y < H; y++) {
-    const srcStart = y * W * 4
-    parts[i].copy(strip, y * stripW * 4 + i * W * 4, srcStart, srcStart + W * 4)
+    parts[i].rgba.copy(strip, (y + PAD) * stripW * 4 + i * W * 4, y * W * 4, (y + 1) * W * 4)
   }
+  drawText(strip, stripW, stripH, parts[i].tag, i * W + 8, 6, 2, 200, 180, 140)
 }
-writePng(path.join(docsDir, 'preview-1.5.0.png'), stripW, H, strip)
-writePng(path.join(docsDir, 'preview-432x514.png'), W, H, parts[2])
-console.log('wrote', path.join(docsDir, 'preview-1.5.0.png'))
-console.log(JSON.stringify(meta, null, 2))
+writePng(path.join(docsDir, 'preview-1.6.0.png'), stripW, stripH, strip)
+writePng(path.join(docsDir, 'preview-432x514.png'), W, H, parts[0].rgba)
+
+console.log(
+  JSON.stringify(
+    {
+      version: '1.6.0',
+      slots: SLOT_COUNT,
+      animMs: CHAIN_ANIM_MS,
+      slotSample: layoutChainSlots().map((s) => ({ i: s.index, size: s.size, top: s.top })),
+      note: 'labels in pad above frames; not on watch face'
+    },
+    null,
+    2
+  )
+)

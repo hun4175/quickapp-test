@@ -1,27 +1,23 @@
 /**
- * 염주 고리 — 1.5.0 고정 슬롯 배치.
+ * 염주 고리 — 1.6.0 체인 슬롯.
  *
- * 성능: 슬롯 left/top/size 는 한 번만 계산. 굴림은 CSS transform 한 방.
- * 모든 알은 동일 나무 구슬 이미지(시각적 phase 교체 불필요).
+ * 구슬마다 타원 위 고정 슬롯 i → i±1 로 @keyframes(translate+scale).
+ * 프레임마다 left/top/size JS 재바인딩 없음. 애니 종료 시 슬롯 인덱스만 교체.
  */
 
 export const VIRTUAL_BEADS = 12
-/** 앞열(큰 알) 슬롯 수 */
+/** 체인에 그리는 슬롯 수 (앞·뒤·가장자리 전환 포함, 6~8) */
+export const SLOT_COUNT = 8
 export const FRONT_COUNT = 3
-/** 뒤열(작은 알) 슬롯 수 — 화면에 거의 안 보이는 알은 생략 */
 export const BACK_COUNT = 3
-export const VISIBLE_BEADS = FRONT_COUNT + BACK_COUNT
+export const VISIBLE_BEADS = SLOT_COUNT
 
-/** 레이아웃 각도 부호(슬롯 계산용). 1=앞열 쪽 위가 phase+ 방향 */
 export const CHAIN_DIR = 1
-
-/** 체인 한 칸 애니메이션(ms) — 단순 ease-out, 오버슈트 없음 */
-export const CHAIN_ANIM_MS = 160
+/** 체인 한 칸(ms) */
+export const CHAIN_ANIM_MS = 180
 
 export const SWIPE_MIN_DY = 40
 export const SWIPE_VERTICAL_RATIO = 1.2
-
-/** 단일 구슬 에셋 (옥/링 제거) */
 export const BEAD_SRC = '/common/bead-wood.png'
 
 export const DEFAULT_RING = Object.freeze({
@@ -35,11 +31,10 @@ export const DEFAULT_RING = Object.freeze({
   ry: 300,
   cx: 334,
   cy: 257,
-  minSize: 110,
+  minSize: 100,
   maxSize: 240,
   virtual: VIRTUAL_BEADS,
-  frontCount: FRONT_COUNT,
-  backCount: BACK_COUNT
+  slotCount: SLOT_COUNT
 })
 
 export const phaseFromBead = (bead, virtual = VIRTUAL_BEADS) => {
@@ -96,32 +91,10 @@ export const chainStepY = (ry = DEFAULT_RING.ry, virtual = VIRTUAL_BEADS) => {
 }
 
 /**
- * 레인별 애니메이션 클래스.
- * @param {'front'|'back'} lane
- * @param {number} dir 1=앞열↑, -1=앞열↓
+ * 타원 위 한 점 → 슬롯 기하.
+ * angle: 수학 각도(라디안). focus=π(왼쪽).
  */
-export const rollClassForLane = (lane, dir = CHAIN_DIR) => {
-  const up = Number(dir) >= 0
-  if (lane === 'front') return up ? 'lane-roll-up' : 'lane-roll-down'
-  return up ? 'lane-roll-down' : 'lane-roll-up'
-}
-
-/**
- * 가상 고리 위 모든 알 좌표(선택·미리보기용).
- * 포커스 구분 이미지 없음 — 전부 BEAD_SRC.
- */
-export const layoutRing = (opts = {}) => {
-  const virtual = Math.max(
-    8,
-    Math.floor(Number(opts.virtual != null ? opts.virtual : opts.visible) || VIRTUAL_BEADS)
-  )
-  const frontCount = Math.max(1, Math.floor(Number(opts.frontCount) || FRONT_COUNT))
-  const backCount = Math.max(1, Math.floor(Number(opts.backCount) || BACK_COUNT))
-  const phaseIndex = Math.max(0, Math.floor(Number(opts.phaseIndex) || 0)) % virtual
-  const shiftProgress = Math.max(0, Math.min(1, Number(opts.shiftProgress) || 0))
-  const chainDir = opts.chainDir != null ? Number(opts.chainDir) : CHAIN_DIR
-  const dir = chainDir >= 0 ? 1 : -1
-
+export const slotGeomAtAngle = (angle, opts = {}) => {
   const focusX = Number(opts.focusX != null ? opts.focusX : DEFAULT_RING.focusX)
   const focusY = Number(opts.focusY != null ? opts.focusY : DEFAULT_RING.focusY)
   const rx = Number(opts.rx != null ? opts.rx : DEFAULT_RING.rx)
@@ -130,131 +103,263 @@ export const layoutRing = (opts = {}) => {
   const cy = Number(opts.cy != null ? opts.cy : focusY)
   const minSize = Number(opts.minSize != null ? opts.minSize : DEFAULT_RING.minSize)
   const maxSize = Number(opts.maxSize != null ? opts.maxSize : DEFAULT_RING.maxSize)
-
-  const step = (Math.PI * 2) / virtual
-  const focusAngle = Math.PI
-  const stepY = chainStepY(ry, virtual)
-  const all = []
-
-  for (let i = 0; i < virtual; i++) {
-    const angle = focusAngle + dir * step * (phaseIndex - i)
-    const depth = depthAtAngle(angle)
-    const factor = sizeFactorFromDepth(depth)
-    const size = Math.round(minSize + (maxSize - minSize) * factor)
-    const x = cx + rx * Math.cos(angle)
-    const y = cy + ry * Math.sin(angle)
-    const focused = i === phaseIndex
-    const distFromFocus = circularDistance(i, phaseIndex, virtual)
-    all.push({
-      key: i,
-      left: Math.round(x - size / 2),
-      top: Math.round(y - size / 2),
-      size,
-      depth: Math.round(depth * 1000) / 1000,
-      opacity: 1,
-      z: Math.round(depth * 100),
-      focused,
-      distFromFocus,
-      lane: 'back',
-      src: BEAD_SRC
-    })
+  const depth = depthAtAngle(angle)
+  const factor = sizeFactorFromDepth(depth)
+  const size = Math.round(minSize + (maxSize - minSize) * factor)
+  const x = cx + rx * Math.cos(angle)
+  const y = cy + ry * Math.sin(angle)
+  return {
+    angle,
+    depth: Math.round(depth * 1000) / 1000,
+    size,
+    cx: Math.round(x),
+    cy: Math.round(y),
+    left: Math.round(x - size / 2),
+    top: Math.round(y - size / 2),
+    z: Math.round(depth * 100)
   }
-
-  const frontHalf = Math.floor(frontCount / 2)
-  const front = all.filter((b) => b.distFromFocus <= frontHalf)
-  front.forEach((b) => {
-    b.lane = 'front'
-  })
-
-  const backPool = all
-    .filter((b) => b.distFromFocus > frontHalf)
-    .filter((b) => !front.find((f) => f.key === b.key))
-    .sort((a, b) => a.depth - b.depth || a.key - b.key)
-  const back = backPool.slice(0, backCount)
-  back.forEach((b) => {
-    b.lane = 'back'
-  })
-
-  let items = [...back, ...front]
-  items.sort((a, b) => a.z - b.z)
-
-  if (shiftProgress > 0) {
-    items = items.map((b) => {
-      const dy = b.lane === 'front' ? -dir * stepY * shiftProgress : dir * stepY * shiftProgress
-      return { ...b, top: Math.round(b.top + dy), focused: false }
-    })
-  }
-
-  return items
 }
 
 /**
- * UI 고정 슬롯 — phase 0 기준 한 번만 바인딩.
- * @returns {{ front: object[], back: object[], stepY: number }}
+ * 체인 슬롯.
+ * 화면 y는 아래로 증가 → sin&gt;0 이 화면 아래.
+ * i=0 포커스(π), i 증가 → 각도 + → 앞열에서 위(화면↑) → 뒤 → 아래 → 앞.
+ * 스와이프 위(+1): 구슬 i → i+1.
+ * @returns {Array<object>}
  */
-export const layoutFixedSlots = (opts = {}) => {
-  const items = layoutRing({
-    ...DEFAULT_RING,
-    ...opts,
-    phaseIndex: 0,
-    shiftProgress: 0,
-    frontCount: opts.frontCount != null ? opts.frontCount : FRONT_COUNT,
-    backCount: opts.backCount != null ? opts.backCount : BACK_COUNT
+export const layoutChainSlots = (opts = {}) => {
+  const n = Math.max(6, Math.min(8, Math.floor(Number(opts.slotCount) || SLOT_COUNT)))
+  const step = (Math.PI * 2) / n
+  const slots = []
+  for (let i = 0; i < n; i++) {
+    const angle = Math.PI + i * step
+    const g = slotGeomAtAngle(angle, opts)
+    slots.push({
+      index: i,
+      ...g,
+      src: BEAD_SRC
+    })
+  }
+  return slots
+}
+
+/**
+ * 슬롯 from → to 변환량 (transform-origin: center 기준).
+ * @returns {{ tx: number, ty: number, scale: number, mid: { tx, ty, scale } }}
+ */
+export const slotTransition = (fromSlot, toSlot) => {
+  const scale = toSlot.size / fromSlot.size
+  const tx = toSlot.cx - fromSlot.cx
+  const ty = toSlot.cy - fromSlot.cy
+  // 체인 진행 방향 보간 (인덱스 +1 → 각도 증가, 래핑 포함)
+  let a0 = fromSlot.angle
+  let a1 = toSlot.angle
+  const dIdx = toSlot.index - fromSlot.index
+  if (dIdx === 1 || dIdx === 1 - SLOT_COUNT || (dIdx < 0 && (dIdx + SLOT_COUNT) === 1)) {
+    while (a1 < a0) a1 += Math.PI * 2
+  } else {
+    while (a0 < a1) a0 += Math.PI * 2
+  }
+  const midAngle = (a0 + a1) / 2
+  const mid = slotGeomAtAngle(midAngle, {
+    focusX: DEFAULT_RING.focusX,
+    focusY: DEFAULT_RING.focusY,
+    rx: DEFAULT_RING.rx,
+    ry: DEFAULT_RING.ry,
+    cx: DEFAULT_RING.cx,
+    cy: DEFAULT_RING.cy,
+    minSize: DEFAULT_RING.minSize,
+    maxSize: DEFAULT_RING.maxSize
   })
-  const front = items
-    .filter((b) => b.lane === 'front')
-    .sort((a, b) => a.top - b.top)
-    .map((b, i) => ({
-      id: 'f' + i,
-      left: b.left,
-      top: b.top,
-      size: b.size,
-      lane: 'front',
-      src: BEAD_SRC
-    }))
-  const back = items
-    .filter((b) => b.lane === 'back')
-    .sort((a, b) => a.top - b.top)
-    .map((b, i) => ({
-      id: 'b' + i,
-      left: b.left,
-      top: b.top,
-      size: b.size,
-      lane: 'back',
-      src: BEAD_SRC
-    }))
+  const midScale = mid.size / fromSlot.size
+  const midTx = mid.cx - fromSlot.cx
+  const midTy = mid.cy - fromSlot.cy
   return {
-    front,
-    back,
-    stepY: chainStepY(
-      opts.ry != null ? opts.ry : DEFAULT_RING.ry,
-      opts.virtual != null ? opts.virtual : VIRTUAL_BEADS
-    )
+    tx: Math.round(tx),
+    ty: Math.round(ty),
+    scale: Math.round(scale * 1000) / 1000,
+    mid: {
+      tx: Math.round(midTx),
+      ty: Math.round(midTy),
+      scale: Math.round(midScale * 1000) / 1000
+    }
   }
 }
 
-export const focusDeltaYOnAdvance = (opts = {}) => {
-  const virtual = Math.floor(Number(opts.virtual) || VIRTUAL_BEADS)
-  const phase = Math.floor(Number(opts.phaseIndex) || 0) % virtual
-  const before = layoutRing({ ...DEFAULT_RING, ...opts, phaseIndex: phase, shiftProgress: 0 })
-  const after = layoutRing({
-    ...DEFAULT_RING,
-    ...opts,
-    phaseIndex: nextPhase(phase, virtual),
-    shiftProgress: 0
-  })
-  const focused = before.find((b) => b.focused)
-  if (!focused) return -CHAIN_DIR * chainStepY(opts.ry, virtual)
-  const b0 = before.find((b) => b.key === focused.key)
-  const b1 = after.find((b) => b.key === focused.key)
-  if (!b0 || !b1) return -CHAIN_DIR * chainStepY(opts.ry, virtual)
-  return b1.top - b0.top
+/**
+ * 구슬별 애니 클래스명.
+ * @param {number} slotIndex
+ * @param {number} dir 1=next(i→i+1), -1=prev
+ */
+export const rollClassForSlot = (slotIndex, dir) => {
+  const n = SLOT_COUNT
+  const i = ((Math.floor(Number(slotIndex) || 0) % n) + n) % n
+  return Number(dir) < 0 ? 'roll-prev-' + i : 'roll-next-' + i
 }
 
-export const focusCenterNear = (items, fx = 216, fy = 257, tol = 2) => {
+/**
+ * @keyframes CSS 문자열 생성 (index.ux style 에 삽입).
+ */
+export const buildChainKeyframeCss = (opts = {}) => {
+  const slots = layoutChainSlots({ ...DEFAULT_RING, ...opts, slotCount: SLOT_COUNT })
+  const n = slots.length
+  const ms = CHAIN_ANIM_MS
+  const lines = []
+  for (let i = 0; i < n; i++) {
+    const next = slots[(i + 1) % n]
+    const prev = slots[(i - 1 + n) % n]
+    const tn = slotTransition(slots[i], next)
+    const tp = slotTransition(slots[i], prev)
+    lines.push(`.roll-next-${i} {
+  animation-name: kf-next-${i};
+  animation-duration: ${ms}ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}`)
+    lines.push(`.roll-prev-${i} {
+  animation-name: kf-prev-${i};
+  animation-duration: ${ms}ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}`)
+    lines.push(`@keyframes kf-next-${i} {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(${tn.mid.tx}px, ${tn.mid.ty}px) scale(${tn.mid.scale}); }
+  100% { transform: translate(${tn.tx}px, ${tn.ty}px) scale(${tn.scale}); }
+}`)
+    lines.push(`@keyframes kf-prev-${i} {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(${tp.mid.tx}px, ${tp.mid.ty}px) scale(${tp.mid.scale}); }
+  100% { transform: translate(${tp.tx}px, ${tp.ty}px) scale(${tp.scale}); }
+}`)
+  }
+  return lines.join('\n')
+}
+
+/**
+ * UI 초기 구슬 목록 (depth 오름차순 = 뒤→앞 그리기).
+ * @returns {Array<{id, slot, left, top, size, src, animClass}>}
+ */
+export const createChainBeads = (opts = {}) => {
+  const slots = layoutChainSlots({ ...DEFAULT_RING, ...opts, slotCount: SLOT_COUNT })
+  return slots
+    .map((s) => ({
+      id: 'b' + s.index,
+      slot: s.index,
+      left: s.left,
+      top: s.top,
+      size: s.size,
+      depth: s.depth,
+      src: BEAD_SRC,
+      animClass: ''
+    }))
+    .sort((a, b) => a.depth - b.depth || a.slot - b.slot)
+}
+
+/**
+ * 애니 종료 후 슬롯 인덱스 교체 + 기하 스냅 (transform 리셋용).
+ * @param {Array} beads
+ * @param {number} dir
+ */
+export const advanceChainBeads = (beads, dir, opts = {}) => {
+  const slots = layoutChainSlots({ ...DEFAULT_RING, ...opts, slotCount: SLOT_COUNT })
+  const n = slots.length
+  const d = Number(dir) < 0 ? -1 : 1
+  const next = beads.map((b) => {
+    const slot = (b.slot + d + n) % n
+    const s = slots[slot]
+    return {
+      id: b.id,
+      slot,
+      left: s.left,
+      top: s.top,
+      size: s.size,
+      depth: s.depth,
+      src: BEAD_SRC,
+      animClass: ''
+    }
+  })
+  next.sort((a, b) => a.depth - b.depth || a.slot - b.slot)
+  return next
+}
+
+/** 미리보기·테스트용: 슬롯 기하를 layoutRing 호환 형태로 */
+export const layoutRing = (opts = {}) => {
+  const slots = layoutChainSlots({ ...DEFAULT_RING, ...opts, slotCount: opts.slotCount || SLOT_COUNT })
+  const shiftProgress = Math.max(0, Math.min(1, Number(opts.shiftProgress) || 0))
+  const dir = opts.chainDir != null ? (Number(opts.chainDir) >= 0 ? 1 : -1) : 1
+  let items = slots.map((s) => ({
+    key: s.index,
+    left: s.left,
+    top: s.top,
+    size: s.size,
+    depth: s.depth,
+    opacity: 1,
+    z: s.z,
+    focused: s.index === 0,
+    distFromFocus: Math.min(s.index, slots.length - s.index),
+    lane: s.depth >= 0.55 ? 'front' : 'back',
+    src: BEAD_SRC,
+    cx: s.cx,
+    cy: s.cy,
+    angle: s.angle
+  }))
+  if (shiftProgress > 0) {
+    items = items.map((b) => {
+      const toIdx = (b.key + dir + slots.length) % slots.length
+      const to = slots[toIdx]
+      const from = slots[b.key]
+      const t = slotTransition(from, to)
+      // 선형 보간 (미리보기 중간 프레임)
+      const p = shiftProgress
+      const tx = t.tx * p
+      const ty = t.ty * p
+      const sc = 1 + (t.scale - 1) * p
+      const size = Math.round(from.size * sc)
+      const cx = from.cx + tx
+      const cy = from.cy + ty
+      return {
+        ...b,
+        size,
+        left: Math.round(cx - size / 2),
+        top: Math.round(cy - size / 2),
+        focused: false
+      }
+    })
+  }
+  items.sort((a, b) => a.z - b.z)
+  return items
+}
+
+export const focusDeltaYOnAdvance = (opts = {}) => {
+  const slots = layoutChainSlots({ ...DEFAULT_RING, ...opts })
+  const a = slots[0]
+  const b = slots[1]
+  return b.top - a.top
+}
+
+export const focusCenterNear = (items, fx = 216, fy = 257, tol = 4) => {
   const f = items.find((b) => b.focused)
   if (!f) return false
   const cx = f.left + f.size / 2
   const cy = f.top + f.size / 2
   return Math.abs(cx - fx) <= tol && Math.abs(cy - fy) <= tol
+}
+
+/** 하위 호환 스텁 */
+export const layoutFixedSlots = (opts = {}) => {
+  const beads = createChainBeads(opts)
+  return {
+    front: beads.filter((b) => b.depth >= 0.55),
+    back: beads.filter((b) => b.depth < 0.55),
+    stepY: chainStepY()
+  }
+}
+
+export const rollClassForLane = (lane, dir = CHAIN_DIR) => {
+  const up = Number(dir) >= 0
+  if (lane === 'front') return up ? 'lane-roll-up' : 'lane-roll-down'
+  return up ? 'lane-roll-down' : 'lane-roll-up'
 }

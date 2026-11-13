@@ -1,62 +1,28 @@
 <template>
   <!--
-    1.5.0: 고정 슬롯 + 레인 transform 한 번.
-    슬롯 left/top/size 는 onInit 이후 재바인딩하지 않음.
-    탭 카운트 없음. touch Δy 임계값. 양방향 스와이프.
+    1.6.0: 구슬별 슬롯 i→i±1 @keyframes (translate+scale).
+    HUD 숨김(카운트·저장은 유지). 설정은 길게 누르기(longpress).
   -->
   <div
     class="page"
     ontouchstart="onTouchStart"
     ontouchend="onTouchEnd"
+    onlongpress="onLongPress"
   >
     <stack class="stage">
       <stack class="ring">
-        <!-- 뒤열 먼저(아래 레이어) — stack 문서순서 -->
-        <stack class="lane {{backRollClass}}">
-          <div
-            class="bead-wrap"
-            for="{{backSlots}}"
-            style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px;"
-          >
-            <image
-              class="bead-img"
-              src="{{$item.src}}"
-              style="width: {{$item.size}}px; height: {{$item.size}}px;"
-            ></image>
-          </div>
-        </stack>
-        <stack class="lane {{frontRollClass}}">
-          <div
-            class="bead-wrap"
-            for="{{frontSlots}}"
-            style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px;"
-          >
-            <image
-              class="bead-img"
-              src="{{$item.src}}"
-              style="width: {{$item.size}}px; height: {{$item.size}}px;"
-            ></image>
-          </div>
-        </stack>
-        <text class="plus" show="{{showPlus}}">+1</text>
+        <div
+          class="bead-wrap {{$item.animClass}}"
+          for="{{chainBeads}}"
+          style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px;"
+        >
+          <image
+            class="bead-img"
+            src="{{$item.src}}"
+            style="width: {{$item.size}}px; height: {{$item.size}}px;"
+          ></image>
+        </div>
       </stack>
-
-      <div class="hud-top">
-        <div class="hud-chip">
-          <text class="today">오늘 {{todayTotal}}</text>
-        </div>
-      </div>
-
-      <div class="hud-bottom">
-        <div class="hud-panel">
-          <text class="count">{{bead}} / {{beadsPerRound}}</text>
-          <text class="rounds">바퀴 {{rounds}}</text>
-          <text class="hint">위아래로 밀어서 굴리기</text>
-        </div>
-        <div class="btn" onclick="goSettings">
-          <text class="btn-text">설정</text>
-        </div>
-      </div>
     </stack>
   </div>
 </template>
@@ -72,8 +38,9 @@ import {
   SWIPE_MIN_DY,
   phaseFromBead,
   stepPhase,
-  layoutFixedSlots,
-  rollClassForLane,
+  createChainBeads,
+  advanceChainBeads,
+  rollClassForSlot,
   classifyVerticalSwipe
 } from '../../common/ring.js'
 
@@ -84,11 +51,7 @@ export default {
     beadsPerRound: 108,
     todayTotal: 0,
     vibrateOnBead: true,
-    showPlus: false,
-    frontSlots: [],
-    backSlots: [],
-    frontRollClass: '',
-    backRollClass: '',
+    chainBeads: [],
     displayPhase: 0
   },
 
@@ -103,10 +66,7 @@ export default {
     this._touchX = 0
     this._touchY = 0
     this._touchActive = false
-    // 고정 슬롯 — 이후 left/top/size 재바인딩 없음
-    const slots = layoutFixedSlots()
-    this.frontSlots = slots.front
-    this.backSlots = slots.back
+    this.chainBeads = createChainBeads()
   },
 
   onShow() {
@@ -173,6 +133,11 @@ export default {
     if (dir) this.enqueueSwipe(dir)
   },
 
+  /** 설정 진입: 화면을 가리는 버튼 없이 longpress */
+  onLongPress() {
+    router.push({ uri: '/pages/settings' })
+  },
+
   enqueueSwipe(dir) {
     const d = Number(dir) < 0 ? -1 : 1
     this._pendingDirs.push(d)
@@ -224,7 +189,8 @@ export default {
   },
 
   /**
-   * 슬롯 좌표는 그대로 두고, 레인에 transform 클래스만 붙였다 뗌.
+   * 구슬별 roll-next-i / roll-prev-i 클래스만 토글.
+   * 종료 시 슬롯 인덱스·left/top/size 한 번 스냅 (프레임 루프 없음).
    */
   ensureChainAnim() {
     if (this._animating) return
@@ -232,23 +198,18 @@ export default {
 
     const dir = this._animQueue.shift()
     this._animating = true
-    this.showPlus = true
-    this.frontRollClass = rollClassForLane('front', dir)
-    this.backRollClass = rollClassForLane('back', dir)
+    this.chainBeads = this.chainBeads.map((b) => ({
+      ...b,
+      animClass: rollClassForSlot(b.slot, dir)
+    }))
 
     if (this._animTimer) clearTimeout(this._animTimer)
     this._animTimer = setTimeout(() => {
       this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)
-      this.frontRollClass = ''
-      this.backRollClass = ''
-      this.showPlus = false
+      this.chainBeads = advanceChainBeads(this.chainBeads, dir)
       this._animating = false
       this.ensureChainAnim()
     }, CHAIN_ANIM_MS)
-  },
-
-  goSettings() {
-    router.push({ uri: '/pages/settings' })
   }
 }
 </script>
@@ -270,27 +231,9 @@ export default {
   height: 514px;
 }
 
-.lane {
-  width: 432px;
-  height: 514px;
-}
-
-.lane-roll-up {
-  animation-name: laneUp;
-  animation-duration: 160ms;
-  animation-timing-function: ease-out;
-  animation-iteration-count: 1;
-}
-
-.lane-roll-down {
-  animation-name: laneDown;
-  animation-duration: 160ms;
-  animation-timing-function: ease-out;
-  animation-iteration-count: 1;
-}
-
 .bead-wrap {
   position: absolute;
+  transform-origin: center center;
 }
 
 .bead-img {
@@ -299,124 +242,199 @@ export default {
   top: 0px;
 }
 
-.plus {
-  position: absolute;
-  left: 200px;
-  top: 120px;
-  font-size: 28px;
-  font-weight: bold;
-  color: #f5d9a8;
-  animation-name: plusUp;
-  animation-duration: 160ms;
+/* CHAIN_KF_BEGIN */
+.roll-next-0 {
+  animation-name: kf-next-0;
+  animation-duration: 180ms;
   animation-timing-function: ease-out;
   animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+.roll-prev-0 {
+  animation-name: kf-prev-0;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes kf-next-0 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(9px, -115px) scale(0.988); }
+  100% { transform: translate(35px, -212px) scale(0.958); }
+}
+@keyframes kf-prev-0 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(9px, 115px) scale(0.988); }
+  100% { transform: translate(35px, 212px) scale(0.958); }
+}
+.roll-next-1 {
+  animation-name: kf-next-1;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+.roll-prev-1 {
+  animation-name: kf-prev-1;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes kf-next-1 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(38px, -65px) scale(0.948); }
+  100% { transform: translate(83px, -88px) scale(0.887); }
+}
+@keyframes kf-prev-1 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(-26px, 97px) scale(1.03); }
+  100% { transform: translate(-35px, 212px) scale(1.043); }
+}
+.roll-next-2 {
+  animation-name: kf-next-2;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+.roll-prev-2 {
+  animation-name: kf-prev-2;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes kf-next-2 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(45px, 23px) scale(0.926); }
+  100% { transform: translate(83px, 88px) scale(0.858); }
+}
+@keyframes kf-prev-2 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(-45px, 23px) scale(1.069); }
+  100% { transform: translate(-83px, 88px) scale(1.127); }
+}
+.roll-next-3 {
+  animation-name: kf-next-3;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+.roll-prev-3 {
+  animation-name: kf-prev-3;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes kf-next-3 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(26px, 97px) scale(0.937); }
+  100% { transform: translate(35px, 212px) scale(0.909); }
+}
+@keyframes kf-prev-3 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(-38px, -65px) scale(1.08); }
+  100% { transform: translate(-83px, -88px) scale(1.166); }
+}
+.roll-next-4 {
+  animation-name: kf-next-4;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+.roll-prev-4 {
+  animation-name: kf-prev-4;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes kf-next-4 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(-9px, 115px) scale(1.031); }
+  100% { transform: translate(-35px, 212px) scale(1.101); }
+}
+@keyframes kf-prev-4 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(-9px, -115px) scale(1.031); }
+  100% { transform: translate(-35px, -212px) scale(1.101); }
+}
+.roll-next-5 {
+  animation-name: kf-next-5;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+.roll-prev-5 {
+  animation-name: kf-prev-5;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes kf-next-5 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(-38px, 65px) scale(1.08); }
+  100% { transform: translate(-83px, 88px) scale(1.166); }
+}
+@keyframes kf-prev-5 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(26px, -97px) scale(0.937); }
+  100% { transform: translate(35px, -212px) scale(0.909); }
+}
+.roll-next-6 {
+  animation-name: kf-next-6;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+.roll-prev-6 {
+  animation-name: kf-prev-6;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes kf-next-6 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(-45px, -23px) scale(1.069); }
+  100% { transform: translate(-83px, -88px) scale(1.127); }
+}
+@keyframes kf-prev-6 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(45px, -23px) scale(0.926); }
+  100% { transform: translate(83px, -88px) scale(0.858); }
+}
+.roll-next-7 {
+  animation-name: kf-next-7;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+.roll-prev-7 {
+  animation-name: kf-prev-7;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes kf-next-7 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(-26px, -97px) scale(1.03); }
+  100% { transform: translate(-35px, -212px) scale(1.043); }
+}
+@keyframes kf-prev-7 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  50% { transform: translate(38px, 65px) scale(0.948); }
+  100% { transform: translate(83px, 88px) scale(0.887); }
 }
 
-.hud-top {
-  width: 432px;
-  height: 48px;
-  margin-top: 8px;
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-}
-
-.hud-chip {
-  padding-left: 16px;
-  padding-right: 16px;
-  height: 36px;
-  border-radius: 8px;
-  background-color: #1a1410;
-  justify-content: center;
-  align-items: center;
-}
-
-.today {
-  font-size: 20px;
-  color: #e8c48a;
-}
-
-.hud-bottom {
-  width: 432px;
-  position: absolute;
-  bottom: 10px;
-  left: 0px;
-  flex-direction: column;
-  align-items: center;
-}
-
-.hud-panel {
-  width: 280px;
-  padding-top: 6px;
-  padding-bottom: 6px;
-  border-radius: 8px;
-  background-color: #1a1410;
-  flex-direction: column;
-  align-items: center;
-}
-
-.count {
-  font-size: 32px;
-  font-weight: bold;
-  color: #f3e2c4;
-}
-
-.rounds {
-  margin-top: 2px;
-  font-size: 18px;
-  color: #b89462;
-}
-
-.hint {
-  margin-top: 4px;
-  font-size: 16px;
-  color: #9a7a52;
-}
-
-.btn {
-  width: 140px;
-  height: 44px;
-  margin-top: 8px;
-  border-radius: 8px;
-  background-color: #2a1c12;
-  justify-content: center;
-  align-items: center;
-  border-width: 1px;
-  border-color: #6b4a2a;
-}
-
-.btn-text {
-  font-size: 20px;
-  color: #e8c48a;
-}
-
-/* chainStepY ≈ 150 — 레인 단위 단순 translate (오버슈트 없음) */
-@keyframes laneUp {
-  0% {
-    transform: translateY(0px);
-  }
-  100% {
-    transform: translateY(-150px);
-  }
-}
-
-@keyframes laneDown {
-  0% {
-    transform: translateY(0px);
-  }
-  100% {
-    transform: translateY(150px);
-  }
-}
-
-@keyframes plusUp {
-  0% {
-    transform: translateY(0px);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-28px);
-    opacity: 0;
-  }
-}
+/* CHAIN_KF_END */
 </style>
