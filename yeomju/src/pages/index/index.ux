@@ -1,5 +1,5 @@
 <template>
-  <!-- 2.8.1: 현재/목표 · 달성 리셋 · 단일 오버레이 축하 -->
+  <!-- 2.8.2: 현재/목표 · 광채 축하 · long×2≈2s 진동 -->
   <div
     class="page"
     ontouchstart="onTouchStart"
@@ -21,7 +21,7 @@
       ></image>
     </div>
     <text class="cele-msg" if="{{celeMsg}}">{{celeMsg}}</text>
-    <div class="count-row" if="{{showCount}}">
+    <div class="count-row">
       <text class="count-cur" style="color: {{countColor}};">{{countCurrent}}</text>
       <text class="count-sep"> / </text>
       <text class="count-goal">{{countGoal}}</text>
@@ -51,6 +51,7 @@ import {
   spriteFramesFor,
   themePhase
 } from '../../common/sprite-meta.js'
+import { goalVibrateOffsets } from '../../common/vibrate.js'
 
 const LONGPRESS_MS = 560
 const ANIM_SLACK_MS = 16
@@ -63,7 +64,6 @@ export default {
     vibrateOnBead: true,
     inputMode: 'slide',
     beadTheme: 'default',
-    showCount: true,
     countCurrent: '0',
     countGoal: '21',
     countColor: COUNT_COLOR_NORMAL,
@@ -84,6 +84,7 @@ export default {
     this._lpTimer = null
     this._s2Timer = null
     this._celeTimers = []
+    this._vibTimers = []
     this._s2Idx = 0
     this._s2List = null
     this._animating = false
@@ -107,11 +108,13 @@ export default {
   onHide() {
     this.clearAllTimers()
     this.clearCelebrateTimers()
+    this.clearVibrateTimers()
   },
 
   onDestroy() {
     this.clearAllTimers()
     this.clearCelebrateTimers()
+    this.clearVibrateTimers()
   },
 
   clearLpTimer() {
@@ -149,6 +152,15 @@ export default {
     this.countColor = COUNT_COLOR_NORMAL
   },
 
+  clearVibrateTimers() {
+    if (this._vibTimers && this._vibTimers.length) {
+      for (let i = 0; i < this._vibTimers.length; i++) {
+        clearTimeout(this._vibTimers[i])
+      }
+    }
+    this._vibTimers = []
+  },
+
   clearAllTimers() {
     this.clearAnimTimers()
     this.clearLpTimer()
@@ -181,7 +193,6 @@ export default {
     this.vibrateOnBead = state.vibrateOnBead !== false
     this.inputMode = state.inputMode || 'slide'
     this.beadTheme = state.beadTheme || 'default'
-    this.showCount = state.showCount !== false
     this.syncCount()
     this.spriteFrameSrc = this.currentIdle()
     this.spriteLeft = SPRITE_CROP.left
@@ -340,15 +351,15 @@ export default {
   },
 
   /**
-   * 단일 프리합성 PNG opacity 전환 + 짧은 문구.
-   * 다수 image keyframes 없음 · 입력 비차단 · ~1.2s.
+   * 단일 프리합성 PNG opacity 전환(+해금 시에만 안내 문구).
+   * 「원만 성취」문구 없음 · 입력 비차단 · ~1.2s.
    */
   playCelebrate(unlockJustNow) {
     this.clearCelebrateTimers()
     this.celeVisible = true
     this.celeOpacity = 0.9
     this.countColor = COUNT_COLOR_GLOW
-    this.celeMsg = unlockJustNow ? '금박 나무 염주 해금' : '원만 성취'
+    this.celeMsg = unlockJustNow ? '금박 나무 염주 해금' : ''
 
     const schedule = (ms, fn) => {
       const id = setTimeout(fn, ms)
@@ -390,9 +401,29 @@ export default {
     }
   },
 
+  /**
+   * long(≈1000ms)×2 @ 0ms·1000ms → 총 ~2000ms.
+   * Watch 6는 start/stop 미지원. 입력 비차단 · onHide에서 타이머 정리.
+   */
+  pulseGoalVibrate() {
+    this.clearVibrateTimers()
+    const offsets = goalVibrateOffsets()
+    for (let i = 0; i < offsets.length; i++) {
+      const ms = offsets[i]
+      if (ms <= 0) {
+        this.safeVibrate('long')
+      } else {
+        const id = setTimeout(() => {
+          this.safeVibrate('long')
+        }, ms)
+        this._vibTimers.push(id)
+      }
+    }
+  },
+
   buzz(completedRound, goalReached) {
     if (goalReached) {
-      this.safeVibrate('long')
+      this.pulseGoalVibrate()
       return
     }
     if (this.vibrateOnBead) this.safeVibrate('short')

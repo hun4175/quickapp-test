@@ -88,23 +88,6 @@
         <text class="opt-mark" if="{{goalCount === 1080}}">✓</text>
       </div>
 
-      <text class="label">횟수 표시</text>
-      <text class="hint">메인 화면 하단 카운트</text>
-      <div
-        class="opt {{showCount ? 'opt-on' : ''}}"
-        onclick="pickShowCountOn"
-      >
-        <text class="opt-text">켜기</text>
-        <text class="opt-mark" if="{{showCount}}">✓</text>
-      </div>
-      <div
-        class="opt {{!showCount ? 'opt-on' : ''}}"
-        onclick="pickShowCountOff"
-      >
-        <text class="opt-text">끄기</text>
-        <text class="opt-mark" if="{{!showCount}}">✓</text>
-      </div>
-
       <text class="label">횟수 초기화</text>
       <text class="hint">{{resetHint}}</text>
       <div
@@ -114,7 +97,7 @@
         <text class="opt-text">{{resetLabel}}</text>
       </div>
 
-      <text class="meta">v2.8.1</text>
+      <text class="meta">v2.8.2</text>
     </div>
   </div>
 </template>
@@ -125,7 +108,6 @@ import vibrator from '@system.vibrator'
 import {
   setInputMode,
   setBeadTheme,
-  setShowCount,
   setGoalCount,
   resetTodayCount,
   INPUT_MODE_HINTS
@@ -137,7 +119,6 @@ export default {
     inputMode: 'slide',
     inputHint: INPUT_MODE_HINTS.slide,
     beadTheme: 'default',
-    showCount: true,
     goalCount: 21,
     unlockGoldwood: false,
     resetArmed: false,
@@ -185,7 +166,6 @@ export default {
     this.inputMode = state.inputMode || 'slide'
     this.inputHint = INPUT_MODE_HINTS[this.inputMode] || INPUT_MODE_HINTS.slide
     this.beadTheme = state.beadTheme || 'default'
-    this.showCount = state.showCount !== false
     this.goalCount = state.goalCount || 21
     this.unlockGoldwood = state.unlockGoldwood === true
   },
@@ -241,18 +221,6 @@ export default {
   },
   pickGoal1080() {
     this.pickGoal(1080)
-  },
-
-  async pickShowCount(enabled) {
-    this.disarmReset()
-    if (!this._state) await this.reload()
-    await this.persist(setShowCount(this._state, enabled))
-  },
-  pickShowCountOn() {
-    this.pickShowCount(true)
-  },
-  pickShowCountOff() {
-    this.pickShowCount(false)
   },
 
   async onResetTap() {

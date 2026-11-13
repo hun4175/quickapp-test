@@ -1,6 +1,6 @@
 /**
  * 염주 카운트 순수 로직 (워치 런타임 / Node 테스트 공용).
- * 2.8.1: 현재/목표 표시 · 달성 시 0 리셋 · 1080 목표 해금.
+ * 2.8.2: 카운트 항상 표시 · 축하 문구 축소 · long×2 진동.
  */
 
 /** 한 바퀴 알 개수 선택지 (염주/묵주 관례) — 기본 108, UI 노출 없음 */
@@ -62,7 +62,7 @@ export const DEFAULT_STATE = Object.freeze({
   showCount: true,
   goalCount: 21,
   unlockGoldwood: false,
-  stateSchema: 15
+  stateSchema: 16
 })
 
 /**
@@ -109,7 +109,8 @@ export const normalizeState = (raw) => {
     : DEFAULT_STATE.inputMode
 
   let beadTheme = resolveTheme(src.beadTheme)
-  const showCount = src.showCount !== false
+  // 2.8.2: 카운트 항상 표시 — 저장 false 무시
+  const showCount = true
   const goalCount = resolveGoal(src.goalCount)
   // 명시 true만 해금. 미해금인데 goldwood면 default로 폴백
   let unlockGoldwood = src.unlockGoldwood === true
@@ -137,15 +138,15 @@ export const normalizeState = (raw) => {
 }
 
 /**
- * 2.8.0: schema≥15. goalCount·unlockGoldwood.
- * 기존 사용자: goalCount=21. 이미 goldwood 사용 중이면 해금 유지.
+ * 2.8.2: schema≥16. showCount 강제 true.
+ * 기존 사용자: goalCount 없으면 21. 이미 goldwood 사용 중이면 해금 유지.
  * @param {object} state
  * @returns {{ state: object, migrated: boolean }}
  */
 export const migrateAnimModeForStability = (state) => {
   const raw = state && typeof state === 'object' ? state : {}
   const s = normalizeState(raw)
-  if (s.stateSchema >= 15) {
+  if (s.stateSchema >= 16 && s.showCount === true) {
     return { state: s, migrated: false }
   }
 
@@ -163,10 +164,10 @@ export const migrateAnimModeForStability = (state) => {
   return {
     state: {
       ...s,
-      stateSchema: 15,
+      stateSchema: 16,
       inputMode: INPUT_MODES.includes(s.inputMode) ? s.inputMode : 'slide',
       beadTheme,
-      showCount: s.showCount !== false,
+      showCount: true,
       goalCount: resolveGoal(raw.goalCount),
       unlockGoldwood
     },
@@ -309,9 +310,10 @@ export const setBeadTheme = (state, theme) => {
   return { ...s, beadTheme: t }
 }
 
-export const setShowCount = (state, enabled) => {
+/** @deprecated 2.8.2 카운트 항상 표시 — 호출해도 true 유지 */
+export const setShowCount = (state, _enabled) => {
   const s = normalizeState(state)
-  return { ...s, showCount: !!enabled }
+  return { ...s, showCount: true }
 }
 
 /**
