@@ -1,6 +1,6 @@
 /**
- * 키프레임 CSS·프리뷰·테스트 전용 (index 런타임 번들 제외).
- * 2.3.0: 0%/100% linear · origin 0 0 · 정수 left/top 기반 end transform.
+ * 키프레임 CSS·프리뷰·테스트 전용.
+ * 2.3.1: 0/100 linear · origin 0 0 · 노드=홈 슬롯 고정.
  */
 import {
   CHAIN_ANIM_MS,
@@ -12,13 +12,14 @@ import {
   easeOutCubic,
   DEFAULT_RING,
   BEAD_SRC,
-  SLOT_COUNT
+  SLOT_COUNT,
+  createChainBeads,
+  visualBoxesForBeads
 } from './ring.js'
 
 export const SHARED_KEYFRAME_PCTS = Object.freeze([0, 1])
 export { pathProgressAtTime, easeOutCubic, endKeyframeTransform, keyframeEndMatchesSnap }
 
-/** CSS scale: 충분히 길게 써서 from.size*scale ≈ to.size */
 const formatScale = (scale) => {
   const s = Number(scale)
   if (!Number.isFinite(s)) return '1'
@@ -44,7 +45,7 @@ export const buildChainKeyframeCss = (opts = {}) => {
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }`)
-    const end = endKeyframeTransform(from, to, opts)
+    const end = endKeyframeTransform(from, to)
     lines.push(`@keyframes kf-${name} {
   0% { transform: translate(0px, 0px) scale(1); }
 ${kfLine(100, end)}
@@ -62,48 +63,67 @@ export const pathProgressesAtTime = (t) => {
   return layoutChainSlots().map(() => u)
 }
 
-/** origin 0 0: from.left+tx == to.left 등 */
 export const snapMatchesEndKeyframe = (fromSlot, toSlot, tol = 0) =>
   keyframeEndMatchesSnap(fromSlot, toSlot, tol)
 
+/** 프리뷰: 홈 또는 keyframe 끝 시각 박스 */
 export const layoutRing = (opts = {}) => {
-  const slots = layoutChainSlots(opts)
-  const raw = Math.max(0, Math.min(1, Number(opts.shiftProgress) || 0))
-  const p = raw
+  const beads = createChainBeads(opts)
+  const atEnd = Number(opts.shiftProgress) > 0.999
+  const mid = Number(opts.shiftProgress) || 0
   const dir = opts.chainDir != null ? (Number(opts.chainDir) >= 0 ? 1 : -1) : 1
-  let items = slots.map((s) => ({
-    key: s.index,
-    left: s.left,
-    top: s.top,
-    size: s.size,
-    depth: s.depth,
-    z: s.z,
-    focused: s.index === 0,
-    src: BEAD_SRC,
-    cx: s.cx,
-    cy: s.cy
-  }))
-  if (p > 0) {
-    items = items.map((b) => {
-      const to = slots[(b.key + dir + slots.length) % slots.length]
-      const from = slots[b.key]
-      const tr = transformAtProgress(from, to, p, opts)
-      const size = Math.round(from.size * tr.scale)
-      const left = from.left + tr.tx
-      const top = from.top + tr.ty
-      return {
-        ...b,
-        size,
-        left,
-        top,
-        cx: left + Math.floor(size / 2),
-        cy: top + Math.floor(size / 2),
-        focused: false
-      }
-    })
+  if (mid <= 0) {
+    return visualBoxesForBeads(beads, { ...opts, atKeyframeEnd: false }).map((b) => ({
+      key: b.homeSlot,
+      left: b.left,
+      top: b.top,
+      size: b.size,
+      depth: 0,
+      z: b.z,
+      focused: b.homeSlot === 0,
+      src: BEAD_SRC,
+      cx: b.left + Math.floor(b.size / 2),
+      cy: b.top + Math.floor(b.size / 2)
+    }))
   }
-  items.sort((a, b) => a.z - b.z)
-  return items
+  if (atEnd || mid >= 1) {
+    return visualBoxesForBeads(beads, { ...opts, atKeyframeEnd: true, dir }).map((b) => ({
+      key: b.visualSlot,
+      left: b.left,
+      top: b.top,
+      size: b.size,
+      depth: 0,
+      z: b.z,
+      focused: b.visualSlot === 0,
+      src: BEAD_SRC,
+      cx: b.left + Math.floor(b.size / 2),
+      cy: b.top + Math.floor(b.size / 2)
+    }))
+  }
+  // 중간: 홈→이웃 보간 (origin 0 0)
+  const slots = layoutChainSlots(opts)
+  const n = slots.length
+  return beads.map((b) => {
+    const home = b.homeSlot
+    const to = slots[(home + dir + n) % n]
+    const from = slots[home]
+    const tr = transformAtProgress(from, to, mid)
+    const size = Math.round(from.size * tr.scale)
+    const left = from.left + tr.tx
+    const top = from.top + tr.ty
+    return {
+      key: home,
+      left,
+      top,
+      size,
+      depth: from.depth,
+      z: b.z,
+      focused: false,
+      src: BEAD_SRC,
+      cx: left + Math.floor(size / 2),
+      cy: top + Math.floor(size / 2)
+    }
+  }).sort((a, b) => a.z - b.z)
 }
 
 export const focusCenterNear = (items, fx = 216, fy = 257, tol = 4) => {

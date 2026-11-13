@@ -1,18 +1,20 @@
 /**
- * 염주 고리 — 2.3.0 플랫 리스트.
- * - 덜컥임: keyframe 100% = 스냅 left/top/size (정수·origin 0 0)
- * - 간격: 앞열 중심거리 ≈ 지름 0.92~1.0
- * - 슬롯 12·노드≤12, 화면 밖 버퍼, 레인/opacity 금지
+ * 염주 고리 — 2.3.1 플랫 리스트.
+ * - 노드 10(2.2.0과 동일). 간격은 지름 확대로 0.92~1.0 (중심거리≈2.2.0).
+ * - 노드=슬롯 고정. i→i±1 애니 후 홈 스냅(동일 이미지 → 패턴 연속).
+ * - 그리기 순서=슬롯 고정(뒤열→앞열 가장자리→포커스). 리스트 재정렬 없음.
+ * - keyframe origin 0 0, 레인/opacity 금지.
  */
 
 export const VIRTUAL_BEADS = 12
-export const SLOT_COUNT = 12
+export const SLOT_COUNT = 10
 export const FRONT_COUNT = 3
 export const BACK_COUNT = 3
 export const VISIBLE_BEADS = FRONT_COUNT + BACK_COUNT
-export const MAX_RENDER_NODES = 12
+export const BUFFER_BEADS = 4
+export const RENDER_BEADS = VISIBLE_BEADS + BUFFER_BEADS
+export const MAX_RENDER_NODES = 10
 export const FRONT_DEPTH_MIN = 0.55
-/** 앞열 인접 중심거리 / ((sizeA+sizeB)/2) 목표 */
 export const FRONT_GAP_RATIO_MIN = 0.92
 export const FRONT_GAP_RATIO_MAX = 1.0
 
@@ -25,6 +27,7 @@ export const SWIPE_VERTICAL_RATIO = 1.2
 
 export const BEAD_SRC = '/common/bead-wood-v3.png'
 
+/** 2.2.0 중심거리 유지(ry=420), 지름만 확대해 간격비 맞춤 */
 export const DEFAULT_RING = Object.freeze({
   screenW: 432,
   screenH: 514,
@@ -33,12 +36,11 @@ export const DEFAULT_RING = Object.freeze({
   focusX: 216,
   focusY: 257,
   rx: 118,
-  /** n=12에서 앞열 간격·버퍼 OUT 확보 */
-  ry: 430,
+  ry: 420,
   cx: 334,
   cy: 257,
-  minSize: 140,
-  maxSize: 228,
+  minSize: 165,
+  maxSize: 255,
   virtual: VIRTUAL_BEADS,
   slotCount: SLOT_COUNT
 })
@@ -92,10 +94,7 @@ export const pathProgressAtTime = (t) => {
   return x
 }
 
-/**
- * 모든 슬롯 좌표의 단일 정수 계산.
- * left/top/size/cx/cy 정수. left = cx - floor(size/2) 로 keyframe·스냅 공유.
- */
+/** 정수 left/top/size/cx/cy 단일 경로 */
 export const slotGeomAtAngle = (angle, opts = {}) => {
   const o = ringOpts(opts)
   const depth = depthAtAngle(angle)
@@ -114,7 +113,7 @@ export const slotGeomAtAngle = (angle, opts = {}) => {
     cy,
     left,
     top,
-    z: Math.round(depth * 100)
+    z: 0
   }
 }
 
@@ -125,13 +124,62 @@ export const layoutChainSlots = (opts = {}) => {
     Math.min(MAX_RENDER_NODES, Math.floor(Number(o.slotCount) || SLOT_COUNT))
   )
   const step = (Math.PI * 2) / n
-  const slots = []
+  const raw = []
   for (let i = 0; i < n; i++) {
     const angle = Math.PI + i * step
     const g = slotGeomAtAngle(angle, o)
-    slots.push({ index: i, ...g, src: BEAD_SRC })
+    raw.push({ index: i, ...g, src: BEAD_SRC })
   }
-  return slots
+  const order = fixedDrawOrderFromSlots(raw)
+  const rank = new Map(order.map((idx, r) => [idx, r]))
+  return raw.map((s) => ({ ...s, z: rank.get(s.index) || 0 }))
+}
+
+/**
+ * 슬롯 고정 그리기 순서(뒤→앞):
+ * 1) 뒤열 전체(depth 낮은 것 먼저)
+ * 2) 앞열: 포커스에서 먼 가장자리 → 중앙 포커스(index 0) 마지막
+ */
+export const fixedDrawOrderFromSlots = (slots) => {
+  const back = slots
+    .filter((s) => s.depth < FRONT_DEPTH_MIN)
+    .sort((a, b) => a.depth - b.depth || a.index - b.index)
+  const front = slots.filter((s) => s.depth >= FRONT_DEPTH_MIN)
+  const n = slots.length
+  front.sort((a, b) => {
+    if (a.index === 0) return 1
+    if (b.index === 0) return -1
+    const da = Math.min(a.index, n - a.index)
+    const db = Math.min(b.index, n - b.index)
+    if (db !== da) return db - da
+    return a.depth - b.depth || a.index - b.index
+  })
+  return [...back, ...front].map((s) => s.index)
+}
+
+export const fixedDrawOrder = (opts = {}) => {
+  const o = ringOpts(opts)
+  const n = Math.max(
+    6,
+    Math.min(MAX_RENDER_NODES, Math.floor(Number(o.slotCount) || SLOT_COUNT))
+  )
+  const step = (Math.PI * 2) / n
+  const raw = []
+  for (let i = 0; i < n; i++) {
+    const angle = Math.PI + i * step
+    const g = slotGeomAtAngle(angle, o)
+    raw.push({ index: i, ...g })
+  }
+  return fixedDrawOrderFromSlots(raw)
+}
+
+export const paintRankBySlot = (opts = {}) => {
+  const order = fixedDrawOrder(opts)
+  const rank = new Array(order.length)
+  order.forEach((slot, r) => {
+    rank[slot] = r
+  })
+  return rank
 }
 
 export const isSlotFullyOffScreen = (slot, opts = {}) => {
@@ -161,29 +209,11 @@ export const onScreenSlotIndices = (opts = {}) =>
 
 export const renderSlotIndices = (opts = {}) => {
   const slots = layoutChainSlots(ringOpts(opts))
-  if (slots.length <= MAX_RENDER_NODES) {
-    return slots.map((s) => s.index)
-  }
-  const buf = new Set(bufferSlotIndices(opts))
-  const front = slots
-    .filter((s) => s.depth >= FRONT_DEPTH_MIN)
-    .sort((a, b) => b.depth - a.depth || a.index - b.index)
-    .slice(0, FRONT_COUNT)
-  const back = slots
-    .filter((s) => s.depth < FRONT_DEPTH_MIN)
-    .sort((a, b) => b.depth - a.depth || a.index - b.index)
-    .slice(0, BACK_COUNT)
-  const picked = new Set([...front, ...back].map((s) => s.index))
-  for (const i of buf) {
-    if (picked.size >= MAX_RENDER_NODES) break
-    picked.add(i)
-  }
-  return [...picked].sort((a, b) => a - b)
+  return slots.map((s) => s.index)
 }
 
 export const visibleSlotIndices = (opts = {}) => renderSlotIndices(opts)
 
-/** 인접 중심거리 / ((sizeA+sizeB)/2) — 두 반지름 합 기준 */
 export const adjacentGapRatio = (a, b) => {
   const d = Math.hypot(Number(b.cx) - Number(a.cx), Number(b.cy) - Number(a.cy))
   const sumR = (Number(a.size) + Number(b.size)) / 2
@@ -226,21 +256,16 @@ export const shouldAnimateTransition = (fromSlot, toSlot, opts = {}) => {
   return !(fromOut && toOut)
 }
 
-/**
- * transform-origin: 0 0 기준.
- * t=1에서 tx/ty/scale이 스냅 left/top/size와 픽셀 일치하도록 정수 left/top에서 유도.
- */
-export const transformAtProgress = (fromSlot, toSlot, u, opts = {}) => {
+/** origin 0 0: t=1에서 스냅 left/top/size와 일치 */
+export const transformAtProgress = (fromSlot, toSlot, u) => {
   const t = Math.max(0, Math.min(1, Number(u) || 0))
   if (t <= 0) return { tx: 0, ty: 0, scale: 1 }
-
   const toLeft = Number(toSlot.left)
   const toTop = Number(toSlot.top)
   const toSize = Number(toSlot.size)
   const fromLeft = Number(fromSlot.left)
   const fromTop = Number(fromSlot.top)
   const fromSize = Number(fromSlot.size)
-
   if (t >= 1) {
     return {
       tx: toLeft - fromLeft,
@@ -248,8 +273,6 @@ export const transformAtProgress = (fromSlot, toSlot, u, opts = {}) => {
       scale: fromSize > 0 ? toSize / fromSize : 1
     }
   }
-
-  // 중간: 각도 보간 대신 left/top/size 선형(정수) → 동일 함수로 tx/scale
   const left = Math.round(fromLeft + (toLeft - fromLeft) * t)
   const top = Math.round(fromTop + (toTop - fromTop) * t)
   const size = Math.round(fromSize + (toSize - fromSize) * t)
@@ -260,11 +283,9 @@ export const transformAtProgress = (fromSlot, toSlot, u, opts = {}) => {
   }
 }
 
-/** keyframe 100%용 — transformAtProgress(..., 1)과 동일, 이름 명시 */
-export const endKeyframeTransform = (fromSlot, toSlot, opts = {}) =>
-  transformAtProgress(fromSlot, toSlot, 1, opts)
+export const endKeyframeTransform = (fromSlot, toSlot) =>
+  transformAtProgress(fromSlot, toSlot, 1)
 
-/** 애니 끝 시각적 박스(origin 0 0)가 스냅 슬롯과 일치하는지 */
 export const keyframeEndMatchesSnap = (fromSlot, toSlot, tol = 0) => {
   const tr = endKeyframeTransform(fromSlot, toSlot)
   const endLeft = fromSlot.left + tr.tx
@@ -287,79 +308,159 @@ export const rollClassForSlot = (slotIndex, dir, opts = {}) => {
   return d < 0 ? 'roll-prev-' + i : 'roll-next-' + i
 }
 
-const beadFromSlot = (id, s, animClass = '') => ({
-  id,
-  slot: s.index,
+const beadFromHomeSlot = (slotIdx, s, rank) => ({
+  id: 'b' + slotIdx,
+  slot: slotIdx,
+  homeSlot: slotIdx,
   left: s.left,
   top: s.top,
   size: s.size,
   depth: s.depth,
-  z: s.z,
+  z: rank[slotIdx] != null ? rank[slotIdx] : s.z,
   src: BEAD_SRC,
-  animClass
+  animClass: ''
 })
 
-/** z 오름차순 안정 정렬(뒤→앞). 포커스(높은 z)가 위. 동일 z면 id 유지 */
-export const sortBeadsBackToFront = (beads) =>
-  [...beads].sort((a, b) => {
-    const dz = (Number(a.z) || 0) - (Number(b.z) || 0)
-    if (dz !== 0) return dz
-    return String(a.id).localeCompare(String(b.id))
-  })
-
 /**
- * 안정 id. 렌더 슬롯 1:1. 그리기 순서는 z로 정렬하되 id 매핑은 슬롯 인덱스 순 생성 후 정렬.
+ * 노드=슬롯 고정. 배열 순서=fixedDrawOrder (절대 재정렬하지 않음).
  */
 export const createChainBeads = (opts = {}) => {
   const slots = layoutChainSlots(ringOpts(opts))
-  const idxs = renderSlotIndices(opts)
-  if (idxs.length > MAX_RENDER_NODES) {
+  if (slots.length > MAX_RENDER_NODES) {
     throw new Error('render nodes exceed MAX_RENDER_NODES')
   }
-  const beads = idxs.map((slotIdx, i) => beadFromSlot('b' + i, slots[slotIdx]))
-  return sortBeadsBackToFront(beads)
+  const order = fixedDrawOrder(opts)
+  const rank = paintRankBySlot(opts)
+  return order.map((slotIdx) => beadFromHomeSlot(slotIdx, slots[slotIdx], rank))
 }
 
-/**
- * 슬롯 +dir. id·src 유지. animClass 클리어 + left/top/size 갱신을 한 객체에(같은 tick).
- */
-export const advanceChainBeads = (beads, dir, opts = {}) => {
+/** 홈 스냅: 기하·z를 홈 슬롯으로, animClass 클리어. 배열 순서·id 불변 */
+export const snapBeadsHome = (beads, opts = {}) => {
   const slots = layoutChainSlots(ringOpts(opts))
-  const n = slots.length
-  const d = Number(dir) < 0 ? -1 : 1
-  const next = beads.map((b) => {
-    const slot = (b.slot + d + n) % n
-    const s = slots[slot]
+  const rank = paintRankBySlot(opts)
+  return beads.map((b) => {
+    const home = b.homeSlot != null ? b.homeSlot : b.slot
+    const s = slots[home]
     return {
       id: b.id,
-      slot,
+      slot: home,
+      homeSlot: home,
       left: s.left,
       top: s.top,
       size: s.size,
       depth: s.depth,
-      z: s.z,
+      z: rank[home],
       src: b.src || BEAD_SRC,
       animClass: ''
     }
   })
-  return sortBeadsBackToFront(next)
 }
 
-export const advanceChainBeadsWithAnim = (beads, dir, nextDir, opts = {}) => {
-  const snapped = advanceChainBeads(beads, dir, opts)
-  if (nextDir == null || nextDir === 0) return snapped
-  return snapped.map((b) => ({
-    ...b,
-    animClass: rollClassForSlot(b.slot, nextDir, opts)
-  }))
+/** @deprecated 이름 호환 — 홈 스냅 (슬롯 이동 없음) */
+export const advanceChainBeads = (beads, _dir, opts = {}) =>
+  snapBeadsHome(beads, opts)
+
+/**
+ * 애니 시작: 홈 기하 유지, animClass만.
+ * z는 목적지 슬롯 paintRank (슬롯 쪽 겹침 순서 — 스냅 후 홈 rank와 화면 슬롯 기준 동일).
+ */
+export const withRollClasses = (beads, dir, opts = {}) => {
+  const slots = layoutChainSlots(ringOpts(opts))
+  const n = slots.length
+  const d = Number(dir) < 0 ? -1 : 1
+  const rank = paintRankBySlot(opts)
+  return beads.map((b) => {
+    const home = b.homeSlot != null ? b.homeSlot : b.slot
+    const to = (home + d + n) % n
+    return {
+      ...b,
+      slot: home,
+      homeSlot: home,
+      left: slots[home].left,
+      top: slots[home].top,
+      size: slots[home].size,
+      depth: slots[home].depth,
+      animClass: rollClassForSlot(home, d, opts),
+      z: rank[to]
+    }
+  })
 }
 
-/** 애니 시작: animClass만 변경 (left/top/size/id/src 유지) */
-export const withRollClasses = (beads, dir, opts = {}) =>
-  beads.map((b) => ({
-    ...b,
-    animClass: rollClassForSlot(b.slot, dir, opts)
-  }))
+export const advanceChainBeadsWithAnim = (beads, _dir, nextDir, opts = {}) => {
+  const home = snapBeadsHome(beads, opts)
+  if (nextDir == null || nextDir === 0) return home
+  return withRollClasses(home, nextDir, opts)
+}
+
+/**
+ * 렌더 시뮬레이션용 박스.
+ * atKeyframeEnd: 각 노드가 dir 방향으로 도착한 슬롯 기하 + 그 슬롯 paintRank.
+ * 아니면 홈 슬롯 기하 + 홈 paintRank.
+ */
+export const visualBoxesForBeads = (beads, opts = {}) => {
+  const atEnd = opts.atKeyframeEnd === true
+  const dir = Number(opts.dir) < 0 ? -1 : 1
+  const slots = layoutChainSlots(ringOpts(opts))
+  const n = slots.length
+  const rank = paintRankBySlot(opts)
+  return beads.map((b) => {
+    const home = b.homeSlot != null ? b.homeSlot : b.slot
+    const visualSlot = atEnd ? (home + dir + n) % n : home
+    const s = slots[visualSlot]
+    return {
+      id: b.id,
+      homeSlot: home,
+      visualSlot,
+      left: s.left,
+      top: s.top,
+      size: s.size,
+      z: rank[visualSlot],
+      src: b.src || BEAD_SRC
+    }
+  })
+}
+
+/**
+ * 슬롯 쪽 그리기 순서로 박스 합성 → 커버리지 맵(슬롯 인덱스).
+ * 동일 이미지 가정: 픽셀 값은 visualSlot id (겹치면 높은 z가 덮음).
+ */
+export const composeSlotCoverage = (boxes, opts = {}) => {
+  const o = ringOpts(opts)
+  const W = o.screenW
+  const H = o.screenH
+  const map = new Int16Array(W * H)
+  map.fill(-1)
+  const sorted = [...boxes].sort((a, b) => a.z - b.z || a.homeSlot - b.homeSlot)
+  for (const box of sorted) {
+    const x0 = Math.max(0, box.left)
+    const y0 = Math.max(0, box.top)
+    const x1 = Math.min(W, box.left + box.size)
+    const y1 = Math.min(H, box.top + box.size)
+    const sid = box.visualSlot
+    for (let y = y0; y < y1; y++) {
+      const row = y * W
+      for (let x = x0; x < x1; x++) {
+        map[row + x] = sid
+      }
+    }
+  }
+  return map
+}
+
+/** 100% 프레임 vs 홈 스냅 커버리지 동일 여부 */
+export const keyframeEndCoverageMatchesSnap = (dir = 1, opts = {}) => {
+  const beads = createChainBeads(opts)
+  const atEnd = visualBoxesForBeads(beads, { ...opts, atKeyframeEnd: true, dir })
+  const atHome = visualBoxesForBeads(beads, { ...opts, atKeyframeEnd: false, dir })
+  const a = composeSlotCoverage(atEnd, opts)
+  const b = composeSlotCoverage(atHome, opts)
+  if (a.length !== b.length) return { ok: false, diff: a.length }
+  let diff = 0
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) diff++
+  }
+  return { ok: diff === 0, diff }
+}
 
 export const focusDeltaYOnAdvance = (opts = {}) => {
   const slots = layoutChainSlots(ringOpts(opts))

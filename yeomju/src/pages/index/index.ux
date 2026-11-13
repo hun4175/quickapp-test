@@ -1,7 +1,7 @@
 <template>
   <!--
-    2.3.0: 플랫 ≤12 + 버퍼. A=0/100 linear 150ms, origin 0 0.
-    스냅=keyframe 끝 픽셀 일치. 레인/opacity 금지.
+    2.3.1: 플랫 10노드=슬롯 고정. A=0/100·origin 0 0·홈 스냅.
+    지름 확대로 간격 0.92~1.0. 리스트 재정렬 없음. 레인/opacity 금지.
   -->
   <div
     class="page"
@@ -268,9 +268,9 @@ export default {
   },
 
   /**
-   * A: animClass만 토글 → 진동.
-   * 스냅: left/top/size 갱신 + animClass 제거를 한 할당(같은 tick, 원위치 깜빡임 방지).
-   * keyframe 100%(origin 0 0) = 스냅 슬롯 픽셀.
+   * A: 노드=홈 슬롯 고정. animClass만 토글 → 진동.
+   * 스냅: 홈 기하 복귀 + animClass 제거를 한 할당(리스트 순서 불변).
+   * keyframe 100% 시각 = 이웃 슬롯 = 전체 패턴은 스냅 후와 동일(동일 이미지).
    */
   runModeA() {
     const item = this._animQueue.shift()
@@ -294,7 +294,6 @@ export default {
     if (nextItem) {
       const nextDir = nextItem.dir
       this._animQueue.shift()
-      // 스냅+다음 클래스 한 번에(클래스만 먼저 지우면 from 좌표가 한 프레임 노출)
       this.chainBeads = advanceChainBeadsWithAnim(this.chainBeads, dir, nextDir)
       this.markAnimStart()
       this.buzz(nextItem.completedRound)
@@ -395,7 +394,7 @@ export default {
 }
 @keyframes kf-mover-up {
   0% { transform: translateY(0px); }
-  100% { transform: translateY(-213px); }
+  100% { transform: translateY(-245px); }
 }
 .mover-down {
   animation-name: kf-mover-down;
@@ -407,7 +406,7 @@ export default {
 }
 @keyframes kf-mover-down {
   0% { transform: translateY(0px); }
-  100% { transform: translateY(213px); }
+  100% { transform: translateY(245px); }
 }
 /* CHAIN_KF_BEGIN */
 .roll-next-0 {
@@ -420,7 +419,7 @@ export default {
 }
 @keyframes kf-next-0 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(18px, -213px) scale(0.98684211); }
+  100% { transform: translate(25px, -245px) scale(0.98431373); }
 }
 .roll-prev-0 {
   animation-name: kf-prev-0;
@@ -432,7 +431,7 @@ export default {
 }
 @keyframes kf-prev-0 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(18px, 217px) scale(0.98684211); }
+  100% { transform: translate(25px, 249px) scale(0.98431373); }
 }
 .roll-next-1 {
   animation-name: kf-next-1;
@@ -444,7 +443,7 @@ export default {
 }
 @keyframes kf-next-1 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(47px, -153px) scale(0.96444444); }
+  100% { transform: translate(65px, -146px) scale(0.95219124); }
 }
 .roll-prev-1 {
   animation-name: kf-prev-1;
@@ -456,7 +455,7 @@ export default {
 }
 @keyframes kf-prev-1 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-18px, 213px) scale(1.01333333); }
+  100% { transform: translate(-25px, 245px) scale(1.01593625); }
 }
 .roll-next-2 {
   animation-name: kf-next-2;
@@ -468,7 +467,7 @@ export default {
 }
 @keyframes kf-next-2 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(65px, -52px) scale(0.94470046); }
+  100% { transform: translate(79px, 7px) scale(0.93723849); }
 }
 .roll-prev-2 {
   animation-name: kf-prev-2;
@@ -480,7 +479,7 @@ export default {
 }
 @keyframes kf-prev-2 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-47px, 153px) scale(1.03686636); }
+  100% { transform: translate(-65px, 146px) scale(1.05020921); }
 }
 .roll-next-3 {
   animation-name: kf-next-3;
@@ -492,7 +491,7 @@ export default {
 }
 @keyframes kf-next-3 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(65px, 64px) scale(0.94146341); }
+  100% { transform: translate(66px, 159px) scale(0.9375); }
 }
 .roll-prev-3 {
   animation-name: kf-prev-3;
@@ -504,7 +503,7 @@ export default {
 }
 @keyframes kf-prev-3 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-65px, 52px) scale(1.05853659); }
+  100% { transform: translate(-79px, -7px) scale(1.06696429); }
 }
 .roll-next-4 {
   animation-name: kf-next-4;
@@ -516,7 +515,7 @@ export default {
 }
 @keyframes kf-next-4 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(48px, 162px) scale(0.94300518); }
+  100% { transform: translate(27px, 251px) scale(0.96666667); }
 }
 .roll-prev-4 {
   animation-name: kf-prev-4;
@@ -528,7 +527,7 @@ export default {
 }
 @keyframes kf-prev-4 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-65px, -64px) scale(1.06217617); }
+  100% { transform: translate(-66px, -159px) scale(1.06666667); }
 }
 .roll-next-5 {
   animation-name: kf-next-5;
@@ -540,7 +539,7 @@ export default {
 }
 @keyframes kf-next-5 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(19px, 218px) scale(0.97252747); }
+  100% { transform: translate(-27px, 243px) scale(1.03448276); }
 }
 .roll-prev-5 {
   animation-name: kf-prev-5;
@@ -552,7 +551,7 @@ export default {
 }
 @keyframes kf-prev-5 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-48px, -162px) scale(1.06043956); }
+  100% { transform: translate(-27px, -251px) scale(1.03448276); }
 }
 .roll-next-6 {
   animation-name: kf-next-6;
@@ -564,7 +563,7 @@ export default {
 }
 @keyframes kf-next-6 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-19px, 212px) scale(1.02824859); }
+  100% { transform: translate(-66px, 145px) scale(1.06666667); }
 }
 .roll-prev-6 {
   animation-name: kf-prev-6;
@@ -576,7 +575,7 @@ export default {
 }
 @keyframes kf-prev-6 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-19px, -218px) scale(1.02824859); }
+  100% { transform: translate(27px, -243px) scale(0.96666667); }
 }
 .roll-next-7 {
   animation-name: kf-next-7;
@@ -588,7 +587,7 @@ export default {
 }
 @keyframes kf-next-7 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-48px, 152px) scale(1.06043956); }
+  100% { transform: translate(-79px, -7px) scale(1.06696429); }
 }
 .roll-prev-7 {
   animation-name: kf-prev-7;
@@ -600,7 +599,7 @@ export default {
 }
 @keyframes kf-prev-7 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(19px, -212px) scale(0.97252747); }
+  100% { transform: translate(66px, -145px) scale(0.9375); }
 }
 .roll-next-8 {
   animation-name: kf-next-8;
@@ -612,7 +611,7 @@ export default {
 }
 @keyframes kf-next-8 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-65px, 52px) scale(1.06217617); }
+  100% { transform: translate(-65px, -158px) scale(1.05020921); }
 }
 .roll-prev-8 {
   animation-name: kf-prev-8;
@@ -624,7 +623,7 @@ export default {
 }
 @keyframes kf-prev-8 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(48px, -152px) scale(0.94300518); }
+  100% { transform: translate(79px, 7px) scale(0.93723849); }
 }
 .roll-next-9 {
   animation-name: kf-next-9;
@@ -636,7 +635,7 @@ export default {
 }
 @keyframes kf-next-9 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-65px, -64px) scale(1.05853659); }
+  100% { transform: translate(-25px, -249px) scale(1.01593625); }
 }
 .roll-prev-9 {
   animation-name: kf-prev-9;
@@ -648,55 +647,7 @@ export default {
 }
 @keyframes kf-prev-9 {
   0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(65px, -52px) scale(0.94146341); }
-}
-.roll-next-10 {
-  animation-name: kf-next-10;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-next-10 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-47px, -161px) scale(1.03686636); }
-}
-.roll-prev-10 {
-  animation-name: kf-prev-10;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-prev-10 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(65px, 64px) scale(0.94470046); }
-}
-.roll-next-11 {
-  animation-name: kf-next-11;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-next-11 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-18px, -217px) scale(1.01333333); }
-}
-.roll-prev-11 {
-  animation-name: kf-prev-11;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-prev-11 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(47px, 161px) scale(0.96444444); }
+  100% { transform: translate(65px, 158px) scale(0.95219124); }
 }
 /* CHAIN_KF_END */
 </style>

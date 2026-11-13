@@ -1,5 +1,5 @@
 /**
- * 2.3.0 미리보기: 0/25/50/75/100% + 버퍼·앞열 간격 로그.
+ * 2.3.1 미리보기: 홈·키프레임 끝 비교 + 버퍼·간격 로그.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -16,7 +16,8 @@ import {
   isSlotFullyOffScreen,
   createChainBeads,
   MAX_RENDER_NODES,
-  frontAdjacentGapRatios
+  frontAdjacentGapRatios,
+  keyframeEndCoverageMatchesSnap
 } from '../src/common/ring.js'
 import { layoutRing } from '../src/common/ring-kf.js'
 
@@ -247,8 +248,27 @@ for (let i = 0; i < parts.length; i++) {
   }
   drawText(strip, stripW, stripH, Math.round(parts[i].p * 100) + '%', i * W + 8, 6, 2, 200, 180, 140)
 }
-writePng(path.join(docsDir, 'preview-2.3.0.png'), stripW, stripH, strip)
+writePng(path.join(docsDir, 'preview-2.3.1.png'), stripW, stripH, strip)
 writePng(path.join(docsDir, 'preview-432x514.png'), W, H, parts[0].rgba)
+
+// 스냅 전(100%) · 후(홈) 나란히
+const before = renderWatch(1)
+const after = renderWatch(0)
+const cmpW = W * 2
+const cmp = Buffer.alloc(cmpW * (H + PAD) * 4, 0)
+for (let i = 0; i < cmp.length; i += 4) {
+  cmp[i] = 20
+  cmp[i + 1] = 16
+  cmp[i + 2] = 12
+  cmp[i + 3] = 255
+}
+for (let y = 0; y < H; y++) {
+  before.rgba.copy(cmp, (y + PAD) * cmpW * 4, y * W * 4, (y + 1) * W * 4)
+  after.rgba.copy(cmp, (y + PAD) * cmpW * 4 + W * 4, y * W * 4, (y + 1) * W * 4)
+}
+drawText(cmp, cmpW, H + PAD, '100% kf', 8, 6, 2, 200, 180, 140)
+drawText(cmp, cmpW, H + PAD, 'snap home', W + 8, 6, 2, 200, 180, 140)
+writePng(path.join(docsDir, 'preview-2.3.1-snap-compare.png'), cmpW, H + PAD, cmp)
 
 const slots = layoutChainSlots()
 const buffers = bufferSlotIndices().map((i) => {
@@ -266,12 +286,13 @@ const buffers = bufferSlotIndices().map((i) => {
 console.log(
   JSON.stringify(
     {
-      version: '2.3.0',
+      version: '2.3.1',
       slots: SLOT_COUNT,
       nodes: createChainBeads().length,
       maxNodes: MAX_RENDER_NODES,
       ms: CHAIN_ANIM_MS,
       frontGap: frontAdjacentGapRatios(),
+      coverage: keyframeEndCoverageMatchesSnap(1),
       onScreen: onScreenSlotIndices(),
       buffers
     },
