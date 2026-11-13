@@ -9,6 +9,7 @@
     ontouchmove="onTouchMove"
     ontouchend="onTouchEnd"
     ontouchcancel="onTouchCancel"
+    onclick="onPageClick"
   >
     <stack class="stage">
       <div class="ring-mover" if="{{visibleBeadCount === 1}}">
@@ -359,18 +360,22 @@
           ></div>
         </div>
       </div>
-      <!-- 2.4.4: DOM 최후·z 최상 · 하단 안전영역 불투명 박스 (구슬 위 가독성) -->
+      <!-- 2.4.5: 사각형·줄별 absolute top(겹침 금지)·z 최상 -->
       <div class="diag-layer" if="{{diagnoseLatency}}">
-        <div class="diag-box">
-          <div class="diag-row">
-            <div class="diag-dot p1 {{diagP1On ? 'dot-on' : ''}}"></div>
-            <div class="diag-dot p2 {{diagP2On ? 'dot-on' : ''}}"></div>
-            <text class="diag-text">{{diagText}}</text>
-          </div>
-          <text class="diag-line">{{diagLine1}}</text>
-          <text class="diag-line">{{diagLine2}}</text>
-          <text class="diag-line">{{diagLine3}}</text>
+        <div class="diag-box" onclick="onDiagBoxClick">
+          <div class="diag-dot p1 {{diagP1On ? 'dot-on' : ''}}"></div>
+          <div class="diag-dot p2 {{diagP2On ? 'dot-on' : ''}}"></div>
+          <text class="diag-l0">{{diagLine0}}</text>
+          <text class="diag-l1">{{diagLine1}}</text>
+          <text class="diag-l2">{{diagLine2}}</text>
+          <text class="diag-l3">{{diagLine3}}</text>
+          <text class="diag-l4">{{diagLine4}}</text>
+          <text class="diag-l5">{{diagLine5}}</text>
         </div>
+      </div>
+      <!-- E9: 긴누름 없을 때 설정 진입 -->
+      <div class="e9-settings" if="{{e9NoLongpress}}" onclick="openSettings">
+        <text class="e9-settings-text">설정</text>
       </div>
     </stack>
   </div>
@@ -382,6 +387,7 @@ import vibrator from '@system.vibrator'
 import { applySwipeCount, normalizeState, formatDate } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
 import { pushTimingSample, TIMING_AVG_N } from '../../common/timing.js'
+import { eventDeliveryDelay, deltaMs } from '../../common/timing-core.js'
 import {
   CHAIN_ANIM_MS,
   CHAIN_ANIM_END_SLACK_MS,
@@ -408,6 +414,9 @@ export default {
     e4SkipBack: false,
     e5DirectDom: false,
     e6Solid: false,
+    e7TouchStartRoll: false,
+    e8ClickOnly: false,
+    e9NoLongpress: false,
     e5Status: '',
     a0: '',
     l0: 372,
@@ -481,10 +490,12 @@ export default {
     src9: '/common/bead-front-255.png',
     diagP1On: false,
     diagP2On: false,
-    diagText: 'P1:- P2:-',
+    diagLine0: 'n=10 t0=-',
     diagLine1: 'in→set:-',
     diagLine2: 'set→start:-',
-    diagLine3: 'anim:- avg:-'
+    diagLine3: 'anim:-',
+    diagLine4: 'end→set:-',
+    diagLine5: 'evtDelay:-'
   },
 
   onInit() {
@@ -494,6 +505,8 @@ export default {
     this._sideTimer = null
     this._lpTimer = null
     this._t2Timer = null
+    this._diagFlushTimer = null
+    this._pendingDiag = null
     this._animating = false
     this._saveChain = Promise.resolve()
     this._saveTimer = null
@@ -504,9 +517,17 @@ export default {
     this._longPressed = false
     this._rollAlt = false
     this._t0 = 0
+    this._t0Kind = ''
     this._t1 = 0
     this._t2 = 0
     this._t3 = 0
+    this._tsTouchStart = 0
+    this._tsFirstMove = 0
+    this._tsSwipeJudge = 0
+    this._tsTouchEnd = 0
+    this._tsHandler = 0
+    this._tsClassSet = 0
+    this._evtDelay = -1
     this._timingHist = []
     this._animEndCount = 0
     this._animEndExpected = 0
@@ -605,6 +626,9 @@ export default {
     this.e4SkipBack = !!state.e4SkipBack
     this.e5DirectDom = !!state.e5DirectDom
     this.e6Solid = !!state.e6Solid
+    this.e7TouchStartRoll = !!state.e7TouchStartRoll
+    this.e8ClickOnly = !!state.e8ClickOnly
+    this.e9NoLongpress = !!state.e9NoLongpress
     this.hydrateGeometry()
     this._animating = false
     this._listenersBound = false
@@ -688,6 +712,7 @@ export default {
     return { x: Number(x), y: Number(y) }
   },
 
+  /** P1/P2 점만 — 텍스트 갱신 없음(핫패스) */
   markP1() {
     if (!this.diagnoseLatency) return
     this.diagP1On = !this.diagP1On
@@ -702,7 +727,6 @@ export default {
   onAnimStart() {
     if (this._t2) return
     this._t2 = Date.now()
-    this.refreshDiagTiming()
   },
 
   onAnimEnd() {
@@ -710,40 +734,79 @@ export default {
     if (this._animEndExpected > 0 && this._animEndCount < this._animEndExpected) {
       return
     }
-    if (!this._t3) {
-      this._t3 = Date.now()
-      this.refreshDiagTiming(true)
+    if (!this._t3) this._t3 = Date.now()
+    this.scheduleDiagFlush(true)
+  },
+
+  /** 진단 텍스트는 animationend 이후 setTimeout으로만 갱신 */
+  scheduleDiagFlush(finalize) {
+    if (!this.diagnoseLatency) return
+    this._pendingDiag = { finalize: !!finalize }
+    if (this._diagFlushTimer) return
+    this._diagFlushTimer = setTimeout(() => {
+      this._diagFlushTimer = null
+      const p = this._pendingDiag
+      this._pendingDiag = null
+      if (p) this.flushDiagText(p.finalize)
+    }, 0)
+  },
+
+  buildTimingSample() {
+    const t0 = this._t0 || 0
+    const t1 = this._tsClassSet || this._t1 || 0
+    const t2 = this._t2 || 0
+    const t3 = this._t3 || 0
+    const inSet = deltaMs(t1, t0)
+    const setStart = deltaMs(t2, t1)
+    const animLen = t2 && t3 ? deltaMs(t3, t2) : deltaMs(t3, t1)
+    return {
+      inSet,
+      setStart,
+      animLen,
+      t0Kind: this._t0Kind || 'judge',
+      evtDelay: this._evtDelay,
+      startToMove: deltaMs(this._tsFirstMove, this._tsTouchStart),
+      moveToJudge: deltaMs(this._tsSwipeJudge, this._tsFirstMove),
+      startToEnd: deltaMs(this._tsTouchEnd, this._tsTouchStart),
+      endToSet: deltaMs(t1, this._tsTouchEnd),
+      judgeToHandler: deltaMs(this._tsHandler, t0),
+      handlerToSet: deltaMs(t1, this._tsHandler),
+      n: this.visibleBeadCount || 10,
+      e1: this.e1Minimize !== false,
+      e2: !!this.e2NoScale,
+      e3: this.e3SplitSrc !== false,
+      e4: !!this.e4SkipBack,
+      e5: !!this.e5DirectDom,
+      e6: !!this.e6Solid,
+      e7: !!this.e7TouchStartRoll,
+      e8: !!this.e8ClickOnly,
+      e9: !!this.e9NoLongpress,
+      e5Status: this.e5Status || '',
+      inputMode: this.inputMode || 'slide',
+      at: Date.now()
     }
   },
 
-  refreshDiagTiming(finalize) {
+  flushDiagText(finalize) {
     if (!this.diagnoseLatency) return
-    const t0 = this._t0 || 0
-    const t1 = this._t1 || 0
-    const t2 = this._t2 || 0
-    const t3 = this._t3 || 0
-    const inSet = t0 && t1 ? t1 - t0 : -1
-    const setStart = t1 && t2 ? t2 - t1 : -1
-    const animLen = t2 && t3 ? t3 - t2 : t1 && t3 ? t3 - t1 : -1
-    const e5 = this.e5Status ? ' ' + this.e5Status : ''
-    this.diagText = 'n=' + (this.visibleBeadCount || 10) + e5
-    this.diagLine1 = 'in→set:' + (inSet >= 0 ? inSet + 'ms' : '-')
-    this.diagLine2 = 'set→start:' + (setStart >= 0 ? setStart + 'ms' : '-')
-    if (finalize && inSet >= 0) {
-      const sample = {
-        inSet,
-        setStart,
-        animLen,
-        n: this.visibleBeadCount || 10,
-        e1: this.e1Minimize !== false,
-        e2: !!this.e2NoScale,
-        e3: this.e3SplitSrc !== false,
-        e4: !!this.e4SkipBack,
-        e5: !!this.e5DirectDom,
-        e6: !!this.e6Solid,
-        e5Status: this.e5Status || '',
-        at: Date.now()
-      }
+    const sample = this.buildTimingSample()
+    const ms = (v) => (v >= 0 ? v + 'ms' : '-')
+    this.diagLine0 =
+      'n=' +
+      sample.n +
+      ' t0=' +
+      sample.t0Kind +
+      (this.e5Status ? ' ' + this.e5Status : '')
+    this.diagLine1 = 'in→set:' + ms(sample.inSet)
+    this.diagLine2 = 'set→start:' + ms(sample.setStart)
+    this.diagLine3 = 'anim:' + ms(sample.animLen)
+    if (sample.inputMode === 'touch' || sample.t0Kind === 'tap' || sample.t0Kind === 'e7') {
+      this.diagLine4 = 'end→set:' + ms(sample.endToSet) + ' s→e:' + ms(sample.startToEnd)
+    } else {
+      this.diagLine4 = 'mv→jd:' + ms(sample.moveToJudge) + ' h→set:' + ms(sample.handlerToSet)
+    }
+    this.diagLine5 = 'evtDelay:' + ms(sample.evtDelay)
+    if (finalize && sample.inSet >= 0) {
       this._timingHist.push(sample)
       if (this._timingHist.length > TIMING_AVG_N) this._timingHist.shift()
       pushTimingSample(sample).catch(() => false)
@@ -753,25 +816,42 @@ export default {
         if (!vals.length) return -1
         return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
       }
-      const a1 = avg('inSet')
-      const a2 = avg('setStart')
-      const a3 = avg('animLen')
-      this.diagLine3 =
-        'anim:' +
-        (animLen >= 0 ? animLen + 'ms' : '-') +
-        ' avg:' +
-        (a1 >= 0 ? a1 : '-') +
+      this.diagLine5 =
+        'avg in/ss/an:' +
+        ms(avg('inSet')) +
         '/' +
-        (a2 >= 0 ? a2 : '-') +
+        ms(avg('setStart')) +
         '/' +
-        (a3 >= 0 ? a3 : '-')
-    } else {
-      this.diagLine3 =
-        'anim:' + (animLen >= 0 ? animLen + 'ms' : '-') + ' avg:-'
+        ms(avg('animLen'))
     }
   },
 
+  resetGestureClock() {
+    this._tsTouchStart = 0
+    this._tsFirstMove = 0
+    this._tsSwipeJudge = 0
+    this._tsTouchEnd = 0
+    this._tsHandler = 0
+    this._tsClassSet = 0
+    this._evtDelay = -1
+    this._t0 = 0
+    this._t0Kind = ''
+    this._t1 = 0
+    this._t2 = 0
+    this._t3 = 0
+  },
+
   onTouchStart(e) {
+    if (this.e8ClickOnly) {
+      // E8: 롤은 click만. 터치 시작은 롱프레스/제스처 클록만.
+    }
+    const now = Date.now()
+    const del = eventDeliveryDelay(e, now)
+    this._evtDelay = del.delay
+    this._tsTouchStart = now
+    this._tsFirstMove = 0
+    this._tsSwipeJudge = 0
+    this._tsTouchEnd = 0
     const p = this.touchPoint(e)
     if (!p) return
     this._touchActive = true
@@ -781,21 +861,36 @@ export default {
     this._touchY = p.y
     this.markP1()
     this.clearLpTimer()
-    this._lpTimer = setTimeout(() => {
-      this._lpTimer = null
-      if (!this._touchActive || this._gestureFired) return
-      this._longPressed = true
+    // E7: 터치 모드에서 touchstart 즉시 +1
+    if (
+      !this.e8ClickOnly &&
+      this.e7TouchStartRoll &&
+      (this.inputMode || 'slide') === 'touch'
+    ) {
       this._gestureFired = true
-      this._touchActive = false
-      router.push({ uri: '/pages/settings' })
-    }, LONGPRESS_MS)
+      this.enqueueRoll(1, 'e7')
+    }
+    if (!this.e9NoLongpress) {
+      this._lpTimer = setTimeout(() => {
+        this._lpTimer = null
+        if (!this._touchActive) return
+        // E7: 이미 +1 했어도 설정으로 (취소 없음)
+        if (this._gestureFired && !this.e7TouchStartRoll) return
+        this._longPressed = true
+        this._gestureFired = true
+        this._touchActive = false
+        router.push({ uri: '/pages/settings' })
+      }, LONGPRESS_MS)
+    }
   },
 
   trySwipe(e) {
+    if (this.e8ClickOnly) return false
     if ((this.inputMode || 'slide') === 'touch') return false
     if (!this._touchActive || this._gestureFired || this._longPressed) return false
     const p = this.touchPoint(e)
     if (!p) return false
+    if (!this._tsFirstMove) this._tsFirstMove = Date.now()
     const dx = p.x - this._touchX
     const dy = p.y - this._touchY
     if (Math.abs(dx) > TAP_MAX_MOVE || Math.abs(dy) > TAP_MAX_MOVE) {
@@ -803,31 +898,41 @@ export default {
     }
     const dir = classifyVerticalSwipe(dx, dy, { minDy: SWIPE_MIN_DY })
     if (!dir) return false
+    this._tsSwipeJudge = Date.now()
     this._gestureFired = true
     this.clearLpTimer()
-    this.enqueueRoll(dir)
+    this.enqueueRoll(dir, 'swipe')
     return true
   },
 
   onTouchMove(e) {
+    if (this.e8ClickOnly) return
     if (!this._touchActive) return
+    if (!this._tsFirstMove) this._tsFirstMove = Date.now()
     this.trySwipe(e)
   },
 
   onTouchEnd(e) {
+    this._tsTouchEnd = Date.now()
+    if (this.e8ClickOnly) {
+      this.clearLpTimer()
+      this._touchActive = false
+      return
+    }
     if (!this._touchActive) return
     this.clearLpTimer()
     const mode = this.inputMode || 'slide'
     if (mode === 'slide') {
       this.trySwipe(e)
     } else if (!this._gestureFired && !this._longPressed) {
+      // E7이 이미 굴렸으면 스킵
       const p = this.touchPoint(e)
       if (p) {
         const dx = p.x - this._touchX
         const dy = p.y - this._touchY
         if (Math.abs(dx) <= TAP_MAX_MOVE && Math.abs(dy) <= TAP_MAX_MOVE) {
           this._gestureFired = true
-          this.enqueueRoll(1)
+          this.enqueueRoll(1, 'tap')
         }
       }
     }
@@ -840,13 +945,40 @@ export default {
     this._gestureFired = false
   },
 
-  enqueueRoll(dir) {
+  /** E8: 시스템 click만으로 굴림 */
+  onPageClick() {
+    if (!this.e8ClickOnly) return
+    if (this._longPressed) return
+    this._tsTouchEnd = Date.now()
+    if (!this._tsTouchStart) this._tsTouchStart = this._tsTouchEnd
+    this.enqueueRoll(1, 'click')
+  },
+
+  /** E9: 긴누름 없을 때 진단 패널 탭 → 설정 */
+  onDiagBoxClick() {
+    if (!this.e9NoLongpress) return
+    this.openSettings()
+  },
+
+  openSettings() {
+    router.push({ uri: '/pages/settings' })
+  },
+
+  /**
+   * t0 = 롤 결정 시각 (swipe 판정 / tap 확정 / e7 touchstart / click)
+   * @param {number} dir
+   * @param {string} kind
+   */
+  enqueueRoll(dir, kind) {
     const d = Number(dir) < 0 ? -1 : 1
-    // t0 = 스와이프 판정 또는 탭 확정 시점
-    this._t0 = Date.now()
+    const now = Date.now()
+    this._t0 = now
+    this._t0Kind = kind || 'judge'
+    if (kind === 'swipe' && this._tsSwipeJudge) this._t0 = this._tsSwipeJudge
     this._t1 = 0
     this._t2 = 0
     this._t3 = 0
+    this._tsClassSet = 0
     this._animEndCount = 0
     if (!this._state) {
       this._state = normalizeState({ todayDate: formatDate() })
@@ -877,6 +1009,7 @@ export default {
   },
 
   startRoll(dir) {
+    this._tsHandler = Date.now()
     const d = Number(dir) < 0 ? -1 : 1
     const result = applySwipeCount(this._state, d)
     this._state = result.state
@@ -894,10 +1027,8 @@ export default {
       const cls = classes[i] || ''
       if (useE5) {
         const ok = this.applyClassDirect(i, cls)
-        if (ok) {
-          e5Ok++
-          // 바인딩 갱신 생략 (비용 비교용)
-        } else {
+        if (ok) e5Ok++
+        else {
           e5Fail++
           this['a' + i] = cls
         }
@@ -905,6 +1036,9 @@ export default {
         this['a' + i] = cls
       }
     }
+    // 클래스 대입 직후 = t1 (핫패스 최우선 — 진단 텍스트/진동/저장 없음)
+    this._tsClassSet = Date.now()
+    this._t1 = this._tsClassSet
     if (useE5) {
       if (e5Ok > 0 && e5Fail === 0) {
         this._e5Works = true
@@ -916,32 +1050,25 @@ export default {
         this.e5Status = 'E5:partial'
       }
     }
-    this._t1 = Date.now()
     this._animEndExpected = classes.filter((c) => !!c).length || 1
     this.markP2()
-    this.refreshDiagTiming(false)
     this.clearAnimTimers()
-    // t2 폴백: animationstart 미지원 시 setTimeout(0)
     this._t2Timer = setTimeout(() => {
       this._t2Timer = null
-      if (!this._t2) {
-        this._t2 = Date.now()
-        this.refreshDiagTiming(false)
-      }
+      if (!this._t2) this._t2 = Date.now()
     }, 0)
     const completedRound = !!result.completedRound
     const state = result.state
+    // 진동·저장은 클래스 set 이후 비동기
     this._sideTimer = setTimeout(() => {
       this._sideTimer = null
       this.buzz(completedRound)
       this.queueSave(state)
     }, 0)
     this._animTimer = setTimeout(() => {
-      if (!this._t3) {
-        this._t3 = Date.now()
-        this.refreshDiagTiming(true)
-      }
+      if (!this._t3) this._t3 = Date.now()
       this.finishRoll()
+      this.scheduleDiagFlush(true)
     }, CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS)
   },
 
@@ -999,7 +1126,7 @@ export default {
   top: 0px;
   background-color: #8b5a2b;
 }
-/* 하단 원형 안전영역 y≈330–420 · 불투명 · z 최상 */
+/* 2.4.5: 둥근 사각형 화면 · 줄별 absolute top (24px×1.4=34) · 겹침 금지 */
 .diag-layer {
   position: absolute;
   left: 0px;
@@ -1010,45 +1137,97 @@ export default {
 }
 .diag-box {
   position: absolute;
-  left: 56px;
-  top: 330px;
-  width: 320px;
-  height: 70px;
+  left: 24px;
+  top: 290px;
+  width: 384px;
+  height: 214px;
   background-color: #120e0a;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding-top: 2px;
-  padding-bottom: 2px;
-}
-.diag-row {
-  width: 300px;
-  height: 28px;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
 }
 .diag-dot {
-  width: 22px;
-  height: 22px;
-  margin-left: 4px;
-  margin-right: 4px;
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  top: 10px;
   background-color: #3a2a18;
+}
+.diag-dot.p1 {
+  left: 12px;
+}
+.diag-dot.p2 {
+  left: 40px;
 }
 .dot-on {
   background-color: #ffffff;
 }
-.diag-text {
-  margin-left: 8px;
-  font-size: 28px;
+.diag-l0 {
+  position: absolute;
+  left: 68px;
+  top: 6px;
+  width: 300px;
+  height: 34px;
+  font-size: 24px;
   color: #ffffff;
 }
-.diag-line {
-  width: 300px;
-  text-align: center;
-  font-size: 28px;
+.diag-l1 {
+  position: absolute;
+  left: 12px;
+  top: 40px;
+  width: 360px;
+  height: 34px;
+  font-size: 24px;
   color: #ffffff;
-  margin-top: 0px;
+}
+.diag-l2 {
+  position: absolute;
+  left: 12px;
+  top: 74px;
+  width: 360px;
+  height: 34px;
+  font-size: 24px;
+  color: #ffffff;
+}
+.diag-l3 {
+  position: absolute;
+  left: 12px;
+  top: 108px;
+  width: 360px;
+  height: 34px;
+  font-size: 24px;
+  color: #ffffff;
+}
+.diag-l4 {
+  position: absolute;
+  left: 12px;
+  top: 142px;
+  width: 360px;
+  height: 34px;
+  font-size: 24px;
+  color: #ffffff;
+}
+.diag-l5 {
+  position: absolute;
+  left: 12px;
+  top: 176px;
+  width: 360px;
+  height: 34px;
+  font-size: 24px;
+  color: #ffffff;
+}
+.e9-settings {
+  position: absolute;
+  right: 16px;
+  top: 12px;
+  width: 72px;
+  height: 40px;
+  z-index: 1000;
+  background-color: #2a1e14;
+  justify-content: center;
+  align-items: center;
+}
+.e9-settings-text {
+  font-size: 22px;
+  color: #e8c48a;
+  text-align: center;
 }
 /* CHAIN_KF_BEGIN */
 .roll-next-0 {

@@ -33,7 +33,10 @@ export const EXP_DEFAULTS = Object.freeze({
   e3SplitSrc: true,
   e4SkipBack: false,
   e5DirectDom: false,
-  e6Solid: false
+  e6Solid: false,
+  e7TouchStartRoll: false,
+  e8ClickOnly: false,
+  e9NoLongpress: false
 })
 
 export const EXP_LABELS = Object.freeze({
@@ -42,7 +45,10 @@ export const EXP_LABELS = Object.freeze({
   e3SplitSrc: 'E3 뒷열 저해상',
   e4SkipBack: 'E4 뒷열 스냅',
   e5DirectDom: 'E5 $element 클래스',
-  e6Solid: 'E6 단색 원'
+  e6Solid: 'E6 단색 원',
+  e7TouchStartRoll: 'E7 touchstart 즉시+1',
+  e8ClickOnly: 'E8 click만',
+  e9NoLongpress: 'E9 긴누름 타이머 끔'
 })
 
 export const EXP_HINTS = Object.freeze({
@@ -51,7 +57,10 @@ export const EXP_HINTS = Object.freeze({
   e3SplitSrc: '앞255/뒤160 원본=표시 (기본 켜짐)',
   e4SkipBack: '뒷열 애니 생략·종료 스냅 (형상 변경, 기본 끔)',
   e5DirectDom: 'data 바인딩 대신 $element 직접 클래스 (API 없으면 불가)',
-  e6Solid: '이미지 대신 단색 원 (디코드 분리, 기본 끔)'
+  e6Solid: '이미지 대신 단색 원 (디코드 분리, 기본 끔)',
+  e7TouchStartRoll: '터치 모드: touchstart에서 즉시 +1 (긴누름→설정, 취소 없음)',
+  e8ClickOnly: '시스템 click만으로 굴림 (터치 핸들러 롤 생략)',
+  e9NoLongpress: '긴누름 타이머 완전 비활성 (설정은 다른 경로)'
 })
 
 export const DEFAULT_STATE = Object.freeze({
@@ -72,7 +81,10 @@ export const DEFAULT_STATE = Object.freeze({
   e4SkipBack: false,
   e5DirectDom: false,
   e6Solid: false,
-  stateSchema: 7
+  e7TouchStartRoll: false,
+  e8ClickOnly: false,
+  e9NoLongpress: false,
+  stateSchema: 8
 })
 
 /**
@@ -139,25 +151,28 @@ export const normalizeState = (raw) => {
     e4SkipBack: src.e4SkipBack === true,
     e5DirectDom: src.e5DirectDom === true,
     e6Solid: src.e6Solid === true,
+    e7TouchStartRoll: src.e7TouchStartRoll === true,
+    e8ClickOnly: src.e8ClickOnly === true,
+    e9NoLongpress: src.e9NoLongpress === true,
     stateSchema
   }
 }
 
 /**
- * 2.4.3: schema≥7. 표시 구슬 수·E5/E6 기본값.
+ * 2.4.5: schema≥8. E7–E9 기본 off.
  * @param {object} state
  * @returns {{ state: object, migrated: boolean }}
  */
 export const migrateAnimModeForStability = (state) => {
   const s = normalizeState(state)
-  if (s.stateSchema >= 7) {
+  if (s.stateSchema >= 8) {
     return { state: s, migrated: false }
   }
   const fromSingle = s.singleBeadTest === true ? 1 : s.visibleBeadCount || 10
   return {
     state: {
       ...s,
-      stateSchema: 7,
+      stateSchema: 8,
       inputMode: INPUT_MODES.includes(s.inputMode) ? s.inputMode : 'slide',
       diagnoseLatency: s.diagnoseLatency === true,
       singleBeadTest: fromSingle === 1,
@@ -166,8 +181,11 @@ export const migrateAnimModeForStability = (state) => {
       e2NoScale: !!s.e2NoScale,
       e3SplitSrc: s.e3SplitSrc !== false,
       e4SkipBack: !!s.e4SkipBack,
-      e5DirectDom: false,
-      e6Solid: false
+      e5DirectDom: !!s.e5DirectDom,
+      e6Solid: !!s.e6Solid,
+      e7TouchStartRoll: false,
+      e8ClickOnly: false,
+      e9NoLongpress: false
     },
     migrated: true
   }
@@ -314,6 +332,10 @@ export const setE3SplitSrc = (state, enabled) => setExpFlag(state, 'e3SplitSrc',
 export const setE4SkipBack = (state, enabled) => setExpFlag(state, 'e4SkipBack', enabled)
 export const setE5DirectDom = (state, enabled) => setExpFlag(state, 'e5DirectDom', enabled)
 export const setE6Solid = (state, enabled) => setExpFlag(state, 'e6Solid', enabled)
+export const setE7TouchStartRoll = (state, enabled) =>
+  setExpFlag(state, 'e7TouchStartRoll', enabled)
+export const setE8ClickOnly = (state, enabled) => setExpFlag(state, 'e8ClickOnly', enabled)
+export const setE9NoLongpress = (state, enabled) => setExpFlag(state, 'e9NoLongpress', enabled)
 
 export const resetSession = (state) => {
   const s = normalizeState(state)

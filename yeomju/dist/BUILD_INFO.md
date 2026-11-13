@@ -1,20 +1,23 @@
-# 빌드 정보 — 2.4.4 (진단 패널 가독성)
+# 빌드 정보 — 2.4.5 (in→set 세분화 · 사각형 진단)
 
 ## 산출물 (사실)
 
-- `yeomju/dist/com.yeomju.mala.debug.2.4.4.rpk`
-- 크기: 94689 bytes
-- SHA256: `b072a7418a79c83ade9c8005d5e10460076cb2a736658164e0f7dd8243d02e0f`
-- versionName 2.4.4 / versionCode 21
-- 단위 테스트: 35 passed
-- 미리보기: `docs/preview-2.4.4-diag.png` (원형 마스크 · 박스 네 모서리 원 안)
+- `yeomju/dist/com.yeomju.mala.debug.2.4.5.rpk`
+- 크기: 99049 bytes
+- SHA256: `489bf07b8cd2c975947a71184df83e3a9ba6525a04fb5c2dd3fe1dbb7f386dc7`
+- versionName 2.4.5 / versionCode 22
+- 단위 테스트: 37 passed
+- 미리보기: `docs/preview-2.4.5-diag.png` (둥근 사각형 마스크 · 줄별 absolute top)
 
-## 2.4.4 변경
+## 2.4.5 변경
 
-1. 진단 로그: DOM 최후 + z-index 999 · 하단 y330–400 불투명 `#120e0a` 박스 · 흰 글씨 28px
-2. 설정 → **최근 측정값 보기** (`pages/diag`): 최근 5회 in→set/set→start/anim + 평균 + n·E토글
-3. 2.4.3 기능·형상 유지
+1. 진단 패널: 432×514 사각형 기준, 줄 6개 개별 text + absolute top (24px / lineH 34)
+2. in→set 세분화: touchstart / first move / swipe judge / touchend / handler / class set + evtDelay; t0Kind=swipe|tap|e7|click
+3. E7 touchstart 즉시+1 · E8 click만 · E9 긴누름 끔 (설정 칩/진단패널)
+4. 핫패스: 클래스 set 후 진동·저장 · 진단 텍스트는 animationend 이후 setTimeout
+5. 최근 측정값 화면: 세부 구간 표시
+6. 형상(구슬 레이아웃) 유지
 
 ## 미확인
 
-- 실기기에서 패널 가독성 (**단정하지 않음**)
+- 실기기에서 in→set 원인·개선 여부 (**단정하지 않음**)

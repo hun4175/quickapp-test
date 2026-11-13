@@ -143,6 +143,39 @@
       </div>
     </div>
 
+    <text class="label">실험 E7 touchstart 즉시+1</text>
+    <text class="hint">터치 모드: start에서 +1 · 긴누름→설정(취소 없음)</text>
+    <div class="row">
+      <div class="chip {{e7TouchStartRoll ? 'chip-on' : ''}}" onclick="setE7On">
+        <text class="chip-text">켜기</text>
+      </div>
+      <div class="chip {{!e7TouchStartRoll ? 'chip-on' : ''}}" onclick="setE7Off">
+        <text class="chip-text">끄기</text>
+      </div>
+    </div>
+
+    <text class="label">실험 E8 click만</text>
+    <text class="hint">시스템 click으로만 굴림 · 터치 롤 생략</text>
+    <div class="row">
+      <div class="chip {{e8ClickOnly ? 'chip-on' : ''}}" onclick="setE8On">
+        <text class="chip-text">켜기</text>
+      </div>
+      <div class="chip {{!e8ClickOnly ? 'chip-on' : ''}}" onclick="setE8Off">
+        <text class="chip-text">끄기</text>
+      </div>
+    </div>
+
+    <text class="label">실험 E9 긴누름 끔</text>
+    <text class="hint">긴누름 타이머 비활성 · 진단패널 탭→설정</text>
+    <div class="row">
+      <div class="chip {{e9NoLongpress ? 'chip-on' : ''}}" onclick="setE9On">
+        <text class="chip-text">켜기</text>
+      </div>
+      <div class="chip {{!e9NoLongpress ? 'chip-on' : ''}}" onclick="setE9Off">
+        <text class="chip-text">끄기</text>
+      </div>
+    </div>
+
     <text class="label">데이터</text>
     <div class="col">
       <div class="action" onclick="confirmSession">
@@ -153,7 +186,7 @@
       </div>
     </div>
 
-    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.4.4</text>
+    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.4.5</text>
   </div>
 </template>
 
@@ -171,6 +204,9 @@ import {
   setE4SkipBack,
   setE5DirectDom,
   setE6Solid,
+  setE7TouchStartRoll,
+  setE8ClickOnly,
+  setE9NoLongpress,
   INPUT_MODE_HINTS
 } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
@@ -189,7 +225,10 @@ export default {
     e3SplitSrc: true,
     e4SkipBack: false,
     e5DirectDom: false,
-    e6Solid: false
+    e6Solid: false,
+    e7TouchStartRoll: false,
+    e8ClickOnly: false,
+    e9NoLongpress: false
   },
 
   onShow() {
@@ -227,6 +266,9 @@ export default {
     this.e4SkipBack = !!state.e4SkipBack
     this.e5DirectDom = !!state.e5DirectDom
     this.e6Solid = !!state.e6Solid
+    this.e7TouchStartRoll = !!state.e7TouchStartRoll
+    this.e8ClickOnly = !!state.e8ClickOnly
+    this.e9NoLongpress = !!state.e9NoLongpress
   },
 
   async persist(next) {
@@ -347,6 +389,30 @@ export default {
   async setE6Off() {
     if (!this._state) await this.reload()
     await this.persist(setE6Solid(this._state, false))
+  },
+  async setE7On() {
+    if (!this._state) await this.reload()
+    await this.persist(setE7TouchStartRoll(this._state, true))
+  },
+  async setE7Off() {
+    if (!this._state) await this.reload()
+    await this.persist(setE7TouchStartRoll(this._state, false))
+  },
+  async setE8On() {
+    if (!this._state) await this.reload()
+    await this.persist(setE8ClickOnly(this._state, true))
+  },
+  async setE8Off() {
+    if (!this._state) await this.reload()
+    await this.persist(setE8ClickOnly(this._state, false))
+  },
+  async setE9On() {
+    if (!this._state) await this.reload()
+    await this.persist(setE9NoLongpress(this._state, true))
+  },
+  async setE9Off() {
+    if (!this._state) await this.reload()
+    await this.persist(setE9NoLongpress(this._state, false))
   },
 
   openDiagLog() {
