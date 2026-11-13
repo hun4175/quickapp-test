@@ -1,6 +1,7 @@
 /**
  * 키프레임 CSS·프리뷰·테스트 전용.
- * 2.3.1: 0/100 linear · origin 0 0 · 노드=홈 슬롯 고정.
+ * 2.4.2: roll-/roll0- (scale) + rollt-/rollt0- (translate only, E2)
+ *   roll*  = E3 on, roll*0 = E3 off
  */
 import {
   CHAIN_ANIM_MS,
@@ -27,18 +28,22 @@ const formatScale = (scale) => {
   return String(Math.round(s * 1e8) / 1e8)
 }
 
-const kfLine = (pct, tr) =>
+const kfLineScale = (pct, tr) =>
   `  ${pct}% { transform: translate(${tr.tx}px, ${tr.ty}px) scale(${formatScale(tr.scale)}); }`
 
+const kfLineTranslate = (pct, tr) =>
+  `  ${pct}% { transform: translate(${tr.tx}px, ${tr.ty}px); }`
+
 export const buildChainKeyframeCss = (opts = {}) => {
-  const slots = layoutChainSlots(opts)
-  const n = slots.length
-  const ms = CHAIN_ANIM_MS
   const lines = []
-  const emit = (from, to, dirLabel, alt) => {
-    const name = `${dirLabel}-${from.index}${alt ? '-b' : ''}`
-    const kfName = `kf-${dirLabel}-${from.index}`
-    lines.push(`.roll-${name} {
+  const ms = CHAIN_ANIM_MS
+
+  const emitFamily = (slots, prefix, withScale) => {
+    const n = slots.length
+    const emit = (from, to, dirLabel, alt) => {
+      const name = `${dirLabel}-${from.index}${alt ? '-b' : ''}`
+      const kfName = `kf-${prefix}${dirLabel}-${from.index}`
+      lines.push(`.${prefix}${name} {
   animation-name: ${kfName};
   animation-duration: ${ms}ms;
   animation-timing-function: linear;
@@ -46,20 +51,46 @@ export const buildChainKeyframeCss = (opts = {}) => {
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }`)
-    if (!alt) {
-      const end = endKeyframeTransform(from, to)
-      lines.push(`@keyframes ${kfName} {
-  0% { transform: translate(0px, 0px) scale(1); }
-${kfLine(100, end)}
+      if (!alt) {
+        const end = endKeyframeTransform(from, to)
+        const tr = withScale
+          ? end
+          : {
+              tx: (to.left + to.size / 2) - (from.left + from.size / 2),
+              ty: (to.top + to.size / 2) - (from.top + from.size / 2),
+              scale: 1
+            }
+        const body = withScale ? kfLineScale(100, tr) : kfLineTranslate(100, tr)
+        const zero = withScale
+          ? `  0% { transform: translate(0px, 0px) scale(1); }`
+          : `  0% { transform: translate(0px, 0px); }`
+        lines.push(`@keyframes ${kfName} {
+${zero}
+${body}
 }`)
+      }
+    }
+    for (let i = 0; i < n; i++) {
+      emit(slots[i], slots[(i + 1) % n], 'next', false)
+      emit(slots[i], slots[(i + 1) % n], 'next', true)
+      emit(slots[i], slots[(i - 1 + n) % n], 'prev', false)
+      emit(slots[i], slots[(i - 1 + n) % n], 'prev', true)
     }
   }
-  for (let i = 0; i < n; i++) {
-    emit(slots[i], slots[(i + 1) % n], 'next', false)
-    emit(slots[i], slots[(i + 1) % n], 'next', true)
-    emit(slots[i], slots[(i - 1 + n) % n], 'prev', false)
-    emit(slots[i], slots[(i - 1 + n) % n], 'prev', true)
-  }
+
+  // 기본(E3 on) · E3 off · E2 translate · E2+E3 off
+  emitFamily(layoutChainSlots({ ...opts, e3SplitSrc: true }), 'roll-', true)
+  emitFamily(layoutChainSlots({ ...opts }), 'roll0-', true)
+  emitFamily(
+    layoutChainSlots({ ...opts, equalColumnSizes: true, e3SplitSrc: true }),
+    'rollt-',
+    false
+  )
+  emitFamily(
+    layoutChainSlots({ ...opts, equalColumnSizes: true }),
+    'rollt0-',
+    false
+  )
   return lines.join('\n')
 }
 
@@ -86,7 +117,7 @@ export const layoutRing = (opts = {}) => {
       depth: 0,
       z: b.z,
       focused: b.homeSlot === 0,
-      src: BEAD_SRC,
+      src: b.src || BEAD_SRC,
       cx: b.left + Math.floor(b.size / 2),
       cy: b.top + Math.floor(b.size / 2)
     }))
@@ -100,35 +131,48 @@ export const layoutRing = (opts = {}) => {
       depth: 0,
       z: b.z,
       focused: b.visualSlot === 0,
-      src: BEAD_SRC,
+      src: b.src || BEAD_SRC,
       cx: b.left + Math.floor(b.size / 2),
       cy: b.top + Math.floor(b.size / 2)
     }))
   }
-  // 중간: 홈→이웃 보간 (origin 0 0)
-  const slots = layoutChainSlots(opts)
+  const slots = layoutChainSlots({
+    ...opts,
+    equalColumnSizes: !!opts.equalColumnSizes || !!opts.e2NoScale,
+    e3SplitSrc: opts.e3SplitSrc === true
+  })
   const n = slots.length
-  return beads.map((b) => {
-    const home = b.homeSlot
-    const to = slots[(home + dir + n) % n]
-    const from = slots[home]
-    const tr = transformAtProgress(from, to, mid)
-    const size = Math.round(from.size * tr.scale)
-    const left = from.left + tr.tx
-    const top = from.top + tr.ty
-    return {
-      key: home,
-      left,
-      top,
-      size,
-      depth: from.depth,
-      z: b.z,
-      focused: false,
-      src: BEAD_SRC,
-      cx: left + Math.floor(size / 2),
-      cy: top + Math.floor(size / 2)
-    }
-  }).sort((a, b) => a.z - b.z)
+  return beads
+    .map((b) => {
+      const home = b.homeSlot
+      const to = slots[(home + dir + n) % n]
+      const from = slots[home]
+      const tr = transformAtProgress(from, to, mid)
+      const size = opts.e2NoScale
+        ? from.size
+        : Math.round(from.size * tr.scale)
+      const left = opts.e2NoScale
+        ? from.left +
+          ((to.left + to.size / 2) - (from.left + from.size / 2)) * mid
+        : from.left + tr.tx
+      const top = opts.e2NoScale
+        ? from.top +
+          ((to.top + to.size / 2) - (from.top + from.size / 2)) * mid
+        : from.top + tr.ty
+      return {
+        key: home,
+        left,
+        top,
+        size,
+        depth: from.depth,
+        z: b.z,
+        focused: false,
+        src: from.src || BEAD_SRC,
+        cx: left + Math.floor(size / 2),
+        cy: top + Math.floor(size / 2)
+      }
+    })
+    .sort((a, b) => a.z - b.z)
 }
 
 export const focusCenterNear = (items, fx = 216, fy = 257, tol = 4) => {

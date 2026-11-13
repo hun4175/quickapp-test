@@ -45,7 +45,7 @@
     </div>
 
     <text class="label">진단</text>
-    <text class="hint">P1=터치시작 · P2=애니클래스 · ms 표시</text>
+    <text class="hint">P1=터치시작 · P2=애니클래스 · 중앙 안전영역</text>
     <div class="row">
       <div class="chip {{diagnoseLatency ? 'chip-on' : ''}}" onclick="setDiagOn">
         <text class="chip-text">켜기</text>
@@ -66,6 +66,50 @@
       </div>
     </div>
 
+    <text class="label">실험 E1 애니 최소화</text>
+    <text class="hint">버퍼↔버퍼 생략 · 기본 켜짐 · 애니 8/10</text>
+    <div class="row">
+      <div class="chip {{e1Minimize ? 'chip-on' : ''}}" onclick="setE1On">
+        <text class="chip-text">켜기</text>
+      </div>
+      <div class="chip {{!e1Minimize ? 'chip-on' : ''}}" onclick="setE1Off">
+        <text class="chip-text">끄기</text>
+      </div>
+    </div>
+
+    <text class="label">실험 E2 scale 제거</text>
+    <text class="hint">translate만 · 열별 동일크기 · 형상 변경 · 기본 끔</text>
+    <div class="row">
+      <div class="chip {{e2NoScale ? 'chip-on' : ''}}" onclick="setE2On">
+        <text class="chip-text">켜기</text>
+      </div>
+      <div class="chip {{!e2NoScale ? 'chip-on' : ''}}" onclick="setE2Off">
+        <text class="chip-text">끄기</text>
+      </div>
+    </div>
+
+    <text class="label">실험 E3 뒷열 저해상</text>
+    <text class="hint">앞255/뒤160 원본=표시 · 기본 켜짐</text>
+    <div class="row">
+      <div class="chip {{e3SplitSrc ? 'chip-on' : ''}}" onclick="setE3On">
+        <text class="chip-text">켜기</text>
+      </div>
+      <div class="chip {{!e3SplitSrc ? 'chip-on' : ''}}" onclick="setE3Off">
+        <text class="chip-text">끄기</text>
+      </div>
+    </div>
+
+    <text class="label">실험 E4 뒷열 스냅</text>
+    <text class="hint">뒷열 애니 생략 · 형상 변경 · 기본 끔 · 애니 4</text>
+    <div class="row">
+      <div class="chip {{e4SkipBack ? 'chip-on' : ''}}" onclick="setE4On">
+        <text class="chip-text">켜기</text>
+      </div>
+      <div class="chip {{!e4SkipBack ? 'chip-on' : ''}}" onclick="setE4Off">
+        <text class="chip-text">끄기</text>
+      </div>
+    </div>
+
     <text class="label">데이터</text>
     <div class="col">
       <div class="action" onclick="confirmSession">
@@ -76,7 +120,7 @@
       </div>
     </div>
 
-    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.4.1</text>
+    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.4.2</text>
   </div>
 </template>
 
@@ -88,6 +132,10 @@ import {
   setInputMode,
   setDiagnoseLatency,
   setSingleBeadTest,
+  setE1Minimize,
+  setE2NoScale,
+  setE3SplitSrc,
+  setE4SkipBack,
   INPUT_MODE_HINTS
 } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
@@ -100,7 +148,11 @@ export default {
     inputMode: 'slide',
     inputHint: INPUT_MODE_HINTS.slide,
     diagnoseLatency: false,
-    singleBeadTest: false
+    singleBeadTest: false,
+    e1Minimize: true,
+    e2NoScale: false,
+    e3SplitSrc: true,
+    e4SkipBack: false
   },
 
   onShow() {
@@ -132,6 +184,10 @@ export default {
     this.inputHint = INPUT_MODE_HINTS[this.inputMode] || INPUT_MODE_HINTS.slide
     this.diagnoseLatency = !!state.diagnoseLatency
     this.singleBeadTest = !!state.singleBeadTest
+    this.e1Minimize = state.e1Minimize !== false
+    this.e2NoScale = !!state.e2NoScale
+    this.e3SplitSrc = state.e3SplitSrc !== false
+    this.e4SkipBack = !!state.e4SkipBack
   },
 
   async persist(next) {
@@ -194,6 +250,39 @@ export default {
   async setSingleOff() {
     if (!this._state) await this.reload()
     await this.persist(setSingleBeadTest(this._state, false))
+  },
+
+  async setE1On() {
+    if (!this._state) await this.reload()
+    await this.persist(setE1Minimize(this._state, true))
+  },
+  async setE1Off() {
+    if (!this._state) await this.reload()
+    await this.persist(setE1Minimize(this._state, false))
+  },
+  async setE2On() {
+    if (!this._state) await this.reload()
+    await this.persist(setE2NoScale(this._state, true))
+  },
+  async setE2Off() {
+    if (!this._state) await this.reload()
+    await this.persist(setE2NoScale(this._state, false))
+  },
+  async setE3On() {
+    if (!this._state) await this.reload()
+    await this.persist(setE3SplitSrc(this._state, true))
+  },
+  async setE3Off() {
+    if (!this._state) await this.reload()
+    await this.persist(setE3SplitSrc(this._state, false))
+  },
+  async setE4On() {
+    if (!this._state) await this.reload()
+    await this.persist(setE4SkipBack(this._state, true))
+  },
+  async setE4Off() {
+    if (!this._state) await this.reload()
+    await this.persist(setE4SkipBack(this._state, false))
   },
 
   confirmSession() {

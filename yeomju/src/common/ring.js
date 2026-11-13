@@ -1,8 +1,7 @@
 /**
- * 염주 고리 — 2.4.0 (시각·기하=2.3.1 유지).
- * - 노드 10, 지름·간격·고정 그리기 순서·홈 스냅·150ms linear.
- * - SWIPE_MIN_DY 하향·교대 클래스명(-b)만 입력 지연용 추가.
- * - 레인/opacity 금지.
+ * 염주 고리 — 2.4.2 (기본 형상=2.3.1, 실험 토글 E1–E4).
+ * - 노드 10, 홈 스냅, 150ms linear, 레인/opacity 금지.
+ * - E1 애니 최소화(기본 on) E2 scale제거(off) E3 앞/뒤 이미지(on) E4 뒷열스냅(off)
  */
 
 export const VIRTUAL_BEADS = 12
@@ -28,6 +27,10 @@ export const SWIPE_VERTICAL_RATIO = 1.2
 export const TAP_MAX_MOVE = 14
 
 export const BEAD_SRC = '/common/bead-wood-v3.png'
+/** E3: 앞열 표시 max(255) / 뒷열 160 원본=표시 */
+export const BEAD_SRC_FRONT = '/common/bead-front-255.png'
+export const BEAD_SRC_BACK = '/common/bead-back-160.png'
+export const BEAD_BACK_DISPLAY = 160
 
 /** 2.2.0 중심거리 유지(ry=420), 지름만 확대해 간격비 맞춤 */
 export const DEFAULT_RING = Object.freeze({
@@ -119,6 +122,11 @@ export const slotGeomAtAngle = (angle, opts = {}) => {
   }
 }
 
+/**
+ * @param {object} [opts]
+ * @param {boolean} [opts.equalColumnSizes] E2: 앞열·뒷열 각각 동일 size
+ * @param {boolean} [opts.e3SplitSrc] E3: 뒷열 size=BEAD_BACK_DISPLAY, src 분리
+ */
 export const layoutChainSlots = (opts = {}) => {
   const o = ringOpts(opts)
   const n = Math.max(
@@ -126,15 +134,51 @@ export const layoutChainSlots = (opts = {}) => {
     Math.min(MAX_RENDER_NODES, Math.floor(Number(o.slotCount) || SLOT_COUNT))
   )
   const step = (Math.PI * 2) / n
-  const raw = []
+  let raw = []
   for (let i = 0; i < n; i++) {
     const angle = Math.PI + i * step
     const g = slotGeomAtAngle(angle, o)
     raw.push({ index: i, ...g, src: BEAD_SRC })
   }
+  if (opts.equalColumnSizes) {
+    const front = raw.filter((s) => s.depth >= FRONT_DEPTH_MIN)
+    const back = raw.filter((s) => s.depth < FRONT_DEPTH_MIN)
+    const fs = Math.max(...front.map((s) => s.size))
+    const bs = Math.max(...back.map((s) => s.size))
+    raw = raw.map((s) => {
+      const size = s.depth >= FRONT_DEPTH_MIN ? fs : bs
+      return {
+        ...s,
+        size,
+        left: s.cx - Math.floor(size / 2),
+        top: s.cy - Math.floor(size / 2)
+      }
+    })
+  }
+  if (opts.e3SplitSrc) {
+    raw = raw.map((s) => {
+      if (s.depth >= FRONT_DEPTH_MIN) {
+        return { ...s, src: BEAD_SRC_FRONT }
+      }
+      const size = BEAD_BACK_DISPLAY
+      return {
+        ...s,
+        size,
+        left: s.cx - Math.floor(size / 2),
+        top: s.cy - Math.floor(size / 2),
+        src: BEAD_SRC_BACK
+      }
+    })
+  }
   const order = fixedDrawOrderFromSlots(raw)
   const rank = new Map(order.map((idx, r) => [idx, r]))
   return raw.map((s) => ({ ...s, z: rank.get(s.index) || 0 }))
+}
+
+export const srcForHomeSlot = (homeSlot, opts = {}) => {
+  const slots = layoutChainSlots(opts)
+  const s = slots[((homeSlot % slots.length) + slots.length) % slots.length]
+  return s.src || BEAD_SRC
 }
 
 /**
@@ -252,7 +296,12 @@ export const angledPair = (fromSlot, toSlot, slotCount = SLOT_COUNT) => {
   return { a0, a1 }
 }
 
+/**
+ * E1(기본): 버퍼↔버퍼(양끝 완전 화면 밖)는 애니 생략.
+ * e1Minimize===false 이면 전 슬롯 애니.
+ */
 export const shouldAnimateTransition = (fromSlot, toSlot, opts = {}) => {
+  if (opts.e1Minimize === false) return true
   const fromOut = isSlotFullyOffScreen(fromSlot, opts)
   const toOut = isSlotFullyOffScreen(toSlot, opts)
   return !(fromOut && toOut)
@@ -300,16 +349,31 @@ export const keyframeEndMatchesSnap = (fromSlot, toSlot, tol = 0) => {
   )
 }
 
+/** layoutChainSlots 에 넘길 기하 플래그만 */
+export const slotLayoutOpts = (opts = {}) => ({
+  equalColumnSizes: !!opts.equalColumnSizes || !!opts.e2NoScale,
+  e3SplitSrc: opts.e3SplitSrc === true
+})
+
+/** 애니 클래스 접두사: E2→rollt, E3 off→*0 */
+export const rollClassPrefix = (opts = {}) => {
+  const e3 = opts.e3SplitSrc === true
+  if (opts.e2NoScale) return e3 ? 'rollt-' : 'rollt0-'
+  return e3 ? 'roll-' : 'roll0-'
+}
+
 export const rollClassForSlot = (slotIndex, dir, opts = {}) => {
-  const slots = layoutChainSlots(ringOpts(opts))
+  const layoutOpts = slotLayoutOpts(opts)
+  const slots = layoutChainSlots({ ...ringOpts(opts), ...layoutOpts })
   const n = slots.length
   const i = ((Math.floor(Number(slotIndex) || 0) % n) + n) % n
   const d = Number(dir) < 0 ? -1 : 1
   const to = slots[(i + d + n) % n]
   if (!shouldAnimateTransition(slots[i], to, opts)) return ''
-  // 같은 클래스 재적용 시 애니 미재시작 → 교대 접미사로 강제 재시작
+  // E4: 출발이 뒷열이면 애니 생략(종료 시 기하만 — 홈 스냅과 동일)
+  if (opts.e4SkipBack && slots[i].depth < FRONT_DEPTH_MIN) return ''
   const alt = opts.alt ? '-b' : ''
-  return (d < 0 ? 'roll-prev-' : 'roll-next-') + i + alt
+  return rollClassPrefix(opts) + (d < 0 ? 'prev-' : 'next-') + i + alt
 }
 
 const beadFromHomeSlot = (slotIdx, s, rank) => ({
@@ -321,15 +385,27 @@ const beadFromHomeSlot = (slotIdx, s, rank) => ({
   size: s.size,
   depth: s.depth,
   z: rank[slotIdx] != null ? rank[slotIdx] : s.z,
-  src: BEAD_SRC,
+  src: s.src || BEAD_SRC,
   animClass: ''
+})
+
+/** createChainBeads / layout 에 실험 플래그 반영 (E1·E3 기본 on) */
+export const layoutOptsFromExps = (exps = {}) => ({
+  equalColumnSizes: !!exps.e2NoScale,
+  e3SplitSrc: exps.e3SplitSrc !== false,
+  e1Minimize: exps.e1Minimize !== false,
+  e2NoScale: !!exps.e2NoScale,
+  e4SkipBack: !!exps.e4SkipBack,
+  singleBead: !!exps.singleBead,
+  alt: !!exps.alt
 })
 
 /**
  * 노드=슬롯 고정. 배열 순서=fixedDrawOrder (절대 재정렬하지 않음).
  */
 export const createChainBeads = (opts = {}) => {
-  const slots = layoutChainSlots(ringOpts(opts))
+  const layoutOpts = slotLayoutOpts(opts)
+  const slots = layoutChainSlots({ ...ringOpts(opts), ...layoutOpts })
   if (slots.length > MAX_RENDER_NODES) {
     throw new Error('render nodes exceed MAX_RENDER_NODES')
   }
@@ -340,7 +416,8 @@ export const createChainBeads = (opts = {}) => {
 
 /** 홈 스냅: 기하·z를 홈 슬롯으로, animClass 클리어. 배열 순서·id 불변 */
 export const snapBeadsHome = (beads, opts = {}) => {
-  const slots = layoutChainSlots(ringOpts(opts))
+  const layoutOpts = slotLayoutOpts(opts)
+  const slots = layoutChainSlots({ ...ringOpts(opts), ...layoutOpts })
   const rank = paintRankBySlot(opts)
   return beads.map((b) => {
     const home = b.homeSlot != null ? b.homeSlot : b.slot
@@ -354,7 +431,7 @@ export const snapBeadsHome = (beads, opts = {}) => {
       size: s.size,
       depth: s.depth,
       z: rank[home],
-      src: b.src || BEAD_SRC,
+      src: s.src || BEAD_SRC,
       animClass: ''
     }
   })
@@ -369,7 +446,8 @@ export const advanceChainBeads = (beads, _dir, opts = {}) =>
  * z는 목적지 슬롯 paintRank (슬롯 쪽 겹침 순서 — 스냅 후 홈 rank와 화면 슬롯 기준 동일).
  */
 export const withRollClasses = (beads, dir, opts = {}) => {
-  const slots = layoutChainSlots(ringOpts(opts))
+  const layoutOpts = slotLayoutOpts(opts)
+  const slots = layoutChainSlots({ ...ringOpts(opts), ...layoutOpts })
   const n = slots.length
   const d = Number(dir) < 0 ? -1 : 1
   const rank = paintRankBySlot(opts)
@@ -387,6 +465,7 @@ export const withRollClasses = (beads, dir, opts = {}) => {
       top: slots[home].top,
       size: slots[home].size,
       depth: slots[home].depth,
+      src: slots[home].src || BEAD_SRC,
       animClass,
       z: rank[to]
     }
@@ -407,6 +486,18 @@ export const animClassesForDrawOrder = (dir, opts = {}) => {
   })
 }
 
+/** 굴림당 애니 클래스 수 (빈 문자열 제외) */
+export const countAnimatingNodes = (dir = 1, opts = {}) =>
+  animClassesForDrawOrder(dir, opts).filter((c) => !!c).length
+
+/** 진단용: E1 off vs on 애니 노드 수 */
+export const animNodeCountReport = (dir = 1) => {
+  const all = countAnimatingNodes(dir, { e1Minimize: false })
+  const e1 = countAnimatingNodes(dir, { e1Minimize: true })
+  const e1e4 = countAnimatingNodes(dir, { e1Minimize: true, e4SkipBack: true })
+  return { all, e1, e1e4 }
+}
+
 export const advanceChainBeadsWithAnim = (beads, _dir, nextDir, opts = {}) => {
   const home = snapBeadsHome(beads, opts)
   if (nextDir == null || nextDir === 0) return home
@@ -421,7 +512,8 @@ export const advanceChainBeadsWithAnim = (beads, _dir, nextDir, opts = {}) => {
 export const visualBoxesForBeads = (beads, opts = {}) => {
   const atEnd = opts.atKeyframeEnd === true
   const dir = Number(opts.dir) < 0 ? -1 : 1
-  const slots = layoutChainSlots(ringOpts(opts))
+  const layoutOpts = slotLayoutOpts(opts)
+  const slots = layoutChainSlots({ ...ringOpts(opts), ...layoutOpts })
   const n = slots.length
   const rank = paintRankBySlot(opts)
   return beads.map((b) => {
@@ -436,7 +528,7 @@ export const visualBoxesForBeads = (beads, opts = {}) => {
       top: s.top,
       size: s.size,
       z: rank[visualSlot],
-      src: b.src || BEAD_SRC
+      src: s.src || b.src || BEAD_SRC
     }
   })
 }

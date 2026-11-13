@@ -29,6 +29,8 @@ import {
   withRollClasses,
   rollClassForSlot,
   animClassesForDrawOrder,
+  countAnimatingNodes,
+  animNodeCountReport,
   shouldAnimateTransition,
   endKeyframeTransform,
   keyframeEndMatchesSnap,
@@ -36,7 +38,10 @@ import {
   frontAdjacentGapRatios,
   fixedDrawOrder,
   visualBoxesForBeads,
-  pathProgressAtTime
+  pathProgressAtTime,
+  BEAD_SRC_FRONT,
+  BEAD_SRC_BACK,
+  BEAD_BACK_DISPLAY
 } from '../src/common/ring.js'
 import {
   SHARED_KEYFRAME_PCTS,
@@ -182,22 +187,58 @@ describe('keyframe=스냅 · 커버리지', () => {
   })
 
   it('교대 클래스 -b (재시작용)', () => {
-    assert.equal(rollClassForSlot(0, 1, { alt: false }), 'roll-next-0')
-    assert.equal(rollClassForSlot(0, 1, { alt: true }), 'roll-next-0-b')
+    assert.equal(
+      rollClassForSlot(0, 1, { alt: false, e3SplitSrc: true }),
+      'roll-next-0'
+    )
+    assert.equal(
+      rollClassForSlot(0, 1, { alt: true, e3SplitSrc: true }),
+      'roll-next-0-b'
+    )
+    assert.equal(rollClassForSlot(0, 1, { alt: false }), 'roll0-next-0')
     const css = buildChainKeyframeCss()
     assert.ok(css.includes('.roll-next-0-b'))
     assert.ok(css.includes('.roll-prev-0-b'))
+    assert.ok(css.includes('.rollt-next-0'))
+    assert.ok(css.includes('.roll0-next-0'))
   })
 
-  it('animClassesForDrawOrder · 단일 구슬', () => {
-    const all = animClassesForDrawOrder(1, { alt: false })
+  it('animClassesForDrawOrder · 단일 구슬 · E1/E4 카운트', () => {
+    const all = animClassesForDrawOrder(1, { alt: false, e3SplitSrc: true })
     assert.equal(all.length, 10)
     assert.ok(all.some((c) => c.startsWith('roll-')))
-    const one = animClassesForDrawOrder(1, { singleBead: true })
+    const one = animClassesForDrawOrder(1, {
+      singleBead: true,
+      e3SplitSrc: true
+    })
     const order = fixedDrawOrder()
     const focusIdx = order.indexOf(0)
     assert.ok(one[focusIdx].startsWith('roll-'))
     assert.equal(one.filter((c) => c).length, 1)
+    const report = animNodeCountReport(1)
+    assert.equal(report.all, 10)
+    assert.equal(report.e1, 8)
+    assert.equal(report.e1e4, 4)
+    assert.equal(countAnimatingNodes(1, { e1Minimize: false }), 10)
+    assert.equal(countAnimatingNodes(1, { e1Minimize: true }), 8)
+    assert.equal(
+      countAnimatingNodes(1, { e1Minimize: true, e4SkipBack: true }),
+      4
+    )
+    assert.equal(
+      rollClassForSlot(0, 1, { e2NoScale: true, e3SplitSrc: true }),
+      'rollt-next-0'
+    )
+  })
+
+  it('E3 앞/뒤 원본 분리', () => {
+    const beads = createChainBeads({ e3SplitSrc: true })
+    const back = beads.filter((b) => b.depth < 0.55)
+    const front = beads.filter((b) => b.depth >= 0.55)
+    assert.ok(back.every((b) => b.src === BEAD_SRC_BACK && b.size === BEAD_BACK_DISPLAY))
+    assert.ok(front.every((b) => b.src === BEAD_SRC_FRONT))
+    assert.equal(BEAD_SRC_FRONT, '/common/bead-front-255.png')
+    assert.equal(BEAD_SRC_BACK, '/common/bead-back-160.png')
   })
 })
 
