@@ -6,7 +6,7 @@ REDMI Watch 6용 **염주 굴리기** [Vela JS 퀵앱](https://iot.mi.com/vela/q
 **현재 버전:** 2.8.4 (`versionCode` 36)  
 **패키지:** [`dist/com.yeomju.mala.debug.2.8.4.rpk`](dist/com.yeomju.mala.debug.2.8.4.rpk)
 
-![메인 화면](docs/preview-2.8.2-main.png)
+![메인 화면](docs/preview-2.8.2-main-themes.png)
 
 ![설정 화면](docs/preview-2.8.3-settings.png)
 
