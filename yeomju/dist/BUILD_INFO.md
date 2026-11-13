@@ -1,41 +1,48 @@
-# 빌드 정보 — 2.1.0
+# 빌드 정보 — 2.2.0
 
 ## 산출물 (사실)
 
-- `yeomju/dist/com.yeomju.mala.debug.2.1.0.rpk`
-- 크기: 58701 bytes
-- SHA256: `6cf9d0bf0b809e897a5dfcb1862663e744dbc51c122e08bc02912cf85dff6f67`
-- versionName 2.1.0 / versionCode 13
-- 단위 테스트: 32 passed
+- `yeomju/dist/com.yeomju.mala.debug.2.2.0.rpk`
+- 크기: 59008 bytes
+- SHA256: `aed2388435a9be8e5c959139b83cfe12b149856f8887d41c5ced83aa40e99bad`
+- versionName 2.2.0 / versionCode 14
+- 단위 테스트: 33 passed
+- 렌더 노드: **10** (MAX 10). 버퍼 슬롯 2,3,7,8 완전 화면 밖
 
 ## rpk 내부
 
 | 경로 | bytes |
 |------|------|
-| pages/index/index.js | 95759 |
+| pages/index/index.js | 102192 |
 | pages/settings/settings.js | 67027 |
 | pages/confirm/confirm.js | 34995 |
 | common/bead-wood-v3.png | 16864 |
 | common/logo.png | 8697 |
 | app.js | 4386 |
 
-참조: `BEAD_SRC=/common/bead-wood-v3.png`. 레인/`runModeD`/`runModeE` 문자열 없음.
+레인/`runModeD`/`runModeE` 없음. 플랫 리스트 A 구조.
 
-## 실기기 근거 (2.0.1 Watch 6 글로벌 3.200.085)
+## 실기기 피드백 → 변경 근거
 
-- A: 크래시 없음
-- D·E: 둘 다 죽음 → **레인 컨테이너 transform 방식 이 기기에서 금지**로 확정
-- 1.9.0 실측: 입력·진동 경로(B/C)는 빠름 → A의 다노드 keyframe 시작 비용이 지연 원인으로 **추정**(단정 아님)
+- 2.1.0: 구슬이 갑자기 사라짐 → 6노드만 렌더해 끝 구슬이 화면 안에서 팝 아웃/인으로 **추정**
+- 2.0.1: D·E 레인 transform → 워치 크래시 확정 → 레인 금지 유지
 
-## 2.1.0 변경
+## 2.2.0 변경
 
-1. **D·E·레인 완전 제거**: 플랫 리스트만. 설정 칩 A/B/C. `stateSchema≥3`으로 미지원/D/E→A 마이그레이션 유지(`yeomju.state.v2`).
-2. **A 경로 개선 시도** (체감 개선은 실기기 미검증):
-   - 렌더 구슬 6개(앞3+뒤3), 화면 밖 슬롯 노드 없음
-   - 애니 시작 = `animClass` 토글만(`withRollClasses`); 스냅 시 `id`/`src`/배열 길이 유지(`advanceChainBeads`)
-   - keyframe: `transform` 단일 속성, 0%/100%만, `linear`, 150ms
-   - touchmove 임계(`SWIPE_MIN_DY=22`)에서 즉시 enqueue → 클래스 적용 후 buzz
+- 슬롯 10, `ry=420`, 버퍼 4개 AABB가 화면 밖(bottom≤0 또는 top≥514)
+- 슬롯당 1노드(≤10). advance는 슬롯 +dir만 — 화면 안 텔레포트 없음
+- 버퍼↔버퍼 전이는 keyframe 생략; IN↔OUT은 동일 150ms linear transform
+- opacity 애니 없음
+
+## 버퍼 수치 (432×514)
+
+| slot | left | top | size | right | bottom |
+|------|------|-----|------|-------|--------|
+| 2 | 191 | -249 | 213 | 404 | -36 |
+| 3 | 271 | -241 | 198 | 469 | -43 |
+| 7 | 271 | 557 | 198 | 469 | 755 |
+| 8 | 191 | 550 | 213 | 404 | 763 |
 
 ## 미확인
 
-- 슬라이드 지연·2단 끊김 체감 개선 여부 (**단정하지 않음**)
+- 팝 인/아웃 체감 해소 (**단정하지 않음**)

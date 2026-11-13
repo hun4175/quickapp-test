@@ -1,6 +1,6 @@
 /**
  * 키프레임 CSS·프리뷰·테스트 전용 (index 런타임 번들 제외).
- * 2.1.0: 0%/100% + linear only.
+ * 2.2.0: 0%/100% + linear only · 버퍼 슬롯 포함.
  */
 import {
   CHAIN_ANIM_MS,

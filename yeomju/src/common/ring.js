@@ -1,13 +1,17 @@
 /**
- * 염주 고리 — 2.1.0 플랫 리스트 only (레인/D/E 제거).
- * 렌더 6구슬(앞3+뒤3), keyframe 0/100 linear ~150ms.
+ * 염주 고리 — 2.2.0 플랫 리스트 + 화면 밖 버퍼 슬롯.
+ * 슬롯 10·노드≤10. 레인 컨테이너 transform 금지.
+ * 재활용(스냅 재배치)은 화면 밖에서만 — 실제로는 슬롯당 1노드로 텔레포트 없음.
  */
 
 export const VIRTUAL_BEADS = 12
-export const SLOT_COUNT = 8
+export const SLOT_COUNT = 10
 export const FRONT_COUNT = 3
 export const BACK_COUNT = 3
 export const VISIBLE_BEADS = FRONT_COUNT + BACK_COUNT
+export const BUFFER_BEADS = 4
+export const RENDER_BEADS = VISIBLE_BEADS + BUFFER_BEADS
+export const MAX_RENDER_NODES = 10
 export const FRONT_DEPTH_MIN = 0.55
 
 export const CHAIN_DIR = 1
@@ -28,7 +32,8 @@ export const DEFAULT_RING = Object.freeze({
   focusX: 216,
   focusY: 257,
   rx: 118,
-  ry: 300,
+  /** 양끝 버퍼가 완전 화면 밖이 되도록 확대 */
+  ry: 420,
   cx: 334,
   cy: 257,
   minSize: 140,
@@ -79,7 +84,7 @@ export const easeOutCubic = (t) => {
   return 1 - Math.pow(1 - x, 3)
 }
 
-/** 2.1.0: 위치 베이크 없이 시간=경로 (CSS linear 0/100) */
+/** 위치 베이크 없이 시간=경로 (CSS linear 0/100) */
 export const pathProgressAtTime = (t) => {
   const x = Math.max(0, Math.min(1, Number(t) || 0))
   if (x <= 0) return 0
@@ -108,20 +113,59 @@ export const slotGeomAtAngle = (angle, opts = {}) => {
 }
 
 export const layoutChainSlots = (opts = {}) => {
-  const n = Math.max(6, Math.min(8, Math.floor(Number(opts.slotCount) || SLOT_COUNT)))
+  const o = ringOpts(opts)
+  const n = Math.max(
+    6,
+    Math.min(MAX_RENDER_NODES, Math.floor(Number(o.slotCount) || SLOT_COUNT))
+  )
   const step = (Math.PI * 2) / n
   const slots = []
   for (let i = 0; i < n; i++) {
     const angle = Math.PI + i * step
-    const g = slotGeomAtAngle(angle, { ...DEFAULT_RING, ...opts })
+    const g = slotGeomAtAngle(angle, o)
     slots.push({ index: i, ...g, src: BEAD_SRC })
   }
   return slots
 }
 
-/** 앞 3 + 뒤 3 슬롯 인덱스 (고정 기하) */
-export const visibleSlotIndices = (opts = {}) => {
+/** AABB가 화면과 겹치지 않으면 완전 화면 밖 */
+export const isSlotFullyOffScreen = (slot, opts = {}) => {
+  const o = ringOpts(opts)
+  const left = Number(slot.left)
+  const top = Number(slot.top)
+  const size = Number(slot.size)
+  return (
+    left + size <= 0 ||
+    top + size <= 0 ||
+    left >= o.screenW ||
+    top >= o.screenH
+  )
+}
+
+/** 앞·뒤 열 양끝 버퍼(완전 화면 밖) 슬롯 인덱스 */
+export const bufferSlotIndices = (opts = {}) =>
+  layoutChainSlots(ringOpts(opts))
+    .filter((s) => isSlotFullyOffScreen(s, opts))
+    .map((s) => s.index)
+    .sort((a, b) => a - b)
+
+/** 화면과 겹치는(보이는) 슬롯 — 깊이 기준 앞3+뒤3에 가깝게 유지하되 실제 IN 전체 */
+export const onScreenSlotIndices = (opts = {}) =>
+  layoutChainSlots(ringOpts(opts))
+    .filter((s) => !isSlotFullyOffScreen(s, opts))
+    .map((s) => s.index)
+    .sort((a, b) => a - b)
+
+/**
+ * 렌더 대상: 화면 IN + 버퍼 OUT. 슬롯당 1노드, 길이 ≤ MAX_RENDER_NODES.
+ * (10슬롯이면 전 구간)
+ */
+export const renderSlotIndices = (opts = {}) => {
   const slots = layoutChainSlots(ringOpts(opts))
+  if (slots.length <= MAX_RENDER_NODES) {
+    return slots.map((s) => s.index)
+  }
+  const buf = new Set(bufferSlotIndices(opts))
   const front = slots
     .filter((s) => s.depth >= FRONT_DEPTH_MIN)
     .sort((a, b) => b.depth - a.depth || a.index - b.index)
@@ -130,15 +174,22 @@ export const visibleSlotIndices = (opts = {}) => {
     .filter((s) => s.depth < FRONT_DEPTH_MIN)
     .sort((a, b) => b.depth - a.depth || a.index - b.index)
     .slice(0, BACK_COUNT)
-  return [...front, ...back]
-    .map((s) => s.index)
-    .sort((a, b) => a - b)
+  const picked = new Set([...front, ...back].map((s) => s.index))
+  for (const i of buf) {
+    if (picked.size >= MAX_RENDER_NODES) break
+    picked.add(i)
+  }
+  return [...picked].sort((a, b) => a - b)
 }
 
-export const angledPair = (fromSlot, toSlot) => {
+/** @deprecated 이름 호환: 렌더 슬롯(버퍼 포함) */
+export const visibleSlotIndices = (opts = {}) => renderSlotIndices(opts)
+
+export const angledPair = (fromSlot, toSlot, slotCount = SLOT_COUNT) => {
   let a0 = fromSlot.angle
   let a1 = toSlot.angle
-  const dIdx = ((toSlot.index - fromSlot.index) % SLOT_COUNT + SLOT_COUNT) % SLOT_COUNT
+  const n = Math.max(2, Math.floor(Number(slotCount) || SLOT_COUNT))
+  const dIdx = ((toSlot.index - fromSlot.index) % n + n) % n
   if (dIdx === 1) {
     while (a1 < a0) a1 += Math.PI * 2
   } else {
@@ -147,17 +198,19 @@ export const angledPair = (fromSlot, toSlot) => {
   return { a0, a1 }
 }
 
+/**
+ * 양 끝점이 모두 완전 화면 밖이면 애니 생략(랩/재활용은 화면 밖 스냅).
+ * 들어오거나 나가는 구간(한쪽이라도 화면과 겹침)은 애니.
+ */
 export const shouldAnimateTransition = (fromSlot, toSlot, opts = {}) => {
-  const pad = opts.pad != null ? opts.pad : 72
-  const w = opts.screenW != null ? opts.screenW : DEFAULT_RING.screenW
-  const h = opts.screenH != null ? opts.screenH : DEFAULT_RING.screenH
-  const visible = (s) =>
-    s.cx > -pad && s.cx < w + pad && s.cy > -pad && s.cy < h + pad
-  return visible(fromSlot) || visible(toSlot)
+  const fromOut = isSlotFullyOffScreen(fromSlot, opts)
+  const toOut = isSlotFullyOffScreen(toSlot, opts)
+  return !(fromOut && toOut)
 }
 
 export const transformAtProgress = (fromSlot, toSlot, u, opts = {}) => {
-  const { a0, a1 } = angledPair(fromSlot, toSlot)
+  const n = layoutChainSlots(ringOpts(opts)).length
+  const { a0, a1 } = angledPair(fromSlot, toSlot, n)
   const t = Math.max(0, Math.min(1, Number(u) || 0))
   if (t <= 0) return { tx: 0, ty: 0, scale: 1 }
   if (t >= 1) {
@@ -201,40 +254,31 @@ const beadFromSlot = (id, s, animClass = '') => ({
 })
 
 /**
- * 안정 id b0..b5, 앞3+뒤3 슬롯에 배치. 배열 순서는 id 고정.
+ * 안정 id b0..b{n-1}, 렌더 슬롯(버퍼 포함)에 1:1. 배열 순서 id 고정.
  */
 export const createChainBeads = (opts = {}) => {
   const slots = layoutChainSlots(ringOpts(opts))
-  const vis = visibleSlotIndices(opts)
-  return vis.map((slotIdx, i) => beadFromSlot('b' + i, slots[slotIdx]))
+  const idxs = renderSlotIndices(opts)
+  if (idxs.length > MAX_RENDER_NODES) {
+    throw new Error('render nodes exceed MAX_RENDER_NODES')
+  }
+  return idxs.map((slotIdx, i) => beadFromSlot('b' + i, slots[slotIdx]))
 }
 
 /**
- * 슬롯만 +dir. 화면 밖이 된 노드는 빈 visible 슬롯으로 재배치(텔레포트).
- * id·배열 길이·순서·src 유지.
+ * 슬롯만 +dir. id·길이·순서·src 유지.
+ * 화면 안 텔레포트 없음 — 노드가 링을 돌며 버퍼에서만 랩.
  */
 export const advanceChainBeads = (beads, dir, opts = {}) => {
   const slots = layoutChainSlots(ringOpts(opts))
   const n = slots.length
   const d = Number(dir) < 0 ? -1 : 1
-  const visSet = new Set(visibleSlotIndices(opts))
-  const next = beads.map((b) => {
+  return beads.map((b) => {
     const slot = (b.slot + d + n) % n
-    return { ...b, slot, animClass: '' }
-  })
-  const occupied = new Set(next.map((b) => b.slot))
-  const empty = [...visSet].filter((s) => !occupied.has(s))
-  let ei = 0
-  for (let i = 0; i < next.length; i++) {
-    if (!visSet.has(next[i].slot) && ei < empty.length) {
-      next[i] = { ...next[i], slot: empty[ei++] }
-    }
-  }
-  return next.map((b) => {
-    const s = slots[b.slot]
+    const s = slots[slot]
     return {
       id: b.id,
-      slot: b.slot,
+      slot,
       left: s.left,
       top: s.top,
       size: s.size,

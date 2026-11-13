@@ -1,5 +1,5 @@
 /**
- * 2.1.0 미리보기: 0/25/50/75/100% 시간축 (새 나무 구슬 텍스처).
+ * 2.2.0 미리보기: 0/25/50/75/100% + 버퍼 슬롯 화면 밖 수치 로그.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -9,7 +9,13 @@ import {
   DEFAULT_RING,
   SLOT_COUNT,
   CHAIN_ANIM_MS,
-  pathProgressAtTime
+  pathProgressAtTime,
+  layoutChainSlots,
+  bufferSlotIndices,
+  onScreenSlotIndices,
+  isSlotFullyOffScreen,
+  createChainBeads,
+  MAX_RENDER_NODES
 } from '../src/common/ring.js'
 import { layoutRing } from '../src/common/ring-kf.js'
 
@@ -240,6 +246,34 @@ for (let i = 0; i < parts.length; i++) {
   }
   drawText(strip, stripW, stripH, Math.round(parts[i].p * 100) + '%', i * W + 8, 6, 2, 200, 180, 140)
 }
-writePng(path.join(docsDir, 'preview-2.1.0.png'), stripW, stripH, strip)
+writePng(path.join(docsDir, 'preview-2.2.0.png'), stripW, stripH, strip)
 writePng(path.join(docsDir, 'preview-432x514.png'), W, H, parts[0].rgba)
-console.log(JSON.stringify({ version: '2.1.0', slots: SLOT_COUNT, ms: CHAIN_ANIM_MS }, null, 2))
+
+const slots = layoutChainSlots()
+const buffers = bufferSlotIndices().map((i) => {
+  const s = slots[i]
+  return {
+    index: i,
+    left: s.left,
+    top: s.top,
+    size: s.size,
+    right: s.left + s.size,
+    bottom: s.top + s.size,
+    fullyOffScreen: isSlotFullyOffScreen(s)
+  }
+})
+console.log(
+  JSON.stringify(
+    {
+      version: '2.2.0',
+      slots: SLOT_COUNT,
+      nodes: createChainBeads().length,
+      maxNodes: MAX_RENDER_NODES,
+      ms: CHAIN_ANIM_MS,
+      onScreen: onScreenSlotIndices(),
+      buffers
+    },
+    null,
+    2
+  )
+)
