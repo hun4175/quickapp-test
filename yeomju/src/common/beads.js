@@ -75,6 +75,14 @@ export const ensureToday = (state, today) => {
 }
 
 /**
+ * 스와이프 카운트 모드.
+ * - 'plus_both' : 위·아래 모두 +1 (기본 — 되돌리기 규칙이 정해지지 않음)
+ * - 'down_undo' : 위=+1, 아래=-1(되돌리기)
+ * 바꾸려면 이 상수만 수정.
+ */
+export const SWIPE_COUNT_MODE = 'plus_both'
+
+/**
  * 염주알 하나 전진. 한 바퀴를 채우면 bead=0, rounds+1, completedRound=true
  * @param {object} state
  * @param {string} [today]
@@ -105,6 +113,56 @@ export const advanceBead = (state, today = formatDate()) => {
     },
     completedRound: false
   }
+}
+
+/**
+ * 염주알 하나 되돌리기(아래 스와이프 undo 모드용).
+ * bead=0·rounds=0 이면 변화 없음.
+ * @param {object} state
+ * @param {string} [today]
+ * @returns {{ state: object, completedRound: boolean, retreated: boolean }}
+ */
+export const retreatBead = (state, today = formatDate()) => {
+  const ensured = ensureToday(state, today).state
+  if (ensured.bead > 0) {
+    return {
+      state: {
+        ...ensured,
+        bead: ensured.bead - 1,
+        todayTotal: Math.max(0, ensured.todayTotal - 1)
+      },
+      completedRound: false,
+      retreated: true
+    }
+  }
+  if (ensured.rounds > 0) {
+    return {
+      state: {
+        ...ensured,
+        bead: ensured.beadsPerRound - 1,
+        rounds: ensured.rounds - 1,
+        todayTotal: Math.max(0, ensured.todayTotal - 1)
+      },
+      completedRound: false,
+      retreated: true
+    }
+  }
+  return { state: ensured, completedRound: false, retreated: false }
+}
+
+/**
+ * 스와이프 한 칸에 대한 카운트 반영.
+ * @param {object} state
+ * @param {number} swipeDir 1=위(앞열↑), -1=아래(앞열↓)
+ * @param {string} [today]
+ * @returns {{ state: object, completedRound: boolean }}
+ */
+export const applySwipeCount = (state, swipeDir, today = formatDate()) => {
+  if (SWIPE_COUNT_MODE === 'down_undo' && Number(swipeDir) < 0) {
+    const r = retreatBead(state, today)
+    return { state: r.state, completedRound: false }
+  }
+  return advanceBead(state, today)
 }
 
 /**

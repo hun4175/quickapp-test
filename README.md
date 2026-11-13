@@ -8,7 +8,9 @@ Watch 6 Active(`M2564W1`)와는 다른 기기입니다. 혼동하지 마세요.
 ## 기능
 
 - 세로 타원 고리 UI: 포커스 알 화면 중앙, 앞열 3 + 뒤열 5만 렌더, 앞 알 ≈247px
-- 탭 또는 위/왼쪽 스와이프 → 고리가 한 알만큼 회전 + `@keyframes` 굴림
+- **위/아래 스와이프만**으로 체인 한 칸 이동 (탭 카운트 없음). 위→앞열↑·뒤열↓, 아래→앞열↓·뒤열↑. ~180ms 오버슈트 `@keyframes`
+- 카운트: `SWIPE_COUNT_MODE='plus_both'` → 양방향 모두 +1 (`down_undo` 로 바꾸면 아래=-1)
+- 기준선에 들어온 알 짧은 하이라이트(번쩍). 진동은 이동 시작과 동시. **소리 미포함**
 - 한 바퀴(기본 108알, 설정에서 108/54/27/21 선택) 완료 시 긴 진동 + 바퀴 수 증가
 - 알마다 짧은 진동 (`system.vibrator`, 켜기/끄기)
 - `system.storage` 로 카운트·바퀴·설정·오늘 합계 저장 (자정 지나면 오늘 합계만 리셋)
@@ -50,7 +52,9 @@ Watch 6 Active(`M2564W1`)와는 다른 기기입니다. 혼동하지 마세요.
 | `designWidth: "device-width"` | 사실(관례) | QuickReply 등 Watch 6 확인 앱과 동일 |
 | `vibrator.vibrate({ mode: 'short'/'long' })` | 사실 | 공식 문서, REDMI Watch 6 지원 표기 |
 | `vibrator.start/stop` | 미사용 | 공식 문서상 Watch 6 미지원 |
-| 탭·스와이프(`onswipe`)로 카운트 | 사실(API) / 미확인(체감) | 컴포넌트 이벤트는 문서·공개 앱에 존재. 실기기 감도는 미확인 |
+| `@system.audio` 재생 API | 사실(문서) / 미확인(Watch 6 퀵앱) | [Audio](https://iot.mi.com/vela/quickapp/en/features/other/audio.html): `play/pause/stop`, `src` 등. `streamType: voicecall` 은 시계·밴드 미지원. Watch 6 FAQ 에 미디어 볼륨·음악 재생 UI 는 있음. **퀵앱에서 Watch 6 실기기 오디오 동작은 미검증·이번 버전 미사용** |
+| 세로 스와이프 굴림 (`touchstart`/`touchend` + `SWIPE_MIN_DY`) | 사실(API) / 미확인(체감) | [공통 이벤트](https://iot.mi.com/vela/quickapp/en/components/general/events.html): touch·swipe 모두 문서화. 거리 임계값은 touch Δy 로 구현(`onswipe` 는 direction 만). 좌우 스와이프는 무시. **시스템 오른쪽 스와이프 뒤로가기와 충돌 가능(미확인)** |
+| 탭으로 카운트 | 의도적으로 제거(1.4.0) | 실수 터치 방지 |
 | MiFaceDown 등으로 `.rpk` 설치 | 미확인 | QuickReply README 의 사용자 측 절차. **이 저장소에서는 실기기 설치를 확인하지 않음** |
 | 서명 우회·기기 직접 쓰기 | 의도적으로 없음 | 포함하지 않음 |
 

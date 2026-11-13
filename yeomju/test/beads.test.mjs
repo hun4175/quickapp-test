@@ -5,9 +5,12 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   BEAD_OPTIONS,
+  SWIPE_COUNT_MODE,
   normalizeState,
   ensureToday,
   advanceBead,
+  retreatBead,
+  applySwipeCount,
   setBeadsPerRound,
   setVibrateOnBead,
   resetSession,
@@ -62,6 +65,42 @@ describe('ensureToday', () => {
     assert.equal(state.todayDate, '2026-11-13')
     assert.equal(state.bead, 3)
     assert.equal(state.rounds, 2)
+  })
+})
+
+describe('SWIPE_COUNT_MODE', () => {
+  it('기본은 plus_both (양방향 +1)', () => {
+    assert.equal(SWIPE_COUNT_MODE, 'plus_both')
+  })
+})
+
+describe('applySwipeCount', () => {
+  it('plus_both: 위·아래 모두 +1', () => {
+    const base = {
+      bead: 3,
+      rounds: 0,
+      beadsPerRound: 27,
+      todayDate: '2026-11-13',
+      todayTotal: 3
+    }
+    const up = applySwipeCount(base, 1, '2026-11-13')
+    const down = applySwipeCount(base, -1, '2026-11-13')
+    assert.equal(up.state.bead, 4)
+    assert.equal(down.state.bead, 4)
+    assert.equal(up.state.todayTotal, 4)
+    assert.equal(down.state.todayTotal, 4)
+  })
+})
+
+describe('retreatBead', () => {
+  it('되돌리기', () => {
+    const r = retreatBead(
+      { bead: 2, rounds: 1, beadsPerRound: 27, todayDate: '2026-11-13', todayTotal: 5 },
+      '2026-11-13'
+    )
+    assert.equal(r.state.bead, 1)
+    assert.equal(r.state.todayTotal, 4)
+    assert.equal(r.retreated, true)
   })
 })
 

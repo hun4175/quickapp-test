@@ -1,18 +1,24 @@
 <template>
   <!--
-    1.3.0: 포커스 알 = 화면 중앙. 앞 3 + 뒤 5만 렌더.
-    HUD 배경은 rgba (문서 지원) — 부모 opacity 로 글자를 흐리게 하지 않음.
+    조작: 위/아래 스와이프만 (탭으로는 카운트 안 함 — 실수 터치 방지)
+    touchstart/touchend + SWIPE_MIN_DY 임계값 (onswipe 는 거리 파라미터 없음)
+    위=+앞열↑ / 아래=+앞열↓. 카운트는 SWIPE_COUNT_MODE(기본 plus_both=+1)
   -->
-  <div class="page" onswipe="onSwipe">
+  <div
+    class="page"
+    ontouchstart="onTouchStart"
+    ontouchend="onTouchEnd"
+    onswipe="onSwipe"
+  >
     <stack class="stage">
-      <stack class="ring {{rolling ? 'ring-roll' : ''}}" onclick="onTap">
+      <stack class="ring">
         <div
-          class="bead-wrap"
+          class="bead-wrap {{$item.wrapClass}}"
           for="{{ringBeads}}"
           style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px; opacity: {{$item.opacity}};"
         >
           <image
-            class="bead-img"
+            class="bead-img {{$item.flashClass}}"
             src="{{$item.src}}"
             style="width: {{$item.size}}px; height: {{$item.size}}px;"
           ></image>
@@ -32,9 +38,10 @@
       </div>
 
       <div class="hud-bottom">
-        <div class="hud-panel" onclick="onTap">
+        <div class="hud-panel">
           <text class="count">{{bead}} / {{beadsPerRound}}</text>
           <text class="rounds">바퀴 {{rounds}}</text>
+          <text class="hint">위아래로 밀어서 굴리기</text>
         </div>
         <div class="btn" onclick="goSettings">
           <text class="btn-text">설정</text>
@@ -47,14 +54,20 @@
 <script>
 import router from '@system.router'
 import vibrator from '@system.vibrator'
-import { advanceBead } from '../../common/beads.js'
+import { applySwipeCount } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
 import {
   VIRTUAL_BEADS,
   DEFAULT_RING,
+  CHAIN_ANIM_MS,
+  FOCUS_FLASH_MS,
+  SWIPE_MIN_DY,
   phaseFromBead,
+  stepPhase,
   layoutRing,
-  layoutFocusMarker
+  layoutFocusMarker,
+  rollClassForLane,
+  classifyVerticalSwipe
 } from '../../common/ring.js'
 
 export default {
@@ -64,22 +77,28 @@ export default {
     beadsPerRound: 108,
     todayTotal: 0,
     vibrateOnBead: true,
-    rolling: false,
     showPlus: false,
     ringBeads: [],
     markerLeft: 0,
     markerTop: 0,
     markerSize: 72,
-    pendingTicks: 0
+    displayPhase: 0
   },
 
   onInit() {
     this._state = null
     this._animTimer = null
+    this._flashTimer = null
     this._draining = false
+    this._animating = false
     this._saveChain = Promise.resolve()
+    /** @type {number[]} 스와이프 방향 큐: 1=위, -1=아래 */
+    this._pendingDirs = []
+    this._touchX = 0
+    this._touchY = 0
+    this._touchActive = false
     this.placeMarker()
-    this.refreshRing(0)
+    this.refreshRing(0, false, 0, false)
   },
 
   onShow() {
@@ -91,6 +110,10 @@ export default {
       clearTimeout(this._animTimer)
       this._animTimer = null
     }
+    if (this._flashTimer) {
+      clearTimeout(this._flashTimer)
+      this._flashTimer = null
+    }
   },
 
   onBackPress() {
@@ -99,17 +122,27 @@ export default {
 
   async reload() {
     const state = await loadState()
-    this.applyState(state)
+    this.applyState(state, true)
   },
 
-  applyState(state) {
+  /**
+   * @param {object} state
+   * @param {boolean} snapVisual
+   */
+  applyState(state, snapVisual) {
     this._state = state
     this.bead = state.bead
     this.rounds = state.rounds
     this.beadsPerRound = state.beadsPerRound
     this.todayTotal = state.todayTotal
     this.vibrateOnBead = state.vibrateOnBead
-    this.refreshRing(phaseFromBead(state.bead, VIRTUAL_BEADS))
+    if (snapVisual || !this._animating) {
+      // 저장값 기준 초기 위상. 이후 양방향 스와이프로 displayPhase 는 독립 이동.
+      if (snapVisual) {
+        this.displayPhase = phaseFromBead(state.bead, VIRTUAL_BEADS)
+      }
+      this.refreshRing(this.displayPhase, false, 0, false)
+    }
   },
 
   placeMarker() {
@@ -119,55 +152,109 @@ export default {
     this.markerSize = m.size
   },
 
-  refreshRing(phaseIndex) {
-    this.ringBeads = layoutRing({
+  /**
+   * @param {number} phaseIndex
+   * @param {boolean} animExtra
+   * @param {number} rollDir 0=정지, 1=앞열↑, -1=앞열↓
+   * @param {boolean} flashing
+   */
+  refreshRing(phaseIndex, animExtra, rollDir, flashing) {
+    // 정적 배치는 CHAIN_DIR 기본값 유지. 스와이프 방향은 CSS translate 클래스만 바꾼다.
+    const items = layoutRing({
       ...DEFAULT_RING,
       virtual: VIRTUAL_BEADS,
-      phaseIndex
+      phaseIndex,
+      animExtra: !!animExtra
     })
+    this.ringBeads = items.map((b) => ({
+      ...b,
+      wrapClass: rollDir ? rollClassForLane(b.lane, rollDir) : '',
+      flashClass: flashing && b.focused ? 'bead-flash' : ''
+    }))
   },
 
-  onTap() {
-    this.enqueueTick()
+  touchPoint(e) {
+    const list =
+      (e && e.changedTouches && e.changedTouches.length && e.changedTouches) ||
+      (e && e.touches && e.touches.length && e.touches) ||
+      null
+    if (!list || !list[0]) return null
+    const t = list[0]
+    const x = t.clientX != null ? t.clientX : t.pageX
+    const y = t.clientY != null ? t.clientY : t.pageY
+    if (x == null || y == null) return null
+    return { x: Number(x), y: Number(y) }
   },
 
+  onTouchStart(e) {
+    const p = this.touchPoint(e)
+    if (!p) return
+    this._touchActive = true
+    this._touchX = p.x
+    this._touchY = p.y
+  },
+
+  onTouchEnd(e) {
+    if (!this._touchActive) return
+    this._touchActive = false
+    const p = this.touchPoint(e)
+    if (!p) return
+    const dx = p.x - this._touchX
+    const dy = p.y - this._touchY
+    const dir = classifyVerticalSwipe(dx, dy, { minDy: SWIPE_MIN_DY })
+    if (dir) this.enqueueSwipe(dir)
+  },
+
+  /**
+   * 보조: 문서상 onswipe 도 up/down 제공.
+   * 좌우는 무시(시스템 뒤로가기 등과 충돌 완화). touch 로 이미 처리된 경우 중복될 수 있어
+   * touch 직후 짧은 무시 윈도우는 두지 않고, pending 큐가 같은 제스처를 두 번 넣을 수 있으므로
+   * onswipe 는 touch 좌표가 없을 때만 쓰거나 — 여기선 touch 우선, onswipe 는 up/down 만 보조.
+   * 실기기에서 touch+swipe 이중 발화 시 한 제스처에 2칸 될 수 있어 onswipe 는 비활성에 가깝게:
+   * touch 가 동작하면 onswipe 는 같은 제스처에서 거의 동시에 옴 → onswipe 미사용이 안전.
+   * 문서 확인용으로 핸들러는 두되 left/right 만 무시하고 up/down 도 무시(touch 전담).
+   */
   onSwipe(e) {
+    // touchstart/end 임계값 경로를 주력으로 씀. onswipe 는 거리 파라미터 없음.
+    // 이중 카운트 방지를 위해 여기서는 카운트하지 않음.
     if (!e || !e.direction) return
-    if (e.direction === 'up' || e.direction === 'left') {
-      this.enqueueTick()
-    }
   },
 
-  enqueueTick() {
-    this.pendingTicks += 1
+  enqueueSwipe(dir) {
+    const d = Number(dir) < 0 ? -1 : 1
+    this._pendingDirs.push(d)
     if (!this._state) {
-      this.reload().then(() => this.drainTicks())
+      this.reload().then(() => this.drainSwipes())
       return
     }
-    this.drainTicks()
+    this.drainSwipes()
   },
 
-  drainTicks() {
+  drainSwipes() {
     if (this._draining) return
     this._draining = true
     try {
-      while (this.pendingTicks > 0 && this._state) {
-        this.pendingTicks -= 1
-        this.advanceOnce()
+      while (this._pendingDirs.length > 0 && this._state) {
+        const dir = this._pendingDirs.shift()
+        this.advanceOnce(dir)
       }
     } finally {
       this._draining = false
-      if (this.pendingTicks > 0 && this._state) {
-        this.drainTicks()
+      if (this._pendingDirs.length > 0 && this._state) {
+        this.drainSwipes()
       }
     }
   },
 
-  advanceOnce() {
-    const result = advanceBead(this._state)
-    this.applyState(result.state)
+  advanceOnce(dir) {
+    const result = applySwipeCount(this._state, dir)
+    this.applyState(result.state, false)
     this.queueSave(result.state)
-    this.playFeedback(result.completedRound)
+    // 진동은 이동 시작과 동시에
+    this.buzz(result.completedRound)
+    if (!this._animQueue) this._animQueue = []
+    this._animQueue.push(dir)
+    this.ensureChainAnim()
   },
 
   queueSave(state) {
@@ -176,26 +263,39 @@ export default {
       .catch(() => false)
   },
 
-  playFeedback(completedRound) {
+  buzz(completedRound) {
     if (this.vibrateOnBead) {
       vibrator.vibrate({ mode: 'short' })
     }
     if (completedRound) {
       vibrator.vibrate({ mode: 'long' })
     }
+  },
 
-    this.rolling = false
-    this.showPlus = false
+  ensureChainAnim() {
+    if (this._animating) return
+    if (!this._animQueue || this._animQueue.length === 0) return
+
+    const dir = this._animQueue.shift()
+    this._animating = true
+    this.showPlus = true
+    this.refreshRing(this.displayPhase, true, 0, false)
     setTimeout(() => {
-      this.rolling = true
-      this.showPlus = true
+      this.refreshRing(this.displayPhase, true, dir, false)
     }, 16)
 
     if (this._animTimer) clearTimeout(this._animTimer)
     this._animTimer = setTimeout(() => {
-      this.rolling = false
+      this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)
       this.showPlus = false
-    }, 240)
+      this.refreshRing(this.displayPhase, false, 0, true)
+      if (this._flashTimer) clearTimeout(this._flashTimer)
+      this._flashTimer = setTimeout(() => {
+        this.refreshRing(this.displayPhase, false, 0, false)
+        this._animating = false
+        this.ensureChainAnim()
+      }, FOCUS_FLASH_MS)
+    }, CHAIN_ANIM_MS)
   },
 
   goSettings() {
@@ -221,21 +321,49 @@ export default {
   height: 514px;
 }
 
-.ring-roll {
-  animation-name: ringStep;
-  animation-duration: 240ms;
+.bead-wrap {
+  position: absolute;
+}
+
+.bead-roll-front-up {
+  animation-name: chainFrontUp;
+  animation-duration: 180ms;
   animation-timing-function: ease-out;
   animation-iteration-count: 1;
 }
 
-.bead-wrap {
-  position: absolute;
+.bead-roll-back-down {
+  animation-name: chainBackDown;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+}
+
+.bead-roll-front-down {
+  animation-name: chainFrontDown;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+}
+
+.bead-roll-back-up {
+  animation-name: chainBackUp;
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
 }
 
 .bead-img {
   position: absolute;
   left: 0px;
   top: 0px;
+}
+
+.bead-flash {
+  animation-name: focusFlash;
+  animation-duration: 120ms;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
 }
 
 .focus-arc {
@@ -250,7 +378,7 @@ export default {
   font-weight: bold;
   color: #f5d9a8;
   animation-name: plusUp;
-  animation-duration: 240ms;
+  animation-duration: 180ms;
   animation-timing-function: ease-out;
   animation-iteration-count: 1;
 }
@@ -264,7 +392,6 @@ export default {
   align-items: center;
 }
 
-/* rgba 배경만 반투명 — 자식 text 는 불투명 (color.html 문서) */
 .hud-chip {
   padding-left: 18px;
   padding-right: 18px;
@@ -290,7 +417,7 @@ export default {
 }
 
 .hud-panel {
-  width: 260px;
+  width: 280px;
   padding-top: 8px;
   padding-bottom: 8px;
   border-radius: 18px;
@@ -311,6 +438,12 @@ export default {
   color: #b89462;
 }
 
+.hint {
+  margin-top: 4px;
+  font-size: 18px;
+  color: #9a7a52;
+}
+
 .btn {
   width: 140px;
   height: 48px;
@@ -328,15 +461,66 @@ export default {
   color: #e8c48a;
 }
 
-@keyframes ringStep {
+@keyframes chainFrontUp {
   0% {
-    transform: translateY(0px) rotate(0deg);
+    transform: translateY(0px);
   }
-  45% {
-    transform: translateY(20px) rotate(-3deg);
+  72% {
+    transform: translateY(-162px);
   }
   100% {
-    transform: translateY(0px) rotate(0deg);
+    transform: translateY(-150px);
+  }
+}
+
+@keyframes chainBackDown {
+  0% {
+    transform: translateY(0px);
+  }
+  72% {
+    transform: translateY(162px);
+  }
+  100% {
+    transform: translateY(150px);
+  }
+}
+
+@keyframes chainFrontDown {
+  0% {
+    transform: translateY(0px);
+  }
+  72% {
+    transform: translateY(162px);
+  }
+  100% {
+    transform: translateY(150px);
+  }
+}
+
+@keyframes chainBackUp {
+  0% {
+    transform: translateY(0px);
+  }
+  72% {
+    transform: translateY(-162px);
+  }
+  100% {
+    transform: translateY(-150px);
+  }
+}
+
+@keyframes focusFlash {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
