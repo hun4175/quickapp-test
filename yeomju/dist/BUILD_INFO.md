@@ -1,18 +1,13 @@
-# 빌드 정보 — 2.8.3
+# 빌드 정보 — 2.8.4
 
 ## 산출물 (사실)
 
-- `yeomju/dist/com.yeomju.mala.debug.2.8.3.rpk`
-- 크기: 987118 bytes
-- SHA256: `5fa57a80277a49bd2281e52a2d4029cfb6b169d3917f22ac308bafbc88d1d715`
-- versionName 2.8.3 / versionCode 35
+- `yeomju/dist/com.yeomju.mala.debug.2.8.4.rpk`
+- 크기: 987119 bytes
+- SHA256: `c85a72b0b82111811d355f045e7293416395e3a6dd94b6ec2dc14f97f337c4b0`
+- versionName 2.8.4 / versionCode 36
 - 단위 테스트: 39 passed
 
 ## 변경
 
-- 설정 섹션 부가설명(hint) 전부 제거
-- 달성 진동: long ×3 @ 0·500·1000ms (실기기 long이 문서보다 짧음)
-
-## 프리뷰
-
-- `docs/preview-2.8.3-settings.png`
+- 달성 진동: long ×3 @ 0·300·600ms

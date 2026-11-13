@@ -93,7 +93,7 @@
         <text class="opt-text">{{resetLabel}}</text>
       </div>
 
-      <text class="meta">v2.8.3</text>
+      <text class="meta">v2.8.4</text>
     </div>
   </div>
 </template>

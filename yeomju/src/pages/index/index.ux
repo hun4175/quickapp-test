@@ -1,5 +1,5 @@
 <template>
-  <!-- 2.8.3: 현재/목표 · 광채 축하 · long×3 @0/500/1000 -->
+  <!-- 2.8.4: 현재/목표 · 광채 축하 · long×3 @0/300/600 -->
   <div
     class="page"
     ontouchstart="onTouchStart"
@@ -402,7 +402,7 @@ export default {
   },
 
   /**
-   * long ×3 @ 0·500·1000ms (실기기 long이 문서보다 짧음).
+   * long ×3 @ 0·300·600ms (실기기 long이 문서보다 짧음).
    * Watch 6는 start/stop 미지원. 입력 비차단 · onHide에서 타이머 정리.
    */
   pulseGoalVibrate() {
