@@ -1,5 +1,5 @@
 <template>
-  <!-- 2.7.2: S2 · 하단 횟수 텍스트(가독성) -->
+  <!-- 2.8.0: S2 · 목표 축하 · 해금 안내 -->
   <div
     class="page"
     ontouchstart="onTouchStart"
@@ -14,14 +14,24 @@
         style="left: {{spriteLeft}}px; top: {{spriteTop}}px; width: {{spriteW}}px; height: {{spriteH}}px;"
       ></image>
     </div>
-    <text class="count" if="{{showCount}}">{{countText}}</text>
+    <text
+      class="count"
+      if="{{showCount}}"
+      style="color: {{countColor}};"
+    >{{countText}}</text>
+    <text class="banner" if="{{bannerText}}">{{bannerText}}</text>
   </div>
 </template>
 
 <script>
 import router from '@system.router'
 import vibrator from '@system.vibrator'
-import { applySwipeCount, normalizeState, formatDate } from '../../common/beads.js'
+import {
+  applySwipeCount,
+  evaluateGoalEvents,
+  normalizeState,
+  formatDate
+} from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
 import {
   SWIPE_MIN_DY,
@@ -38,6 +48,10 @@ import {
 
 const LONGPRESS_MS = 560
 const ANIM_SLACK_MS = 16
+const COUNT_COLOR_NORMAL = '#fff4d6'
+const COUNT_COLOR_GLOW = '#ffd700'
+const CELEBRATE_MS = 720
+const BANNER_MS = 1800
 
 export default {
   private: {
@@ -46,6 +60,8 @@ export default {
     beadTheme: 'default',
     showCount: true,
     countText: '0',
+    countColor: COUNT_COLOR_NORMAL,
+    bannerText: '',
     spriteFrameSrc: '/common/sprite/idle.jpg',
     spriteLeft: SPRITE_CROP.left,
     spriteTop: SPRITE_CROP.top,
@@ -59,6 +75,8 @@ export default {
     this._sideTimer = null
     this._lpTimer = null
     this._s2Timer = null
+    this._glowTimer = null
+    this._bannerTimer = null
     this._s2Idx = 0
     this._s2List = null
     this._animating = false
@@ -81,10 +99,12 @@ export default {
 
   onHide() {
     this.clearAllTimers()
+    this.clearCelebrateTimers()
   },
 
   onDestroy() {
     this.clearAllTimers()
+    this.clearCelebrateTimers()
   },
 
   clearLpTimer() {
@@ -106,6 +126,17 @@ export default {
     if (this._s2Timer) {
       clearTimeout(this._s2Timer)
       this._s2Timer = null
+    }
+  },
+
+  clearCelebrateTimers() {
+    if (this._glowTimer) {
+      clearTimeout(this._glowTimer)
+      this._glowTimer = null
+    }
+    if (this._bannerTimer) {
+      clearTimeout(this._bannerTimer)
+      this._bannerTimer = null
     }
   },
 
@@ -241,9 +272,12 @@ export default {
 
   startRoll(dir) {
     const d = Number(dir) < 0 ? -1 : 1
-    const phaseFrom = themePhase(this._state.todayTotal)
+    const prevTotal = this._state.todayTotal
+    const phaseFrom = themePhase(prevTotal)
     const result = applySwipeCount(this._state, d)
-    this._state = result.state
+    const events = evaluateGoalEvents(prevTotal, result.state)
+    this._state = events.state
+    this.beadTheme = events.state.beadTheme || 'default'
     // 카운트 텍스트만 갱신 (S2 프레임 교체와 분리)
     this.syncCount()
     this._animating = true
@@ -269,10 +303,13 @@ export default {
     }
     this._s2Timer = setTimeout(tick, step)
     const completedRound = !!result.completedRound
-    const state = result.state
+    const state = events.state
+    const goalReached = !!events.goalReached
+    const unlockJustNow = !!events.unlockJustNow
     this._sideTimer = setTimeout(() => {
       this._sideTimer = null
-      this.buzz(completedRound)
+      this.buzz(completedRound, goalReached)
+      if (goalReached) this.playCelebrate(unlockJustNow)
       this.queueSave(state)
     }, 0)
     this._animTimer = setTimeout(() => {
@@ -287,6 +324,42 @@ export default {
     this._animating = false
   },
 
+  /**
+   * 가벼운 금색 반짝임 + 선택적 해금 안내. 입력 막지 않음 · S2와 독립 타이머.
+   */
+  playCelebrate(unlockJustNow) {
+    if (this._glowTimer) {
+      clearTimeout(this._glowTimer)
+      this._glowTimer = null
+    }
+    if (this._bannerTimer) {
+      clearTimeout(this._bannerTimer)
+      this._bannerTimer = null
+    }
+    this.countColor = COUNT_COLOR_GLOW
+    let flashes = 0
+    const flash = () => {
+      this._glowTimer = null
+      flashes += 1
+      this.countColor =
+        flashes % 2 === 0 ? COUNT_COLOR_GLOW : COUNT_COLOR_NORMAL
+      if (flashes < 4) {
+        this._glowTimer = setTimeout(flash, Math.floor(CELEBRATE_MS / 4))
+      } else {
+        this.countColor = COUNT_COLOR_NORMAL
+      }
+    }
+    this._glowTimer = setTimeout(flash, Math.floor(CELEBRATE_MS / 4))
+
+    if (unlockJustNow) {
+      this.bannerText = '금박 나무 염주 해금'
+      this._bannerTimer = setTimeout(() => {
+        this._bannerTimer = null
+        this.bannerText = ''
+      }, BANNER_MS)
+    }
+  },
+
   queueSave(state) {
     if (this._saveTimer) clearTimeout(this._saveTimer)
     this._saveTimer = setTimeout(() => {
@@ -297,9 +370,25 @@ export default {
     }, 280)
   },
 
-  buzz(completedRound) {
-    if (this.vibrateOnBead) vibrator.vibrate({ mode: 'short' })
-    if (completedRound) vibrator.vibrate({ mode: 'long' })
+  /**
+   * Vela @system.vibrator.vibrate({ mode }) — REDMI Watch 6 지원.
+   * start/stop 은 Watch 6 미지원 → 사용하지 않음. 실패 시 무시.
+   */
+  safeVibrate(mode) {
+    try {
+      vibrator.vibrate({ mode: mode || 'short' })
+    } catch (e) {
+      // 미지원·런타임 오류 무시
+    }
+  },
+
+  buzz(completedRound, goalReached) {
+    if (goalReached) {
+      this.safeVibrate('long')
+      return
+    }
+    if (this.vibrateOnBead) this.safeVibrate('short')
+    if (completedRound) this.safeVibrate('long')
   }
 }
 </script>
@@ -331,5 +420,18 @@ export default {
   color: #fff4d6;
   text-align: center;
   text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.banner {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  top: 56px;
+  width: 384px;
+  height: 40px;
+  font-size: 26px;
+  font-weight: bold;
+  color: #ffd700;
+  text-align: center;
+  text-shadow: 0px 1px 3px #000000;
 }
 </style>

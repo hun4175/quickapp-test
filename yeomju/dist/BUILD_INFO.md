@@ -1,25 +1,34 @@
-# 빌드 정보 — 2.7.2 (횟수 초기화 · 가독성)
+# 빌드 정보 — 2.8.0 (목표 횟수 · 금박 해금)
 
 ## 산출물 (사실)
 
-- `yeomju/dist/com.yeomju.mala.debug.2.7.2.rpk`
-- 크기: 931262 bytes
-- SHA256: `23c12b209571945ff9d43c9f8395b5ee8811b02bf9d6a3fa0df764add24fdd0d`
-- versionName 2.7.2 / versionCode 31
-- 단위 테스트: 29 passed
+- `yeomju/dist/com.yeomju.mala.debug.2.8.0.rpk`
+- 크기: 934078 bytes
+- SHA256: `2b5d202e24cd9c8b19e5364f6f0f335ff8811067789573da6ab2a28345f33d05`
+- versionName 2.8.0 / versionCode 32
+- 단위 테스트: 37 passed
 
 ## 변경
 
-- 설정 `횟수 초기화` 두 번 탭 확인 → `todayTotal` 0 저장
-- 카운트 스타일: bold · 48px · `#fff4d6` · 다방향 text-shadow · bottom 36px
-- 첫 설치 카운트 0 확인 (`DEFAULT_STATE` / 빈 storage)
-- 프리뷰 108은 예시값 (실기기 첫 실행은 0)
+- 목표 횟수 21/54/108/1080 (기본 21, schema 15)
+- 목표 배수마다 축하: `vibrator.vibrate({ mode: 'long' })` + 카운트 금색 반짝임
+- 카운트 계속 증가 · 배수마다 재축하
+- 금박 나무: 1080 도달 시 해금·자동 전환 · 초기화해도 해금 유지
+- manifest `system.vibrator` 유지 (이미 선언)
+
+## 진동 API
+
+- `import vibrator from '@system.vibrator'`
+- `vibrator.vibrate({ mode: 'long' | 'short' })`
+- 근거: https://iot.mi.com/vela/quickapp/zh/features/system/vibrator.html
+- REDMI Watch 6: `vibrate` 지원 · `start`/`stop` 미지원 → 미사용
+- try/catch로 실패 무시
 
 ## 프리뷰
 
-- `docs/preview-2.7.2-main.png`
-- `docs/preview-2.7.2-settings.png`
+- `docs/preview-2.8.0-main.png`
+- `docs/preview-2.8.0-settings.png`
 
 ## 미확인
 
-- 실기기 연핑크 옥 위 가독성·초기화 UX (**단정하지 않음**)
+- 실기기 축하 진동·해금 UX (**단정하지 않음**)

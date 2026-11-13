@@ -5,6 +5,8 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   BEAD_OPTIONS,
+  GOAL_OPTIONS,
+  GOLDWOOD_UNLOCK_AT,
   SWIPE_COUNT_MODE,
   INPUT_MODES,
   BEAD_THEMES,
@@ -13,11 +15,14 @@ import {
   advanceBead,
   retreatBead,
   applySwipeCount,
+  evaluateGoalEvents,
   setBeadsPerRound,
   setVibrateOnBead,
   setInputMode,
   setBeadTheme,
   setShowCount,
+  setGoalCount,
+  visibleBeadThemes,
   migrateAnimModeForStability,
   resetTodayCount,
   resetSession,
@@ -35,6 +40,14 @@ describe('BEAD_OPTIONS', () => {
   })
 })
 
+describe('GOAL_OPTIONS', () => {
+  it('21/54/108/1080 · 기본 21', () => {
+    assert.deepEqual([...GOAL_OPTIONS], [21, 54, 108, 1080])
+    assert.equal(DEFAULT_STATE.goalCount, 21)
+    assert.equal(GOLDWOOD_UNLOCK_AT, 1080)
+  })
+})
+
 describe('normalizeState', () => {
   it('잘못된 입력은 기본값 · 한자 테마는 default 폴백', () => {
     const s = normalizeState({
@@ -45,6 +58,8 @@ describe('normalizeState', () => {
     assert.equal(s.beadTheme, 'default')
     assert.equal(s.inputMode, 'slide')
     assert.equal(s.showCount, true)
+    assert.equal(s.goalCount, 21)
+    assert.equal(s.unlockGoldwood, false)
     assert.equal(s.renderMode, undefined)
     assert.equal(normalizeState({ beadTheme: 'namu' }).beadTheme, 'default')
     assert.equal(normalizeState({ beadTheme: 'jade' }).beadTheme, 'jade')
@@ -62,6 +77,17 @@ describe('normalizeState', () => {
     assert.equal(deserializeState('').todayTotal, 0)
     assert.equal(deserializeState(null).todayTotal, 0)
     assert.equal(deserializeState('not-json').todayTotal, 0)
+  })
+
+  it('미해금 goldwood는 default 폴백', () => {
+    assert.equal(
+      normalizeState({ beadTheme: 'goldwood', unlockGoldwood: false }).beadTheme,
+      'default'
+    )
+    assert.equal(
+      normalizeState({ beadTheme: 'goldwood', unlockGoldwood: true }).beadTheme,
+      'goldwood'
+    )
   })
 
   it('허용되지 않은 알 개수는 108로', () => {
@@ -121,13 +147,104 @@ describe('advance / retreat / swipe', () => {
   })
 })
 
-describe('설정·초기화', () => {
-  it('setBeadsPerRound / vibrate', () => {
-    assert.equal(setBeadsPerRound({}, 54).beadsPerRound, 54)
-    assert.equal(setVibrateOnBead({}, false).vibrateOnBead, false)
+describe('목표·해금', () => {
+  it('목표 배수마다 축하 · 카운트 계속 증가', () => {
+    const a = evaluateGoalEvents(20, {
+      todayTotal: 21,
+      goalCount: 21,
+      unlockGoldwood: false
+    })
+    assert.equal(a.goalReached, true)
+    assert.equal(a.milestone, 21)
+    assert.equal(a.unlockJustNow, false)
+    assert.equal(a.state.todayTotal, 21)
+
+    const b = evaluateGoalEvents(41, {
+      todayTotal: 42,
+      goalCount: 21,
+      unlockGoldwood: false
+    })
+    assert.equal(b.goalReached, true)
+    assert.equal(b.milestone, 42)
+
+    const c = evaluateGoalEvents(21, {
+      todayTotal: 22,
+      goalCount: 21,
+      unlockGoldwood: false
+    })
+    assert.equal(c.goalReached, false)
   })
 
-  it('2.7.1 schema≥14 · 테마 · showCount', () => {
+  it('1080 달성 시 금박 나무 해금·자동 전환', () => {
+    const r = evaluateGoalEvents(1079, {
+      todayTotal: 1080,
+      goalCount: 1080,
+      beadTheme: 'jade',
+      unlockGoldwood: false
+    })
+    assert.equal(r.unlockJustNow, true)
+    assert.equal(r.goalReached, true)
+    assert.equal(r.state.unlockGoldwood, true)
+    assert.equal(r.state.beadTheme, 'goldwood')
+    assert.equal(r.state.todayTotal, 1080)
+  })
+
+  it('목표 21이어도 1080 도달 시 해금', () => {
+    const r = evaluateGoalEvents(1079, {
+      todayTotal: 1080,
+      goalCount: 21,
+      unlockGoldwood: false,
+      beadTheme: 'default'
+    })
+    assert.equal(r.unlockJustNow, true)
+    assert.equal(r.state.unlockGoldwood, true)
+    assert.equal(r.state.beadTheme, 'goldwood')
+  })
+
+  it('visibleBeadThemes · 미해금 시 goldwood 숨김', () => {
+    assert.deepEqual(visibleBeadThemes({ unlockGoldwood: false }), [
+      'default',
+      'jade',
+      'pinkjade'
+    ])
+    assert.deepEqual(visibleBeadThemes({ unlockGoldwood: true }), [
+      ...BEAD_THEMES
+    ])
+  })
+
+  it('setBeadTheme 미해금 goldwood 무시', () => {
+    const s = setBeadTheme({ unlockGoldwood: false, beadTheme: 'jade' }, 'goldwood')
+    assert.equal(s.beadTheme, 'jade')
+    assert.equal(
+      setBeadTheme({ unlockGoldwood: true, beadTheme: 'jade' }, 'goldwood')
+        .beadTheme,
+      'goldwood'
+    )
+  })
+
+  it('횟수 초기화해도 해금 유지', () => {
+    const next = resetTodayCount({
+      todayTotal: 1080,
+      unlockGoldwood: true,
+      beadTheme: 'goldwood',
+      goalCount: 108
+    })
+    assert.equal(next.todayTotal, 0)
+    assert.equal(next.unlockGoldwood, true)
+    assert.equal(next.beadTheme, 'goldwood')
+    assert.equal(next.goalCount, 108)
+  })
+})
+
+describe('설정·초기화', () => {
+  it('setBeadsPerRound / vibrate / goal', () => {
+    assert.equal(setBeadsPerRound({}, 54).beadsPerRound, 54)
+    assert.equal(setVibrateOnBead({}, false).vibrateOnBead, false)
+    assert.equal(setGoalCount({}, 108).goalCount, 108)
+    assert.equal(setGoalCount({}, 999).goalCount, 21)
+  })
+
+  it('2.8.0 schema≥15 · 목표 기본 21 · 기존 goldwood 해금', () => {
     assert.deepEqual(
       [...BEAD_THEMES],
       ['default', 'goldwood', 'jade', 'pinkjade']
@@ -137,14 +254,24 @@ describe('설정·초기화', () => {
       stateSchema: 12
     })
     assert.equal(m.migrated, true)
-    assert.equal(m.state.stateSchema, 14)
+    assert.equal(m.state.stateSchema, 15)
     assert.equal(m.state.beadTheme, 'default')
+    assert.equal(m.state.goalCount, 21)
+    assert.equal(m.state.unlockGoldwood, false)
     assert.equal(m.state.showCount, true)
-    assert.equal(setBeadTheme({}, 'goldwood').beadTheme, 'goldwood')
-    assert.equal(setBeadTheme({}, 'pinkjade').beadTheme, 'pinkjade')
-    assert.equal(setBeadTheme({}, 'ommani').beadTheme, 'default')
+
+    const g = migrateAnimModeForStability({
+      beadTheme: 'goldwood',
+      stateSchema: 14,
+      todayTotal: 10
+    })
+    assert.equal(g.migrated, true)
+    assert.equal(g.state.unlockGoldwood, true)
+    assert.equal(g.state.beadTheme, 'goldwood')
+    assert.equal(g.state.goalCount, 21)
+
+    assert.equal(setBeadTheme({ unlockGoldwood: true }, 'pinkjade').beadTheme, 'pinkjade')
     assert.equal(setShowCount({}, false).showCount, false)
-    assert.equal(setShowCount({ showCount: false }, true).showCount, true)
   })
 
   it('inputMode', () => {
@@ -152,16 +279,20 @@ describe('설정·초기화', () => {
     assert.equal(setInputMode({}, 'touch').inputMode, 'touch')
   })
 
-  it('serialize가 showCount·todayTotal 유지', () => {
+  it('serialize가 goal·unlock·todayTotal 유지', () => {
     const s = normalizeState({
       todayTotal: 42,
       showCount: false,
-      beadTheme: 'jade'
+      beadTheme: 'jade',
+      goalCount: 108,
+      unlockGoldwood: true
     })
     const round = deserializeState(serializeState(s))
     assert.equal(round.todayTotal, 42)
     assert.equal(round.showCount, false)
     assert.equal(round.beadTheme, 'jade')
+    assert.equal(round.goalCount, 108)
+    assert.equal(round.unlockGoldwood, true)
   })
 
   it('resetTodayCount · 카운트만 0 · bead/rounds 유지', () => {
@@ -204,7 +335,8 @@ describe('serialize', () => {
     const s = normalizeState({
       bead: 3,
       beadTheme: 'jade',
-      todayDate: formatDate()
+      todayDate: formatDate(),
+      goalCount: 54
     })
     assert.deepEqual(deserializeState(serializeState(s)), normalizeState(s))
   })

@@ -1,10 +1,16 @@
 /**
  * 염주 카운트 순수 로직 (워치 런타임 / Node 테스트 공용).
- * 2.7.2: 횟수 초기화 · 카운트 가독성.
+ * 2.8.0: 목표 횟수 · 금박 나무 해금.
  */
 
 /** 한 바퀴 알 개수 선택지 (염주/묵주 관례) — 기본 108, UI 노출 없음 */
 export const BEAD_OPTIONS = [108, 54, 27, 21]
+
+/** 목표 횟수 (메인 카운트 기준) — 기본 21 */
+export const GOAL_OPTIONS = Object.freeze([21, 54, 108, 1080])
+
+/** 금박 나무 해금에 필요한 누적 카운트 */
+export const GOLDWOOD_UNLOCK_AT = 1080
 
 /** 입력 방식: 슬라이드(기본) / 터치(탭=한 칸 앞) */
 export const INPUT_MODES = Object.freeze(['slide', 'touch'])
@@ -54,7 +60,9 @@ export const DEFAULT_STATE = Object.freeze({
   inputMode: 'slide',
   beadTheme: 'default',
   showCount: true,
-  stateSchema: 14
+  goalCount: 21,
+  unlockGoldwood: false,
+  stateSchema: 15
 })
 
 /**
@@ -73,8 +81,12 @@ export const formatDate = (date = new Date()) => {
 const resolveTheme = (raw) => {
   const t = String(raw || '')
   if (BEAD_THEMES.includes(t)) return t
-  // 폐기된 한자 테마 등 → 기본
   return 'default'
+}
+
+const resolveGoal = (raw) => {
+  const n = Math.floor(Number(raw) || 0)
+  return GOAL_OPTIONS.includes(n) ? n : DEFAULT_STATE.goalCount
 }
 
 /**
@@ -96,9 +108,14 @@ export const normalizeState = (raw) => {
     ? String(src.inputMode)
     : DEFAULT_STATE.inputMode
 
-  const beadTheme = resolveTheme(src.beadTheme)
-  // 기본 on: 명시적으로 false일 때만 끔
+  let beadTheme = resolveTheme(src.beadTheme)
   const showCount = src.showCount !== false
+  const goalCount = resolveGoal(src.goalCount)
+  // 명시 true만 해금. 미해금인데 goldwood면 default로 폴백
+  let unlockGoldwood = src.unlockGoldwood === true
+  if (beadTheme === 'goldwood' && !unlockGoldwood) {
+    beadTheme = 'default'
+  }
 
   const schemaRaw = Math.floor(Number(src.stateSchema) || 0)
   const stateSchema = schemaRaw > 0 ? schemaRaw : 1
@@ -113,27 +130,45 @@ export const normalizeState = (raw) => {
     inputMode,
     beadTheme,
     showCount,
+    goalCount,
+    unlockGoldwood,
     stateSchema
   }
 }
 
 /**
- * 2.7.1: schema≥14. showCount 추가.
+ * 2.8.0: schema≥15. goalCount·unlockGoldwood.
+ * 기존 사용자: goalCount=21. 이미 goldwood 사용 중이면 해금 유지.
  * @param {object} state
  * @returns {{ state: object, migrated: boolean }}
  */
 export const migrateAnimModeForStability = (state) => {
-  const s = normalizeState(state)
-  if (s.stateSchema >= 14) {
+  const raw = state && typeof state === 'object' ? state : {}
+  const s = normalizeState(raw)
+  if (s.stateSchema >= 15) {
     return { state: s, migrated: false }
   }
+
+  const hadGoldwood = resolveTheme(raw.beadTheme) === 'goldwood'
+  const unlockGoldwood =
+    raw.unlockGoldwood === true ||
+    hadGoldwood ||
+    s.todayTotal >= GOLDWOOD_UNLOCK_AT
+
+  let beadTheme = resolveTheme(raw.beadTheme)
+  if (beadTheme === 'goldwood' && !unlockGoldwood) {
+    beadTheme = 'default'
+  }
+
   return {
     state: {
       ...s,
-      stateSchema: 14,
+      stateSchema: 15,
       inputMode: INPUT_MODES.includes(s.inputMode) ? s.inputMode : 'slide',
-      beadTheme: resolveTheme(s.beadTheme),
-      showCount: s.showCount !== false
+      beadTheme,
+      showCount: s.showCount !== false,
+      goalCount: resolveGoal(raw.goalCount),
+      unlockGoldwood
     },
     migrated: true
   }
@@ -204,6 +239,42 @@ export const applySwipeCount = (state, dir) => {
   return advanceBead(state)
 }
 
+/**
+ * 카운트 증가 후 목표·해금 이벤트.
+ * 카운트는 계속 증가. 목표 배수마다 축하.
+ * @param {number} prevTotal
+ * @param {object} state  advance 이후 상태
+ * @returns {{ state: object, goalReached: boolean, unlockJustNow: boolean, milestone: number }}
+ */
+export const evaluateGoalEvents = (prevTotal, state) => {
+  const s = normalizeState(state)
+  const prev = Math.max(0, Math.floor(Number(prevTotal) || 0))
+  const next = s.todayTotal
+  const goal = s.goalCount > 0 ? s.goalCount : DEFAULT_STATE.goalCount
+  const prevM = Math.floor(prev / goal)
+  const nextM = Math.floor(next / goal)
+  const goalReached = nextM > prevM
+  const milestone = goalReached ? nextM * goal : 0
+
+  let unlockJustNow = false
+  let nextState = s
+  if (!s.unlockGoldwood && next >= GOLDWOOD_UNLOCK_AT) {
+    unlockJustNow = true
+    nextState = {
+      ...s,
+      unlockGoldwood: true,
+      beadTheme: 'goldwood'
+    }
+  }
+
+  return {
+    state: nextState,
+    goalReached: goalReached || unlockJustNow,
+    unlockJustNow,
+    milestone
+  }
+}
+
 export const setBeadsPerRound = (state, n) => {
   const s = normalizeState(state)
   const beadsPerRound = BEAD_OPTIONS.includes(Number(n))
@@ -229,7 +300,11 @@ export const setInputMode = (state, mode) => {
 
 export const setBeadTheme = (state, theme) => {
   const s = normalizeState(state)
-  return { ...s, beadTheme: resolveTheme(theme) }
+  const t = resolveTheme(theme)
+  if (t === 'goldwood' && !s.unlockGoldwood) {
+    return s
+  }
+  return { ...s, beadTheme: t }
 }
 
 export const setShowCount = (state, enabled) => {
@@ -237,8 +312,23 @@ export const setShowCount = (state, enabled) => {
   return { ...s, showCount: !!enabled }
 }
 
+export const setGoalCount = (state, n) => {
+  const s = normalizeState(state)
+  return { ...s, goalCount: resolveGoal(n) }
+}
+
 /**
- * 메인 카운트(todayTotal)만 0. bead/rounds 유지.
+ * 설정에 노출할 테마 목록 (금박 나무는 해금 후만).
+ * @param {object} state
+ * @returns {string[]}
+ */
+export const visibleBeadThemes = (state) => {
+  const s = normalizeState(state)
+  return BEAD_THEMES.filter((t) => t !== 'goldwood' || s.unlockGoldwood)
+}
+
+/**
+ * 메인 카운트(todayTotal)만 0. bead/rounds·해금 유지.
  * @param {object} state
  * @returns {object}
  */
