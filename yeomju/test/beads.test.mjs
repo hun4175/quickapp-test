@@ -15,6 +15,8 @@ import {
   setBeadsPerRound,
   setVibrateOnBead,
   setInputMode,
+  setDiagnoseLatency,
+  setSingleBeadTest,
   migrateAnimModeForStability,
   UNSAFE_ANIM_MODES,
   resetSession,
@@ -112,7 +114,7 @@ describe('설정·초기화', () => {
     assert.equal(setVibrateOnBead({}, false).vibrateOnBead, false)
   })
 
-  it('2.4.0 schema≥4 마이그레이션 · animMode 제거', () => {
+  it('2.4.1 schema≥5 마이그레이션 · animMode 제거', () => {
     assert.deepEqual([...UNSAFE_ANIM_MODES], ['D', 'E'])
     const m = migrateAnimModeForStability({
       animMode: 'E',
@@ -120,22 +122,31 @@ describe('설정·초기화', () => {
       stateSchema: 1
     })
     assert.equal(m.migrated, true)
-    assert.equal(m.state.stateSchema, 4)
+    assert.equal(m.state.stateSchema, 5)
     assert.equal(m.state.inputMode, 'slide')
+    assert.equal(m.state.diagnoseLatency, false)
     assert.equal(m.state.animMode, undefined)
-    const stable = migrateAnimModeForStability({
+    const from4 = migrateAnimModeForStability({
       inputMode: 'touch',
       stateSchema: 4
+    })
+    assert.equal(from4.migrated, true)
+    assert.equal(from4.state.stateSchema, 5)
+    const stable = migrateAnimModeForStability({
+      inputMode: 'touch',
+      stateSchema: 5
     })
     assert.equal(stable.migrated, false)
     assert.equal(stable.state.inputMode, 'touch')
   })
 
-  it('inputMode slide/touch', () => {
+  it('inputMode · 진단 토글', () => {
     assert.deepEqual([...INPUT_MODES], ['slide', 'touch'])
     assert.equal(setInputMode({}, 'touch').inputMode, 'touch')
     assert.equal(setInputMode({}, 'slide').inputMode, 'slide')
     assert.equal(setInputMode({}, 'zap').inputMode, 'slide')
+    assert.equal(setDiagnoseLatency({}, true).diagnoseLatency, true)
+    assert.equal(setSingleBeadTest({}, true).singleBeadTest, true)
   })
 
   it('resetSession 은 오늘 합계 유지', () => {

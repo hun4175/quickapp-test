@@ -44,6 +44,28 @@
       </div>
     </div>
 
+    <text class="label">진단</text>
+    <text class="hint">P1=터치시작 · P2=애니클래스 · ms 표시</text>
+    <div class="row">
+      <div class="chip {{diagnoseLatency ? 'chip-on' : ''}}" onclick="setDiagOn">
+        <text class="chip-text">켜기</text>
+      </div>
+      <div class="chip {{!diagnoseLatency ? 'chip-on' : ''}}" onclick="setDiagOff">
+        <text class="chip-text">끄기</text>
+      </div>
+    </div>
+
+    <text class="label">단일 구슬 테스트</text>
+    <text class="hint">포커스 1개만 keyframe (노드수 원인 확인)</text>
+    <div class="row">
+      <div class="chip {{singleBeadTest ? 'chip-on' : ''}}" onclick="setSingleOn">
+        <text class="chip-text">켜기</text>
+      </div>
+      <div class="chip {{!singleBeadTest ? 'chip-on' : ''}}" onclick="setSingleOff">
+        <text class="chip-text">끄기</text>
+      </div>
+    </div>
+
     <text class="label">데이터</text>
     <div class="col">
       <div class="action" onclick="confirmSession">
@@ -54,7 +76,7 @@
       </div>
     </div>
 
-    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.4.0</text>
+    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.4.1</text>
   </div>
 </template>
 
@@ -64,6 +86,8 @@ import {
   setBeadsPerRound,
   setVibrateOnBead,
   setInputMode,
+  setDiagnoseLatency,
+  setSingleBeadTest,
   INPUT_MODE_HINTS
 } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
@@ -74,7 +98,9 @@ export default {
     vibrateOnBead: true,
     todayTotal: 0,
     inputMode: 'slide',
-    inputHint: INPUT_MODE_HINTS.slide
+    inputHint: INPUT_MODE_HINTS.slide,
+    diagnoseLatency: false,
+    singleBeadTest: false
   },
 
   onShow() {
@@ -104,6 +130,8 @@ export default {
     this.todayTotal = state.todayTotal
     this.inputMode = state.inputMode || 'slide'
     this.inputHint = INPUT_MODE_HINTS[this.inputMode] || INPUT_MODE_HINTS.slide
+    this.diagnoseLatency = !!state.diagnoseLatency
+    this.singleBeadTest = !!state.singleBeadTest
   },
 
   async persist(next) {
@@ -149,6 +177,23 @@ export default {
   },
   pickTouch() {
     this.pickInput('touch')
+  },
+
+  async setDiagOn() {
+    if (!this._state) await this.reload()
+    await this.persist(setDiagnoseLatency(this._state, true))
+  },
+  async setDiagOff() {
+    if (!this._state) await this.reload()
+    await this.persist(setDiagnoseLatency(this._state, false))
+  },
+  async setSingleOn() {
+    if (!this._state) await this.reload()
+    await this.persist(setSingleBeadTest(this._state, true))
+  },
+  async setSingleOff() {
+    if (!this._state) await this.reload()
+    await this.persist(setSingleBeadTest(this._state, false))
   },
 
   confirmSession() {

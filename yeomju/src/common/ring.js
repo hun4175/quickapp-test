@@ -373,10 +373,12 @@ export const withRollClasses = (beads, dir, opts = {}) => {
   const n = slots.length
   const d = Number(dir) < 0 ? -1 : 1
   const rank = paintRankBySlot(opts)
+  const focusOnly = opts.singleBead === true
   return beads.map((b) => {
     const home = b.homeSlot != null ? b.homeSlot : b.slot
     const to = (home + d + n) % n
-    // 버퍼↔버퍼는 rollClassForSlot이 '' — 불필요 클래스 토글 없음
+    const animClass =
+      focusOnly && home !== 0 ? '' : rollClassForSlot(home, d, opts)
     return {
       ...b,
       slot: home,
@@ -385,9 +387,23 @@ export const withRollClasses = (beads, dir, opts = {}) => {
       top: slots[home].top,
       size: slots[home].size,
       depth: slots[home].depth,
-      animClass: rollClassForSlot(home, d, opts),
+      animClass,
       z: rank[to]
     }
+  })
+}
+
+/**
+ * 그리기 순서 배열에 대한 animClass만 (기하·src 없음).
+ * 정적 노드 바인딩용 — setData에 클래스 문자열만 넘길 때 사용.
+ */
+export const animClassesForDrawOrder = (dir, opts = {}) => {
+  const order = fixedDrawOrder(opts)
+  const d = Number(dir) < 0 ? -1 : 1
+  const focusOnly = opts.singleBead === true
+  return order.map((home) => {
+    if (focusOnly && home !== 0) return ''
+    return rollClassForSlot(home, d, opts)
   })
 }
 

@@ -1,7 +1,7 @@
 <template>
   <!--
-    2.4.0: 시각=2.3.1 유지. 입력 슬라이드/터치. 애니 모드·디버그 제거.
-    핫패스: 클래스 먼저 → 저장/진동 나중. 진행 중 입력은 즉시 홈스냅 후 재시작.
+    2.4.1 진단: 시각=2.3.1. 정적 10노드·animClass만 갱신.
+    커스텀 롱프레스(onlongpress 제거). P1/P2 진단 점.
   -->
   <div
     class="page"
@@ -9,21 +9,114 @@
     ontouchmove="onTouchMove"
     ontouchend="onTouchEnd"
     ontouchcancel="onTouchCancel"
-    onlongpress="onLongPress"
   >
     <stack class="stage">
       <div class="ring-mover">
         <div
-          class="bead-wrap {{$item.animClass}}"
-          for="{{chainBeads}}"
-          style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px; z-index: {{$item.z}};"
+          class="bead-wrap {{a0}}"
+          style="left: {{l0}}px; top: {{t0}}px; width: {{s0}}px; height: {{s0}}px; z-index: {{z0}};"
         >
           <image
             class="bead-img"
-            src="{{$item.src}}"
-            style="width: {{$item.size}}px; height: {{$item.size}}px;"
+            src="{{beadSrc}}"
+            style="width: {{s0}}px; height: {{s0}}px;"
           ></image>
         </div>
+        <div
+          class="bead-wrap {{a1}}"
+          style="left: {{l1}}px; top: {{t1}}px; width: {{s1}}px; height: {{s1}}px; z-index: {{z1}};"
+        >
+          <image
+            class="bead-img"
+            src="{{beadSrc}}"
+            style="width: {{s1}}px; height: {{s1}}px;"
+          ></image>
+        </div>
+        <div
+          class="bead-wrap {{a2}}"
+          style="left: {{l2}}px; top: {{t2}}px; width: {{s2}}px; height: {{s2}}px; z-index: {{z2}};"
+        >
+          <image
+            class="bead-img"
+            src="{{beadSrc}}"
+            style="width: {{s2}}px; height: {{s2}}px;"
+          ></image>
+        </div>
+        <div
+          class="bead-wrap {{a3}}"
+          style="left: {{l3}}px; top: {{t3}}px; width: {{s3}}px; height: {{s3}}px; z-index: {{z3}};"
+        >
+          <image
+            class="bead-img"
+            src="{{beadSrc}}"
+            style="width: {{s3}}px; height: {{s3}}px;"
+          ></image>
+        </div>
+        <div
+          class="bead-wrap {{a4}}"
+          style="left: {{l4}}px; top: {{t4}}px; width: {{s4}}px; height: {{s4}}px; z-index: {{z4}};"
+        >
+          <image
+            class="bead-img"
+            src="{{beadSrc}}"
+            style="width: {{s4}}px; height: {{s4}}px;"
+          ></image>
+        </div>
+        <div
+          class="bead-wrap {{a5}}"
+          style="left: {{l5}}px; top: {{t5}}px; width: {{s5}}px; height: {{s5}}px; z-index: {{z5}};"
+        >
+          <image
+            class="bead-img"
+            src="{{beadSrc}}"
+            style="width: {{s5}}px; height: {{s5}}px;"
+          ></image>
+        </div>
+        <div
+          class="bead-wrap {{a6}}"
+          style="left: {{l6}}px; top: {{t6}}px; width: {{s6}}px; height: {{s6}}px; z-index: {{z6}};"
+        >
+          <image
+            class="bead-img"
+            src="{{beadSrc}}"
+            style="width: {{s6}}px; height: {{s6}}px;"
+          ></image>
+        </div>
+        <div
+          class="bead-wrap {{a7}}"
+          style="left: {{l7}}px; top: {{t7}}px; width: {{s7}}px; height: {{s7}}px; z-index: {{z7}};"
+        >
+          <image
+            class="bead-img"
+            src="{{beadSrc}}"
+            style="width: {{s7}}px; height: {{s7}}px;"
+          ></image>
+        </div>
+        <div
+          class="bead-wrap {{a8}}"
+          style="left: {{l8}}px; top: {{t8}}px; width: {{s8}}px; height: {{s8}}px; z-index: {{z8}};"
+        >
+          <image
+            class="bead-img"
+            src="{{beadSrc}}"
+            style="width: {{s8}}px; height: {{s8}}px;"
+          ></image>
+        </div>
+        <div
+          class="bead-wrap {{a9}}"
+          style="left: {{l9}}px; top: {{t9}}px; width: {{s9}}px; height: {{s9}}px; z-index: {{z9}};"
+        >
+          <image
+            class="bead-img"
+            src="{{beadSrc}}"
+            style="width: {{s9}}px; height: {{s9}}px;"
+          ></image>
+        </div>
+      </div>
+      <div class="diag-layer" if="{{diagnoseLatency}}">
+        <div class="diag-dot p1 {{diagP1On ? 'dot-on' : ''}}"></div>
+        <div class="diag-dot p2 {{diagP2On ? 'dot-on' : ''}}"></div>
+        <text class="diag-text">{{diagText}}</text>
       </div>
     </stack>
   </div>
@@ -32,32 +125,90 @@
 <script>
 import router from '@system.router'
 import vibrator from '@system.vibrator'
-import { applySwipeCount } from '../../common/beads.js'
+import { applySwipeCount, normalizeState, formatDate } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
 import {
   CHAIN_ANIM_MS,
   CHAIN_ANIM_END_SLACK_MS,
   SWIPE_MIN_DY,
   TAP_MAX_MOVE,
+  BEAD_SRC,
   createChainBeads,
-  snapBeadsHome,
-  withRollClasses,
+  animClassesForDrawOrder,
   classifyVerticalSwipe
 } from '../../common/ring.js'
 
-const MAX_PENDING = 2
+/** 시스템 onlongpress 대신 자체 타이머 — touchend 지연 방지 */
+const LONGPRESS_MS = 560
 
 export default {
   private: {
     vibrateOnBead: true,
     inputMode: 'slide',
-    chainBeads: []
+    diagnoseLatency: false,
+    singleBeadTest: false,
+    beadSrc: '/common/bead-wood-v3.png',
+    a0: '',
+    l0: 351,
+    t0: 156,
+    s0: 203,
+    z0: 0,
+    a1: '',
+    l1: 324,
+    t1: -95,
+    s1: 210,
+    z1: 1,
+    a2: '',
+    l2: 324,
+    t2: 399,
+    s2: 210,
+    z2: 2,
+    a3: '',
+    l3: 258,
+    t3: -254,
+    s3: 224,
+    z3: 3,
+    a4: '',
+    l4: 258,
+    t4: 544,
+    s4: 224,
+    z4: 4,
+    a5: '',
+    l5: 179,
+    t5: -261,
+    s5: 239,
+    z5: 5,
+    a6: '',
+    l6: 179,
+    t6: 537,
+    s6: 239,
+    z6: 6,
+    a7: '',
+    l7: 114,
+    t7: -115,
+    s7: 251,
+    z7: 7,
+    a8: '',
+    l8: 114,
+    t8: 379,
+    s8: 251,
+    z8: 8,
+    a9: '',
+    l9: 89,
+    t9: 130,
+    s9: 255,
+    z9: 9,
+    diagP1On: false,
+    diagP2On: false,
+    diagText: 'P1:- P2:-'
   },
 
   onInit() {
-    this._state = null
+    this._state = normalizeState({ todayDate: formatDate() })
+    this._homeSlots = [5,4,6,3,7,2,8,1,9,0]
     this._animTimer = null
     this._sideTimer = null
+    this._lpTimer = null
     this._animating = false
     this._saveChain = Promise.resolve()
     this._saveTimer = null
@@ -67,7 +218,21 @@ export default {
     this._gestureFired = false
     this._longPressed = false
     this._rollAlt = false
-    this.chainBeads = createChainBeads()
+    this._t0 = 0
+    this.beadSrc = BEAD_SRC
+    this.hydrateGeometry()
+  },
+
+  hydrateGeometry() {
+    const beads = createChainBeads()
+    this._homeSlots = beads.map((b) => b.homeSlot)
+    for (let i = 0; i < beads.length; i++) {
+      this['l' + i] = beads[i].left
+      this['t' + i] = beads[i].top
+      this['s' + i] = beads[i].size
+      this['z' + i] = beads[i].z
+      this['a' + i] = ''
+    }
   },
 
   onShow() {
@@ -75,12 +240,12 @@ export default {
   },
 
   onHide() {
-    this.clearAnimTimers()
+    this.clearAllTimers()
     this._animating = false
   },
 
   onDestroy() {
-    this.clearAnimTimers()
+    this.clearAllTimers()
     if (this._saveTimer) {
       clearTimeout(this._saveTimer)
       this._saveTimer = null
@@ -98,6 +263,18 @@ export default {
     }
   },
 
+  clearLpTimer() {
+    if (this._lpTimer) {
+      clearTimeout(this._lpTimer)
+      this._lpTimer = null
+    }
+  },
+
+  clearAllTimers() {
+    this.clearAnimTimers()
+    this.clearLpTimer()
+  },
+
   onBackPress() {
     return false
   },
@@ -107,7 +284,9 @@ export default {
     this._state = state
     this.vibrateOnBead = state.vibrateOnBead
     this.inputMode = state.inputMode || 'slide'
-    this.chainBeads = createChainBeads()
+    this.diagnoseLatency = !!state.diagnoseLatency
+    this.singleBeadTest = !!state.singleBeadTest
+    this.hydrateGeometry()
     this._animating = false
   },
 
@@ -124,6 +303,22 @@ export default {
     return { x: Number(x), y: Number(y) }
   },
 
+  /** P1: 이벤트 전달 확인 — 단색 div만, 이미지 없음 */
+  markP1() {
+    if (!this.diagnoseLatency) return
+    this._t0 = Date.now()
+    this.diagP1On = !this.diagP1On
+    this.diagP2On = false
+    this.diagText = 'P1:0 P2:-'
+  },
+
+  markP2() {
+    if (!this.diagnoseLatency) return
+    const dt = this._t0 ? Date.now() - this._t0 : -1
+    this.diagP2On = !this.diagP2On
+    this.diagText = 'P1:0 P2:' + dt + 'ms'
+  },
+
   onTouchStart(e) {
     const p = this.touchPoint(e)
     if (!p) return
@@ -132,12 +327,18 @@ export default {
     this._longPressed = false
     this._touchX = p.x
     this._touchY = p.y
+    this.markP1()
+    this.clearLpTimer()
+    this._lpTimer = setTimeout(() => {
+      this._lpTimer = null
+      if (!this._touchActive || this._gestureFired) return
+      this._longPressed = true
+      this._gestureFired = true
+      this._touchActive = false
+      router.push({ uri: '/pages/settings' })
+    }, LONGPRESS_MS)
   },
 
-  /**
-   * 슬라이드 모드만. 임계 SWIPE_MIN_DY 에서 즉시 굴림.
-   * 터치 모드에서는 슬라이드 무시(탭만 — 오동작 방지).
-   */
   trySwipe(e) {
     if ((this.inputMode || 'slide') === 'touch') return false
     if (!this._touchActive || this._gestureFired || this._longPressed) return false
@@ -145,9 +346,13 @@ export default {
     if (!p) return false
     const dx = p.x - this._touchX
     const dy = p.y - this._touchY
+    if (Math.abs(dx) > TAP_MAX_MOVE || Math.abs(dy) > TAP_MAX_MOVE) {
+      this.clearLpTimer()
+    }
     const dir = classifyVerticalSwipe(dx, dy, { minDy: SWIPE_MIN_DY })
     if (!dir) return false
     this._gestureFired = true
+    this.clearLpTimer()
     this.enqueueRoll(dir)
     return true
   },
@@ -159,11 +364,11 @@ export default {
 
   onTouchEnd(e) {
     if (!this._touchActive) return
+    this.clearLpTimer()
     const mode = this.inputMode || 'slide'
     if (mode === 'slide') {
       this.trySwipe(e)
     } else if (!this._gestureFired && !this._longPressed) {
-      // 터치 모드: 탭 = 한 칸 앞. 롱프레스 대기 없이 touchend에서 즉시.
       const p = this.touchPoint(e)
       if (p) {
         const dx = p.x - this._touchX
@@ -178,34 +383,40 @@ export default {
   },
 
   onTouchCancel() {
+    this.clearLpTimer()
     this._touchActive = false
     this._gestureFired = false
-  },
-
-  onLongPress() {
-    this._longPressed = true
-    this._gestureFired = true
-    router.push({ uri: '/pages/settings' })
   },
 
   enqueueRoll(dir) {
     const d = Number(dir) < 0 ? -1 : 1
     if (!this._state) {
-      this.reload().then(() => this.enqueueRoll(d))
-      return
+      this._state = normalizeState({ todayDate: formatDate() })
     }
-    // 진행 중이면 즉시 홈 스냅 후 새 애니 (큐 대기 제거)
     if (this._animating) {
       this.clearAnimTimers()
-      this.chainBeads = snapBeadsHome(this.chainBeads)
+      this.clearAnimClasses()
       this._animating = false
     }
     this.startRoll(d)
   },
 
+  clearAnimClasses() {
+    this.a0 = ''
+    this.a1 = ''
+    this.a2 = ''
+    this.a3 = ''
+    this.a4 = ''
+    this.a5 = ''
+    this.a6 = ''
+    this.a7 = ''
+    this.a8 = ''
+    this.a9 = ''
+  },
+
   /**
-   * 핫패스: 애니 클래스 setData를 최우선·단독.
-   * 카운트 저장·진동은 다음 틱(같은 렌더에 섞지 않음).
+   * animClass만 개별 필드 갱신 (src/left/top/size 불변).
+   * for+전체 배열 교체·이미지 재바인딩 회피.
    */
   startRoll(dir) {
     const d = Number(dir) < 0 ? -1 : 1
@@ -213,8 +424,14 @@ export default {
     this._state = result.state
     this._animating = true
     this._rollAlt = !this._rollAlt
-    // 1) 클래스만 — 버퍼↔버퍼는 '' 유지
-    this.chainBeads = withRollClasses(this.chainBeads, d, { alt: this._rollAlt })
+    const classes = animClassesForDrawOrder(d, {
+      alt: this._rollAlt,
+      singleBead: !!this.singleBeadTest
+    })
+    for (let i = 0; i < 10; i++) {
+      this['a' + i] = classes[i] || ''
+    }
+    this.markP2()
     this.clearAnimTimers()
     const completedRound = !!result.completedRound
     const state = result.state
@@ -229,7 +446,7 @@ export default {
   },
 
   finishRoll() {
-    this.chainBeads = snapBeadsHome(this.chainBeads)
+    this.clearAnimClasses()
     this._animating = false
   },
 
@@ -275,6 +492,37 @@ export default {
   position: absolute;
   left: 0px;
   top: 0px;
+}
+.diag-layer {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 432px;
+  height: 80px;
+}
+.diag-dot {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background-color: #3a2a18;
+}
+.diag-dot.p1 {
+  left: 8px;
+  top: 8px;
+}
+.diag-dot.p2 {
+  left: 32px;
+  top: 8px;
+}
+.dot-on {
+  background-color: #e8c48a;
+}
+.diag-text {
+  position: absolute;
+  left: 56px;
+  top: 6px;
+  font-size: 16px;
+  color: #c4a574;
 }
 /* CHAIN_KF_BEGIN */
 .roll-next-0 {

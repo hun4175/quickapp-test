@@ -28,6 +28,7 @@ import {
   advanceChainBeads,
   withRollClasses,
   rollClassForSlot,
+  animClassesForDrawOrder,
   shouldAnimateTransition,
   endKeyframeTransform,
   keyframeEndMatchesSnap,
@@ -186,6 +187,17 @@ describe('keyframe=스냅 · 커버리지', () => {
     const css = buildChainKeyframeCss()
     assert.ok(css.includes('.roll-next-0-b'))
     assert.ok(css.includes('.roll-prev-0-b'))
+  })
+
+  it('animClassesForDrawOrder · 단일 구슬', () => {
+    const all = animClassesForDrawOrder(1, { alt: false })
+    assert.equal(all.length, 10)
+    assert.ok(all.some((c) => c.startsWith('roll-')))
+    const one = animClassesForDrawOrder(1, { singleBead: true })
+    const order = fixedDrawOrder()
+    const focusIdx = order.indexOf(0)
+    assert.ok(one[focusIdx].startsWith('roll-'))
+    assert.equal(one.filter((c) => c).length, 1)
   })
 })
 

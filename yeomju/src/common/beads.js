@@ -31,7 +31,11 @@ export const DEFAULT_STATE = Object.freeze({
   todayDate: '',
   todayTotal: 0,
   inputMode: 'slide',
-  stateSchema: 4
+  /** 2.4.1 진단: P1/P2 점·ms 표시 */
+  diagnoseLatency: false,
+  /** 2.4.1: 포커스 구슬만 keyframe */
+  singleBeadTest: false,
+  stateSchema: 5
 })
 
 /**
@@ -76,25 +80,29 @@ export const normalizeState = (raw) => {
     todayDate: typeof src.todayDate === 'string' ? src.todayDate : '',
     todayTotal,
     inputMode,
+    diagnoseLatency: src.diagnoseLatency === true,
+    singleBeadTest: src.singleBeadTest === true,
     stateSchema
   }
 }
 
 /**
- * 2.4.0: schema≥4, 레거시 animMode/debug 제거·inputMode 확보.
+ * 2.4.1: schema≥5. 레거시 animMode 제거·진단 플래그 확보.
  * @param {object} state
  * @returns {{ state: object, migrated: boolean }}
  */
 export const migrateAnimModeForStability = (state) => {
   const s = normalizeState(state)
-  if (s.stateSchema >= 4) {
+  if (s.stateSchema >= 5) {
     return { state: s, migrated: false }
   }
   return {
     state: {
       ...s,
-      stateSchema: 4,
-      inputMode: INPUT_MODES.includes(s.inputMode) ? s.inputMode : 'slide'
+      stateSchema: 5,
+      inputMode: INPUT_MODES.includes(s.inputMode) ? s.inputMode : 'slide',
+      diagnoseLatency: false,
+      singleBeadTest: false
     },
     migrated: true
   }
@@ -233,6 +241,16 @@ export const setInputMode = (state, mode) => {
   const s = normalizeState(state)
   const inputMode = INPUT_MODES.includes(mode) ? mode : DEFAULT_STATE.inputMode
   return { ...s, inputMode }
+}
+
+export const setDiagnoseLatency = (state, enabled) => {
+  const s = normalizeState(state)
+  return { ...s, diagnoseLatency: !!enabled }
+}
+
+export const setSingleBeadTest = (state, enabled) => {
+  const s = normalizeState(state)
+  return { ...s, singleBeadTest: !!enabled }
 }
 
 export const resetSession = (state) => {
