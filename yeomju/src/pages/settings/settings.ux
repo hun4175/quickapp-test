@@ -1,0 +1,332 @@
+<template>
+  <div class="page" onswipe="onSwipe">
+    <div class="header">
+      <div class="back" onclick="goBack">
+        <text class="back-text">‹ 뒤로</text>
+      </div>
+      <text class="title">설정</text>
+    </div>
+
+    <div class="scroll">
+      <text class="label">입력 방식</text>
+      <div
+        class="opt {{inputMode === 'slide' ? 'opt-on' : ''}}"
+        onclick="pickSlide"
+      >
+        <text class="opt-text">슬라이드</text>
+        <text class="opt-mark" if="{{inputMode === 'slide'}}">✓</text>
+      </div>
+      <div
+        class="opt {{inputMode === 'touch' ? 'opt-on' : ''}}"
+        onclick="pickTouch"
+      >
+        <text class="opt-text">터치</text>
+        <text class="opt-mark" if="{{inputMode === 'touch'}}">✓</text>
+      </div>
+
+      <text class="label">염주</text>
+      <div
+        class="opt {{beadTheme === 'default' ? 'opt-on' : ''}}"
+        onclick="pickThemeDefault"
+      >
+        <text class="opt-text">기본</text>
+        <text class="opt-mark" if="{{beadTheme === 'default'}}">✓</text>
+      </div>
+      <div
+        class="opt {{beadTheme === 'goldwood' ? 'opt-on' : ''}}"
+        if="{{unlockGoldwood}}"
+        onclick="pickThemeGoldwood"
+      >
+        <text class="opt-text">금박 나무</text>
+        <text class="opt-mark" if="{{beadTheme === 'goldwood'}}">✓</text>
+      </div>
+      <div
+        class="opt {{beadTheme === 'jade' ? 'opt-on' : ''}}"
+        onclick="pickThemeJade"
+      >
+        <text class="opt-text">옥</text>
+        <text class="opt-mark" if="{{beadTheme === 'jade'}}">✓</text>
+      </div>
+      <div
+        class="opt {{beadTheme === 'pinkjade' ? 'opt-on' : ''}}"
+        onclick="pickThemePinkjade"
+      >
+        <text class="opt-text">연핑크 옥</text>
+        <text class="opt-mark" if="{{beadTheme === 'pinkjade'}}">✓</text>
+      </div>
+
+      <text class="label">목표 횟수</text>
+      <div
+        class="opt {{goalCount === 21 ? 'opt-on' : ''}}"
+        onclick="pickGoal21"
+      >
+        <text class="opt-text">21</text>
+        <text class="opt-mark" if="{{goalCount === 21}}">✓</text>
+      </div>
+      <div
+        class="opt {{goalCount === 54 ? 'opt-on' : ''}}"
+        onclick="pickGoal54"
+      >
+        <text class="opt-text">54</text>
+        <text class="opt-mark" if="{{goalCount === 54}}">✓</text>
+      </div>
+      <div
+        class="opt {{goalCount === 108 ? 'opt-on' : ''}}"
+        onclick="pickGoal108"
+      >
+        <text class="opt-text">108</text>
+        <text class="opt-mark" if="{{goalCount === 108}}">✓</text>
+      </div>
+      <div
+        class="opt {{goalCount === 1080 ? 'opt-on' : ''}}"
+        onclick="pickGoal1080"
+      >
+        <text class="opt-text">1080</text>
+        <text class="opt-mark" if="{{goalCount === 1080}}">✓</text>
+      </div>
+
+      <text class="label">횟수 초기화</text>
+      <div
+        class="opt {{resetArmed ? 'opt-warn' : ''}}"
+        onclick="onResetTap"
+      >
+        <text class="opt-text">{{resetLabel}}</text>
+      </div>
+
+      <text class="meta">v2.8.4</text>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import vibrator from '@system.vibrator'
+import {
+  setInputMode,
+  setBeadTheme,
+  setGoalCount,
+  resetTodayCount
+} from '../../common/beads.js'
+import { loadState, saveState } from '../../common/persist.js'
+
+export default {
+  private: {
+    inputMode: 'slide',
+    beadTheme: 'default',
+    goalCount: 21,
+    unlockGoldwood: false,
+    resetArmed: false,
+    resetLabel: '초기화'
+  },
+
+  onShow() {
+    this.disarmReset()
+    this.reload()
+  },
+
+  onHide() {
+    this.disarmReset()
+  },
+
+  onBackPress() {
+    router.back()
+    return true
+  },
+
+  onSwipe(e) {
+    if (e && e.direction === 'right') router.back()
+  },
+
+  disarmReset() {
+    this.resetArmed = false
+    this.resetLabel = '초기화'
+  },
+
+  armReset() {
+    this.resetArmed = true
+    this.resetLabel = '한 번 더 누르면 초기화'
+  },
+
+  async reload() {
+    const state = await loadState()
+    this.applyLocal(state)
+  },
+
+  applyLocal(state) {
+    this._state = state
+    this.inputMode = state.inputMode || 'slide'
+    this.beadTheme = state.beadTheme || 'default'
+    this.goalCount = state.goalCount || 21
+    this.unlockGoldwood = state.unlockGoldwood === true
+  },
+
+  async persist(next) {
+    await saveState(next)
+    this.applyLocal(next)
+  },
+
+  async pickInput(mode) {
+    this.disarmReset()
+    if (!this._state) await this.reload()
+    await this.persist(setInputMode(this._state, mode))
+  },
+  pickSlide() {
+    this.pickInput('slide')
+  },
+  pickTouch() {
+    this.pickInput('touch')
+  },
+
+  async pickTheme(theme) {
+    this.disarmReset()
+    if (!this._state) await this.reload()
+    await this.persist(setBeadTheme(this._state, theme))
+  },
+  pickThemeDefault() {
+    this.pickTheme('default')
+  },
+  pickThemeGoldwood() {
+    this.pickTheme('goldwood')
+  },
+  pickThemeJade() {
+    this.pickTheme('jade')
+  },
+  pickThemePinkjade() {
+    this.pickTheme('pinkjade')
+  },
+
+  async pickGoal(n) {
+    this.disarmReset()
+    if (!this._state) await this.reload()
+    await this.persist(setGoalCount(this._state, n))
+  },
+  pickGoal21() {
+    this.pickGoal(21)
+  },
+  pickGoal54() {
+    this.pickGoal(54)
+  },
+  pickGoal108() {
+    this.pickGoal(108)
+  },
+  pickGoal1080() {
+    this.pickGoal(1080)
+  },
+
+  async onResetTap() {
+    if (!this._state) await this.reload()
+    if (!this.resetArmed) {
+      this.armReset()
+      return
+    }
+    const next = resetTodayCount(this._state)
+    await this.persist(next)
+    this.disarmReset()
+    try {
+      vibrator.vibrate({ mode: 'short' })
+    } catch (e) {
+      // ignore
+    }
+  },
+
+  goBack() {
+    this.disarmReset()
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  background-color: #140e0a;
+  padding-left: 36px;
+  padding-right: 36px;
+  padding-top: 28px;
+  padding-bottom: 12px;
+}
+.header {
+  width: 100%;
+  height: 72px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+.back {
+  position: absolute;
+  left: 36px;
+  height: 64px;
+  padding-left: 4px;
+  padding-right: 12px;
+  justify-content: center;
+}
+.back-text {
+  font-size: 30px;
+  color: #b89462;
+}
+.title {
+  font-size: 36px;
+  color: #e8c48a;
+  font-weight: bold;
+}
+.scroll {
+  width: 100%;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  overflow: scroll;
+  padding-bottom: 40px;
+}
+.label {
+  width: 100%;
+  margin-top: 20px;
+  margin-bottom: 12px;
+  font-size: 28px;
+  color: #9a7b55;
+}
+.opt {
+  width: 100%;
+  height: 96px;
+  margin-bottom: 12px;
+  padding-left: 22px;
+  padding-right: 22px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #2a1e14;
+  border-width: 3px;
+  border-color: #3a2a18;
+  flex-shrink: 0;
+}
+.opt-on {
+  border-color: #e8c48a;
+  background-color: #4a3420;
+}
+.opt-warn {
+  border-color: #e8a060;
+  background-color: #4a2818;
+}
+.opt-text {
+  font-size: 32px;
+  color: #f3e2c4;
+}
+.opt-mark {
+  font-size: 34px;
+  color: #e8c48a;
+  font-weight: bold;
+}
+.meta {
+  width: 100%;
+  margin-top: 20px;
+  margin-bottom: 12px;
+  font-size: 20px;
+  color: #6e563c;
+  text-align: center;
+  flex-shrink: 0;
+}
+</style>

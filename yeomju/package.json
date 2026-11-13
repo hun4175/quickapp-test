@@ -1,0 +1,22 @@
+{
+  "name": "yeomju",
+  "version": "2.8.4",
+  "description": "REDMI Watch 6(글로벌)용 염주 굴리기 Vela 퀵앱",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "aiot start --watch",
+    "build": "aiot build",
+    "release": "aiot release",
+    "test": "node --test test/*.test.mjs",
+    "preview": "node scripts/preview-ring.mjs",
+    "sprite": "python3 scripts/cut-bead-circle.py && python3 scripts/gen-theme-sprites.py",
+    "sprite:cut": "python3 scripts/cut-bead-circle.py"
+  },
+  "devDependencies": {
+    "@aiot-toolkit/jsc": "^1.0.3",
+    "aiot-toolkit": "^2.0.5"
+  }
+}

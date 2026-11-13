@@ -1,0 +1,493 @@
+<template>
+  <!-- 2.8.4: 현재/목표 · 광채 축하 · long×3 @0/300/600 -->
+  <div
+    class="page"
+    ontouchstart="onTouchStart"
+    ontouchmove="onTouchMove"
+    ontouchend="onTouchEnd"
+    ontouchcancel="onTouchCancel"
+  >
+    <div class="sprite-layer">
+      <image
+        class="sprite-img"
+        src="{{spriteFrameSrc}}"
+        style="left: {{spriteLeft}}px; top: {{spriteTop}}px; width: {{spriteW}}px; height: {{spriteH}}px;"
+      ></image>
+      <image
+        class="cele-glow"
+        if="{{celeVisible}}"
+        src="/common/cele-glow.png"
+        style="left: {{spriteLeft}}px; top: {{spriteTop}}px; width: {{spriteW}}px; height: {{spriteH}}px; opacity: {{celeOpacity}};"
+      ></image>
+    </div>
+    <text class="cele-msg" if="{{celeMsg}}">{{celeMsg}}</text>
+    <div class="count-row">
+      <text class="count-cur" style="color: {{countColor}};">{{countCurrent}}</text>
+      <text class="count-sep"> / </text>
+      <text class="count-goal">{{countGoal}}</text>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import vibrator from '@system.vibrator'
+import {
+  applySwipeCount,
+  evaluateGoalEvents,
+  normalizeState,
+  formatDate
+} from '../../common/beads.js'
+import { loadState, saveState } from '../../common/persist.js'
+import {
+  SWIPE_MIN_DY,
+  TAP_MAX_MOVE,
+  classifyVerticalSwipe
+} from '../../common/ring.js'
+import {
+  SPRITE_DURATION_MS,
+  SPRITE_CROP,
+  spriteIdleFor,
+  spriteFramesFor,
+  themePhase
+} from '../../common/sprite-meta.js'
+import { goalVibrateOffsets } from '../../common/vibrate.js'
+
+const LONGPRESS_MS = 560
+const ANIM_SLACK_MS = 16
+const COUNT_COLOR_NORMAL = '#fff4d6'
+const COUNT_COLOR_GLOW = '#ffd700'
+const CELEBRATE_MS = 1200
+
+export default {
+  private: {
+    vibrateOnBead: true,
+    inputMode: 'slide',
+    beadTheme: 'default',
+    countCurrent: '0',
+    countGoal: '21',
+    countColor: COUNT_COLOR_NORMAL,
+    celeVisible: false,
+    celeOpacity: 0,
+    celeMsg: '',
+    spriteFrameSrc: '/common/sprite/idle.jpg',
+    spriteLeft: SPRITE_CROP.left,
+    spriteTop: SPRITE_CROP.top,
+    spriteW: SPRITE_CROP.width,
+    spriteH: SPRITE_CROP.height
+  },
+
+  onInit() {
+    this._state = normalizeState({ todayDate: formatDate() })
+    this._animTimer = null
+    this._sideTimer = null
+    this._lpTimer = null
+    this._s2Timer = null
+    this._celeTimers = []
+    this._vibTimers = []
+    this._s2Idx = 0
+    this._s2List = null
+    this._animating = false
+    this._saveChain = Promise.resolve()
+    this._saveTimer = null
+    this._touchX = 0
+    this._touchY = 0
+    this._touchActive = false
+    this._gestureFired = false
+    this._longPressed = false
+  },
+
+  onReady() {
+    this.reload()
+  },
+
+  onShow() {
+    this.reload()
+  },
+
+  onHide() {
+    this.clearAllTimers()
+    this.clearCelebrateTimers()
+    this.clearVibrateTimers()
+  },
+
+  onDestroy() {
+    this.clearAllTimers()
+    this.clearCelebrateTimers()
+    this.clearVibrateTimers()
+  },
+
+  clearLpTimer() {
+    if (this._lpTimer) {
+      clearTimeout(this._lpTimer)
+      this._lpTimer = null
+    }
+  },
+
+  clearAnimTimers() {
+    if (this._animTimer) {
+      clearTimeout(this._animTimer)
+      this._animTimer = null
+    }
+    if (this._sideTimer) {
+      clearTimeout(this._sideTimer)
+      this._sideTimer = null
+    }
+    if (this._s2Timer) {
+      clearTimeout(this._s2Timer)
+      this._s2Timer = null
+    }
+  },
+
+  clearCelebrateTimers() {
+    if (this._celeTimers && this._celeTimers.length) {
+      for (let i = 0; i < this._celeTimers.length; i++) {
+        clearTimeout(this._celeTimers[i])
+      }
+    }
+    this._celeTimers = []
+    this.celeVisible = false
+    this.celeOpacity = 0
+    this.celeMsg = ''
+    this.countColor = COUNT_COLOR_NORMAL
+  },
+
+  clearVibrateTimers() {
+    if (this._vibTimers && this._vibTimers.length) {
+      for (let i = 0; i < this._vibTimers.length; i++) {
+        clearTimeout(this._vibTimers[i])
+      }
+    }
+    this._vibTimers = []
+  },
+
+  clearAllTimers() {
+    this.clearAnimTimers()
+    this.clearLpTimer()
+  },
+
+  onBackPress() {
+    return false
+  },
+
+  syncCount() {
+    const n = this._state
+      ? Math.max(0, Math.floor(Number(this._state.todayTotal) || 0))
+      : 0
+    const g = this._state
+      ? Math.max(1, Math.floor(Number(this._state.goalCount) || 21))
+      : 21
+    this.countCurrent = String(n)
+    this.countGoal = String(g)
+  },
+
+  currentIdle() {
+    const theme = this.beadTheme || 'default'
+    const phase = themePhase(this._state ? this._state.todayTotal : 0)
+    return spriteIdleFor(theme, phase)
+  },
+
+  async reload() {
+    const state = await loadState()
+    this._state = state
+    this.vibrateOnBead = state.vibrateOnBead !== false
+    this.inputMode = state.inputMode || 'slide'
+    this.beadTheme = state.beadTheme || 'default'
+    this.syncCount()
+    this.spriteFrameSrc = this.currentIdle()
+    this.spriteLeft = SPRITE_CROP.left
+    this.spriteTop = SPRITE_CROP.top
+    this.spriteW = SPRITE_CROP.width
+    this.spriteH = SPRITE_CROP.height
+    this._animating = false
+  },
+
+  touchPoint(e) {
+    const list =
+      (e && e.changedTouches && e.changedTouches.length && e.changedTouches) ||
+      (e && e.touches && e.touches.length && e.touches) ||
+      null
+    if (!list || !list[0]) return null
+    const t = list[0]
+    const x = t.clientX != null ? t.clientX : t.pageX
+    const y = t.clientY != null ? t.clientY : t.pageY
+    if (x == null || y == null) return null
+    return { x: Number(x), y: Number(y) }
+  },
+
+  onTouchStart(e) {
+    const p = this.touchPoint(e)
+    if (!p) return
+    this._touchActive = true
+    this._gestureFired = false
+    this._longPressed = false
+    this._touchX = p.x
+    this._touchY = p.y
+    this.clearLpTimer()
+    this._lpTimer = setTimeout(() => {
+      this._lpTimer = null
+      if (!this._touchActive) return
+      if (this._gestureFired) return
+      this._longPressed = true
+      this._gestureFired = true
+      this._touchActive = false
+      router.push({ uri: '/pages/settings' })
+    }, LONGPRESS_MS)
+  },
+
+  trySwipe(e) {
+    if ((this.inputMode || 'slide') === 'touch') return false
+    if (!this._touchActive || this._gestureFired || this._longPressed) return false
+    const p = this.touchPoint(e)
+    if (!p) return false
+    const dx = p.x - this._touchX
+    const dy = p.y - this._touchY
+    if (Math.abs(dx) > TAP_MAX_MOVE || Math.abs(dy) > TAP_MAX_MOVE) {
+      this.clearLpTimer()
+    }
+    const dir = classifyVerticalSwipe(dx, dy, { minDy: SWIPE_MIN_DY })
+    if (!dir) return false
+    this._gestureFired = true
+    this.clearLpTimer()
+    this.enqueueRoll(dir)
+    return true
+  },
+
+  onTouchMove(e) {
+    if (!this._touchActive) return
+    this.trySwipe(e)
+  },
+
+  onTouchEnd(e) {
+    if (!this._touchActive) return
+    this.clearLpTimer()
+    const mode = this.inputMode || 'slide'
+    if (mode === 'slide') {
+      this.trySwipe(e)
+    } else if (!this._gestureFired && !this._longPressed) {
+      const p = this.touchPoint(e)
+      if (p) {
+        const dx = p.x - this._touchX
+        const dy = p.y - this._touchY
+        if (Math.abs(dx) <= TAP_MAX_MOVE && Math.abs(dy) <= TAP_MAX_MOVE) {
+          this._gestureFired = true
+          this.enqueueRoll(1)
+        }
+      }
+    }
+    this._touchActive = false
+  },
+
+  onTouchCancel() {
+    this.clearLpTimer()
+    this._touchActive = false
+    this._gestureFired = false
+  },
+
+  enqueueRoll(dir) {
+    const d = Number(dir) < 0 ? -1 : 1
+    if (!this._state) {
+      this._state = normalizeState({ todayDate: formatDate() })
+    }
+    if (this._animating) {
+      this.clearAnimTimers()
+      this.finishRoll()
+    }
+    this.startRoll(d)
+  },
+
+  startRoll(dir) {
+    const d = Number(dir) < 0 ? -1 : 1
+    const prevTotal = this._state.todayTotal
+    const phaseFrom = themePhase(prevTotal)
+    const result = applySwipeCount(this._state, d)
+    const events = evaluateGoalEvents(prevTotal, result.state)
+    this._state = events.state
+    this.beadTheme = events.state.beadTheme || 'default'
+    // 카운트 텍스트만 갱신 (S2 프레임 교체와 분리)
+    this.syncCount()
+    this._animating = true
+    this.clearAnimTimers()
+    const theme = this.beadTheme || 'default'
+    const srcs = spriteFramesFor(theme, d, phaseFrom)
+    this._s2List = srcs
+    this._s2Idx = 0
+    this.spriteFrameSrc = srcs[0] || this.currentIdle()
+    const step = Math.max(
+      1,
+      Math.floor(SPRITE_DURATION_MS / Math.max(1, srcs.length - 1))
+    )
+    const tick = () => {
+      this._s2Timer = null
+      this._s2Idx += 1
+      if (!this._s2List || this._s2Idx >= this._s2List.length) {
+        this.finishRoll()
+        return
+      }
+      this.spriteFrameSrc = this._s2List[this._s2Idx]
+      this._s2Timer = setTimeout(tick, step)
+    }
+    this._s2Timer = setTimeout(tick, step)
+    const completedRound = !!result.completedRound
+    const state = events.state
+    const goalReached = !!events.goalReached
+    const unlockJustNow = !!events.unlockJustNow
+    this._sideTimer = setTimeout(() => {
+      this._sideTimer = null
+      this.buzz(completedRound, goalReached)
+      if (goalReached) this.playCelebrate(unlockJustNow)
+      this.queueSave(state)
+    }, 0)
+    this._animTimer = setTimeout(() => {
+      if (!this._animating) return
+      this.finishRoll()
+    }, SPRITE_DURATION_MS + ANIM_SLACK_MS)
+  },
+
+  finishRoll() {
+    this.clearAnimTimers()
+    this.spriteFrameSrc = this.currentIdle()
+    this._animating = false
+  },
+
+  /**
+   * 단일 프리합성 PNG opacity 전환(+해금 시에만 안내 문구).
+   * 「원만 성취」문구 없음 · 입력 비차단 · ~1.2s.
+   */
+  playCelebrate(unlockJustNow) {
+    this.clearCelebrateTimers()
+    this.celeVisible = true
+    this.celeOpacity = 0.9
+    this.countColor = COUNT_COLOR_GLOW
+    this.celeMsg = unlockJustNow ? '금박 나무 염주 해금' : ''
+
+    const schedule = (ms, fn) => {
+      const id = setTimeout(fn, ms)
+      this._celeTimers.push(id)
+    }
+
+    schedule(350, () => {
+      this.celeOpacity = 0.55
+      this.countColor = COUNT_COLOR_NORMAL
+    })
+    schedule(700, () => {
+      this.celeOpacity = 0.3
+      this.countColor = COUNT_COLOR_GLOW
+    })
+    schedule(CELEBRATE_MS, () => {
+      this.celeVisible = false
+      this.celeOpacity = 0
+      this.celeMsg = ''
+      this.countColor = COUNT_COLOR_NORMAL
+      this._celeTimers = []
+    })
+  },
+
+  queueSave(state) {
+    if (this._saveTimer) clearTimeout(this._saveTimer)
+    this._saveTimer = setTimeout(() => {
+      this._saveTimer = null
+      this._saveChain = this._saveChain
+        .then(() => saveState(state))
+        .catch(() => false)
+    }, 280)
+  },
+
+  safeVibrate(mode) {
+    try {
+      vibrator.vibrate({ mode: mode || 'short' })
+    } catch (e) {
+      // ignore
+    }
+  },
+
+  /**
+   * long ×3 @ 0·300·600ms (실기기 long이 문서보다 짧음).
+   * Watch 6는 start/stop 미지원. 입력 비차단 · onHide에서 타이머 정리.
+   */
+  pulseGoalVibrate() {
+    this.clearVibrateTimers()
+    const offsets = goalVibrateOffsets()
+    for (let i = 0; i < offsets.length; i++) {
+      const ms = offsets[i]
+      if (ms <= 0) {
+        this.safeVibrate('long')
+      } else {
+        const id = setTimeout(() => {
+          this.safeVibrate('long')
+        }, ms)
+        this._vibTimers.push(id)
+      }
+    }
+  },
+
+  buzz(completedRound, goalReached) {
+    if (goalReached) {
+      this.pulseGoalVibrate()
+      return
+    }
+    if (this.vibrateOnBead) this.safeVibrate('short')
+    if (completedRound) this.safeVibrate('long')
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  background-color: #0c0a08;
+}
+.sprite-layer {
+  width: 432px;
+  height: 514px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+.sprite-img {
+  position: absolute;
+}
+.cele-glow {
+  position: absolute;
+}
+.cele-msg {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  top: 200px;
+  width: 392px;
+  height: 44px;
+  font-size: 30px;
+  font-weight: bold;
+  color: #ffd700;
+  text-align: center;
+  text-shadow: 0px 1px 4px #000000;
+}
+.count-row {
+  position: absolute;
+  left: 12px;
+  bottom: 32px;
+  width: 408px;
+  height: 56px;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-end;
+}
+.count-cur {
+  font-size: 48px;
+  font-weight: bold;
+  color: #fff4d6;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.count-sep {
+  font-size: 28px;
+  color: #a89068;
+  margin-bottom: 6px;
+}
+.count-goal {
+  font-size: 28px;
+  color: #a89068;
+  margin-bottom: 6px;
+}
+</style>

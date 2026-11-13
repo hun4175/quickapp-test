@@ -1,0 +1,100 @@
+{
+  "version": "2.7.0",
+  "crop": {
+    "left": 86,
+    "top": 0,
+    "width": 346,
+    "height": 514
+  },
+  "themes": {
+    "default": {
+      "phases": 1,
+      "idle": [
+        "/common/sprite/idle.jpg"
+      ],
+      "nextByPhase": [
+        [
+          "/common/sprite/idle.jpg",
+          "/common/sprite/next-1.jpg",
+          "/common/sprite/next-2.jpg",
+          "/common/sprite/idle.jpg"
+        ]
+      ],
+      "prevByPhase": [
+        [
+          "/common/sprite/idle.jpg",
+          "/common/sprite/prev-1.jpg",
+          "/common/sprite/prev-2.jpg",
+          "/common/sprite/idle.jpg"
+        ]
+      ]
+    },
+    "goldwood": {
+      "phases": 1,
+      "idle": [
+        "/common/sprite/goldwood/idle.jpg"
+      ],
+      "nextByPhase": [
+        [
+          "/common/sprite/goldwood/idle.jpg",
+          "/common/sprite/goldwood/next-1.jpg",
+          "/common/sprite/goldwood/next-2.jpg",
+          "/common/sprite/goldwood/idle.jpg"
+        ]
+      ],
+      "prevByPhase": [
+        [
+          "/common/sprite/goldwood/idle.jpg",
+          "/common/sprite/goldwood/prev-1.jpg",
+          "/common/sprite/goldwood/prev-2.jpg",
+          "/common/sprite/goldwood/idle.jpg"
+        ]
+      ]
+    },
+    "jade": {
+      "phases": 1,
+      "idle": [
+        "/common/sprite/jade/idle.jpg"
+      ],
+      "nextByPhase": [
+        [
+          "/common/sprite/jade/idle.jpg",
+          "/common/sprite/jade/next-1.jpg",
+          "/common/sprite/jade/next-2.jpg",
+          "/common/sprite/jade/idle.jpg"
+        ]
+      ],
+      "prevByPhase": [
+        [
+          "/common/sprite/jade/idle.jpg",
+          "/common/sprite/jade/prev-1.jpg",
+          "/common/sprite/jade/prev-2.jpg",
+          "/common/sprite/jade/idle.jpg"
+        ]
+      ]
+    },
+    "pinkjade": {
+      "phases": 1,
+      "idle": [
+        "/common/sprite/pinkjade/idle.jpg"
+      ],
+      "nextByPhase": [
+        [
+          "/common/sprite/pinkjade/idle.jpg",
+          "/common/sprite/pinkjade/next-1.jpg",
+          "/common/sprite/pinkjade/next-2.jpg",
+          "/common/sprite/pinkjade/idle.jpg"
+        ]
+      ],
+      "prevByPhase": [
+        [
+          "/common/sprite/pinkjade/idle.jpg",
+          "/common/sprite/pinkjade/prev-1.jpg",
+          "/common/sprite/pinkjade/prev-2.jpg",
+          "/common/sprite/pinkjade/idle.jpg"
+        ]
+      ]
+    }
+  },
+  "filesSumBytes": 888504
+}

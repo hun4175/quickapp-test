@@ -1,0 +1,21 @@
+node_modules/
+.nyc_output/
+coverage/
+sign/
+build/
+.husky/
+.vscode/
+*.log
+.DS_Store
+
+# aiot 빌드 중간물. 완성된 .rpk 는 dist/ 에 커밋한다.
+dist/*
+!dist/*.rpk
+!dist/BUILD_INFO.md
+
+# 스프라이트 PNG32 비교 산출물 (rpk 미포함)
+scripts/out/
+
+# 생성 산출물 (원본 JPG/cut 스크립트로 재생성 · rpk 미포함)
+scripts/assets/beads-engraved/
+scripts/assets/beads-cut/
