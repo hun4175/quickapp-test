@@ -1,7 +1,7 @@
 <template>
   <!--
-    2.4.2: 시각 유지 + E1–E4 실험 토글. 정적 10노드·animClass만.
-    진단 P1/P2 → 원형 안전영역(중앙 상단). E1/E3 기본 on, E2/E4 off.
+    2.4.3 진단: 표시 구슬 수 1/3/6/10 정적 분기 · t0–t3 타이밍 · E5/E6.
+    기본 형상=2.3.1 + E1/E3 on. 노드 수는 분기별 실제 렌더 개수.
   -->
   <div
     class="page"
@@ -11,112 +11,361 @@
     ontouchcancel="onTouchCancel"
   >
     <stack class="stage">
-      <div class="ring-mover">
+      <div class="ring-mover" if="{{visibleBeadCount === 1}}">
         <div
+          id="bw0"
           class="bead-wrap {{a0}}"
           style="left: {{l0}}px; top: {{t0}}px; width: {{s0}}px; height: {{s0}}px; z-index: {{z0}};"
         >
           <image
+            if="{{!e6Solid}}"
             class="bead-img"
             src="{{src0}}"
             style="width: {{s0}}px; height: {{s0}}px;"
           ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s0}}px; height: {{s0}}px; border-radius: {{r0}}px;"
+          ></div>
+        </div>
+      </div>
+      <div class="ring-mover" if="{{visibleBeadCount === 3}}">
+        <div
+          id="bw0"
+          class="bead-wrap {{a0}}"
+          style="left: {{l0}}px; top: {{t0}}px; width: {{s0}}px; height: {{s0}}px; z-index: {{z0}};"
+        >
+          <image
+            if="{{!e6Solid}}"
+            class="bead-img"
+            src="{{src0}}"
+            style="width: {{s0}}px; height: {{s0}}px;"
+          ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s0}}px; height: {{s0}}px; border-radius: {{r0}}px;"
+          ></div>
         </div>
         <div
+          id="bw1"
           class="bead-wrap {{a1}}"
           style="left: {{l1}}px; top: {{t1}}px; width: {{s1}}px; height: {{s1}}px; z-index: {{z1}};"
         >
           <image
+            if="{{!e6Solid}}"
             class="bead-img"
             src="{{src1}}"
             style="width: {{s1}}px; height: {{s1}}px;"
           ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s1}}px; height: {{s1}}px; border-radius: {{r1}}px;"
+          ></div>
         </div>
         <div
+          id="bw2"
           class="bead-wrap {{a2}}"
           style="left: {{l2}}px; top: {{t2}}px; width: {{s2}}px; height: {{s2}}px; z-index: {{z2}};"
         >
           <image
+            if="{{!e6Solid}}"
             class="bead-img"
             src="{{src2}}"
             style="width: {{s2}}px; height: {{s2}}px;"
           ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s2}}px; height: {{s2}}px; border-radius: {{r2}}px;"
+          ></div>
+        </div>
+      </div>
+      <div class="ring-mover" if="{{visibleBeadCount === 6}}">
+        <div
+          id="bw0"
+          class="bead-wrap {{a0}}"
+          style="left: {{l0}}px; top: {{t0}}px; width: {{s0}}px; height: {{s0}}px; z-index: {{z0}};"
+        >
+          <image
+            if="{{!e6Solid}}"
+            class="bead-img"
+            src="{{src0}}"
+            style="width: {{s0}}px; height: {{s0}}px;"
+          ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s0}}px; height: {{s0}}px; border-radius: {{r0}}px;"
+          ></div>
         </div>
         <div
+          id="bw1"
+          class="bead-wrap {{a1}}"
+          style="left: {{l1}}px; top: {{t1}}px; width: {{s1}}px; height: {{s1}}px; z-index: {{z1}};"
+        >
+          <image
+            if="{{!e6Solid}}"
+            class="bead-img"
+            src="{{src1}}"
+            style="width: {{s1}}px; height: {{s1}}px;"
+          ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s1}}px; height: {{s1}}px; border-radius: {{r1}}px;"
+          ></div>
+        </div>
+        <div
+          id="bw2"
+          class="bead-wrap {{a2}}"
+          style="left: {{l2}}px; top: {{t2}}px; width: {{s2}}px; height: {{s2}}px; z-index: {{z2}};"
+        >
+          <image
+            if="{{!e6Solid}}"
+            class="bead-img"
+            src="{{src2}}"
+            style="width: {{s2}}px; height: {{s2}}px;"
+          ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s2}}px; height: {{s2}}px; border-radius: {{r2}}px;"
+          ></div>
+        </div>
+        <div
+          id="bw3"
           class="bead-wrap {{a3}}"
           style="left: {{l3}}px; top: {{t3}}px; width: {{s3}}px; height: {{s3}}px; z-index: {{z3}};"
         >
           <image
+            if="{{!e6Solid}}"
             class="bead-img"
             src="{{src3}}"
             style="width: {{s3}}px; height: {{s3}}px;"
           ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s3}}px; height: {{s3}}px; border-radius: {{r3}}px;"
+          ></div>
         </div>
         <div
+          id="bw4"
           class="bead-wrap {{a4}}"
           style="left: {{l4}}px; top: {{t4}}px; width: {{s4}}px; height: {{s4}}px; z-index: {{z4}};"
         >
           <image
+            if="{{!e6Solid}}"
             class="bead-img"
             src="{{src4}}"
             style="width: {{s4}}px; height: {{s4}}px;"
           ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s4}}px; height: {{s4}}px; border-radius: {{r4}}px;"
+          ></div>
         </div>
         <div
+          id="bw5"
           class="bead-wrap {{a5}}"
           style="left: {{l5}}px; top: {{t5}}px; width: {{s5}}px; height: {{s5}}px; z-index: {{z5}};"
         >
           <image
+            if="{{!e6Solid}}"
             class="bead-img"
             src="{{src5}}"
             style="width: {{s5}}px; height: {{s5}}px;"
           ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s5}}px; height: {{s5}}px; border-radius: {{r5}}px;"
+          ></div>
+        </div>
+      </div>
+      <div class="ring-mover" if="{{visibleBeadCount === 10}}">
+        <div
+          id="bw0"
+          class="bead-wrap {{a0}}"
+          style="left: {{l0}}px; top: {{t0}}px; width: {{s0}}px; height: {{s0}}px; z-index: {{z0}};"
+        >
+          <image
+            if="{{!e6Solid}}"
+            class="bead-img"
+            src="{{src0}}"
+            style="width: {{s0}}px; height: {{s0}}px;"
+          ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s0}}px; height: {{s0}}px; border-radius: {{r0}}px;"
+          ></div>
         </div>
         <div
+          id="bw1"
+          class="bead-wrap {{a1}}"
+          style="left: {{l1}}px; top: {{t1}}px; width: {{s1}}px; height: {{s1}}px; z-index: {{z1}};"
+        >
+          <image
+            if="{{!e6Solid}}"
+            class="bead-img"
+            src="{{src1}}"
+            style="width: {{s1}}px; height: {{s1}}px;"
+          ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s1}}px; height: {{s1}}px; border-radius: {{r1}}px;"
+          ></div>
+        </div>
+        <div
+          id="bw2"
+          class="bead-wrap {{a2}}"
+          style="left: {{l2}}px; top: {{t2}}px; width: {{s2}}px; height: {{s2}}px; z-index: {{z2}};"
+        >
+          <image
+            if="{{!e6Solid}}"
+            class="bead-img"
+            src="{{src2}}"
+            style="width: {{s2}}px; height: {{s2}}px;"
+          ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s2}}px; height: {{s2}}px; border-radius: {{r2}}px;"
+          ></div>
+        </div>
+        <div
+          id="bw3"
+          class="bead-wrap {{a3}}"
+          style="left: {{l3}}px; top: {{t3}}px; width: {{s3}}px; height: {{s3}}px; z-index: {{z3}};"
+        >
+          <image
+            if="{{!e6Solid}}"
+            class="bead-img"
+            src="{{src3}}"
+            style="width: {{s3}}px; height: {{s3}}px;"
+          ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s3}}px; height: {{s3}}px; border-radius: {{r3}}px;"
+          ></div>
+        </div>
+        <div
+          id="bw4"
+          class="bead-wrap {{a4}}"
+          style="left: {{l4}}px; top: {{t4}}px; width: {{s4}}px; height: {{s4}}px; z-index: {{z4}};"
+        >
+          <image
+            if="{{!e6Solid}}"
+            class="bead-img"
+            src="{{src4}}"
+            style="width: {{s4}}px; height: {{s4}}px;"
+          ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s4}}px; height: {{s4}}px; border-radius: {{r4}}px;"
+          ></div>
+        </div>
+        <div
+          id="bw5"
+          class="bead-wrap {{a5}}"
+          style="left: {{l5}}px; top: {{t5}}px; width: {{s5}}px; height: {{s5}}px; z-index: {{z5}};"
+        >
+          <image
+            if="{{!e6Solid}}"
+            class="bead-img"
+            src="{{src5}}"
+            style="width: {{s5}}px; height: {{s5}}px;"
+          ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s5}}px; height: {{s5}}px; border-radius: {{r5}}px;"
+          ></div>
+        </div>
+        <div
+          id="bw6"
           class="bead-wrap {{a6}}"
           style="left: {{l6}}px; top: {{t6}}px; width: {{s6}}px; height: {{s6}}px; z-index: {{z6}};"
         >
           <image
+            if="{{!e6Solid}}"
             class="bead-img"
             src="{{src6}}"
             style="width: {{s6}}px; height: {{s6}}px;"
           ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s6}}px; height: {{s6}}px; border-radius: {{r6}}px;"
+          ></div>
         </div>
         <div
+          id="bw7"
           class="bead-wrap {{a7}}"
           style="left: {{l7}}px; top: {{t7}}px; width: {{s7}}px; height: {{s7}}px; z-index: {{z7}};"
         >
           <image
+            if="{{!e6Solid}}"
             class="bead-img"
             src="{{src7}}"
             style="width: {{s7}}px; height: {{s7}}px;"
           ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s7}}px; height: {{s7}}px; border-radius: {{r7}}px;"
+          ></div>
         </div>
         <div
+          id="bw8"
           class="bead-wrap {{a8}}"
           style="left: {{l8}}px; top: {{t8}}px; width: {{s8}}px; height: {{s8}}px; z-index: {{z8}};"
         >
           <image
+            if="{{!e6Solid}}"
             class="bead-img"
             src="{{src8}}"
             style="width: {{s8}}px; height: {{s8}}px;"
           ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s8}}px; height: {{s8}}px; border-radius: {{r8}}px;"
+          ></div>
         </div>
         <div
+          id="bw9"
           class="bead-wrap {{a9}}"
           style="left: {{l9}}px; top: {{t9}}px; width: {{s9}}px; height: {{s9}}px; z-index: {{z9}};"
         >
           <image
+            if="{{!e6Solid}}"
             class="bead-img"
             src="{{src9}}"
             style="width: {{s9}}px; height: {{s9}}px;"
           ></image>
+          <div
+            if="{{e6Solid}}"
+            class="bead-solid"
+            style="width: {{s9}}px; height: {{s9}}px; border-radius: {{r9}}px;"
+          ></div>
         </div>
       </div>
       <div class="diag-layer" if="{{diagnoseLatency}}">
         <div class="diag-dot p1 {{diagP1On ? 'dot-on' : ''}}"></div>
         <div class="diag-dot p2 {{diagP2On ? 'dot-on' : ''}}"></div>
         <text class="diag-text">{{diagText}}</text>
+        <text class="diag-line">{{diagLine1}}</text>
+        <text class="diag-line2">{{diagLine2}}</text>
+        <text class="diag-line3">{{diagLine3}}</text>
       </div>
     </stack>
   </div>
@@ -132,14 +381,14 @@ import {
   CHAIN_ANIM_END_SLACK_MS,
   SWIPE_MIN_DY,
   TAP_MAX_MOVE,
-  createChainBeads,
-  animClassesForDrawOrder,
+  createVisibleBeads,
+  animClassesForVisible,
   layoutOptsFromExps,
   classifyVerticalSwipe
 } from '../../common/ring.js'
 
-/** 시스템 onlongpress 대신 자체 타이머 — touchend 지연 방지 */
 const LONGPRESS_MS = 560
+const TIMING_AVG_N = 5
 
 export default {
   private: {
@@ -147,81 +396,99 @@ export default {
     inputMode: 'slide',
     diagnoseLatency: false,
     singleBeadTest: false,
+    visibleBeadCount: 10,
     e1Minimize: true,
     e2NoScale: false,
     e3SplitSrc: true,
     e4SkipBack: false,
+    e5DirectDom: false,
+    e6Solid: false,
+    e5Status: '',
     a0: '',
     l0: 372,
     t0: 177,
     s0: 160,
+    r0: 80,
     z0: 0,
     src0: '/common/bead-back-160.png',
     a1: '',
     l1: 349,
     t1: -70,
     s1: 160,
+    r1: 80,
     z1: 1,
     src1: '/common/bead-back-160.png',
     a2: '',
     l2: 349,
     t2: 424,
     s2: 160,
+    r2: 80,
     z2: 2,
     src2: '/common/bead-back-160.png',
     a3: '',
     l3: 290,
     t3: -222,
     s3: 160,
+    r3: 80,
     z3: 3,
     src3: '/common/bead-back-160.png',
     a4: '',
     l4: 290,
     t4: 576,
     s4: 160,
+    r4: 80,
     z4: 4,
     src4: '/common/bead-back-160.png',
     a5: '',
     l5: 179,
     t5: -261,
     s5: 239,
+    r5: 119,
     z5: 5,
     src5: '/common/bead-front-255.png',
     a6: '',
     l6: 179,
     t6: 537,
     s6: 239,
+    r6: 119,
     z6: 6,
     src6: '/common/bead-front-255.png',
     a7: '',
     l7: 114,
     t7: -115,
     s7: 251,
+    r7: 125,
     z7: 7,
     src7: '/common/bead-front-255.png',
     a8: '',
     l8: 114,
     t8: 379,
     s8: 251,
+    r8: 125,
     z8: 8,
     src8: '/common/bead-front-255.png',
     a9: '',
     l9: 89,
     t9: 130,
     s9: 255,
+    r9: 127,
     z9: 9,
     src9: '/common/bead-front-255.png',
     diagP1On: false,
     diagP2On: false,
-    diagText: 'P1:- P2:-'
+    diagText: 'P1:- P2:-',
+    diagLine1: 'in→set:-',
+    diagLine2: 'set→start:-',
+    diagLine3: 'anim:- avg:-'
   },
 
   onInit() {
     this._state = normalizeState({ todayDate: formatDate() })
-    this._homeSlots = [5,4,6,3,7,2,8,1,9,0]
+    this._homeSlots = []
     this._animTimer = null
     this._sideTimer = null
     this._lpTimer = null
+    this._t2Timer = null
     this._animating = false
     this._saveChain = Promise.resolve()
     this._saveTimer = null
@@ -232,6 +499,14 @@ export default {
     this._longPressed = false
     this._rollAlt = false
     this._t0 = 0
+    this._t1 = 0
+    this._t2 = 0
+    this._t3 = 0
+    this._timingHist = []
+    this._animEndCount = 0
+    this._animEndExpected = 0
+    this._e5Works = null
+    this._listenersBound = false
     this.hydrateGeometry()
   },
 
@@ -241,25 +516,30 @@ export default {
       e2NoScale: !!this.e2NoScale,
       e3SplitSrc: this.e3SplitSrc !== false,
       e4SkipBack: !!this.e4SkipBack,
-      singleBead: !!this.singleBeadTest
+      singleBead: this.visibleBeadCount <= 1 || !!this.singleBeadTest
     })
   },
 
   hydrateGeometry() {
-    const beads = createChainBeads(this.expOpts())
+    const count = this.visibleBeadCount || 10
+    const beads = createVisibleBeads(count, this.expOpts())
     this._homeSlots = beads.map((b) => b.homeSlot)
-    for (let i = 0; i < beads.length; i++) {
-      this['l' + i] = beads[i].left
-      this['t' + i] = beads[i].top
-      this['s' + i] = beads[i].size
-      this['z' + i] = beads[i].z
-      this['src' + i] = beads[i].src
+    for (let i = 0; i < 10; i++) {
+      if (i < beads.length) {
+        this['l' + i] = beads[i].left
+        this['t' + i] = beads[i].top
+        this['s' + i] = beads[i].size
+        this['r' + i] = Math.floor(beads[i].size / 2)
+        this['z' + i] = beads[i].z
+        this['src' + i] = beads[i].src
+      }
       this['a' + i] = ''
     }
   },
 
   onShow() {
     this.reload()
+    this.bindAnimListeners()
   },
 
   onHide() {
@@ -283,6 +563,10 @@ export default {
     if (this._sideTimer) {
       clearTimeout(this._sideTimer)
       this._sideTimer = null
+    }
+    if (this._t2Timer) {
+      clearTimeout(this._t2Timer)
+      this._t2Timer = null
     }
   },
 
@@ -309,12 +593,81 @@ export default {
     this.inputMode = state.inputMode || 'slide'
     this.diagnoseLatency = !!state.diagnoseLatency
     this.singleBeadTest = !!state.singleBeadTest
+    this.visibleBeadCount = state.visibleBeadCount || 10
     this.e1Minimize = state.e1Minimize !== false
     this.e2NoScale = !!state.e2NoScale
     this.e3SplitSrc = state.e3SplitSrc !== false
     this.e4SkipBack = !!state.e4SkipBack
+    this.e5DirectDom = !!state.e5DirectDom
+    this.e6Solid = !!state.e6Solid
     this.hydrateGeometry()
     this._animating = false
+    this._listenersBound = false
+    this.bindAnimListeners()
+  },
+
+  /** animationstart/end 계측용 — $element + addEventListener */
+  bindAnimListeners() {
+    if (this._listenersBound) return
+    if (typeof this.$element !== 'function') {
+      this.e5Status = 'E5:no-$element'
+      return
+    }
+    const count = this.visibleBeadCount || 10
+    let bound = 0
+    for (let i = 0; i < count; i++) {
+      let el = null
+      try {
+        el = this.$element('bw' + i)
+      } catch (e) {
+        el = null
+      }
+      if (!el || typeof el.addEventListener !== 'function') continue
+      try {
+        el.addEventListener('animationstart', this.onAnimStart.bind(this))
+        el.addEventListener('animationend', this.onAnimEnd.bind(this))
+        bound++
+      } catch (e2) {
+        /* ignore */
+      }
+    }
+    this._listenersBound = bound > 0
+    if (!this._listenersBound) {
+      this.e5Status = this.e5Status || 'E5:no-anim-evt'
+    }
+  },
+
+  /**
+   * E5: Vela 공용 API는 class/style 직접 변경을 노출하지 않음.
+   * attr/setAttribute 있으면 시도, 없으면 false.
+   */
+  applyClassDirect(i, cls) {
+    if (typeof this.$element !== 'function') return false
+    let el = null
+    try {
+      el = this.$element('bw' + i)
+    } catch (e) {
+      return false
+    }
+    if (!el) return false
+    const full = ('bead-wrap ' + (cls || '')).trim()
+    if (typeof el.attr === 'function') {
+      try {
+        el.attr({ class: full })
+        return true
+      } catch (e2) {
+        /* fall through */
+      }
+    }
+    if (typeof el.setAttribute === 'function') {
+      try {
+        el.setAttribute('class', full)
+        return true
+      } catch (e3) {
+        /* fall through */
+      }
+    }
+    return false
   },
 
   touchPoint(e) {
@@ -330,20 +683,72 @@ export default {
     return { x: Number(x), y: Number(y) }
   },
 
-  /** P1: 이벤트 전달 확인 — 단색 div만, 이미지 없음 */
   markP1() {
     if (!this.diagnoseLatency) return
-    this._t0 = Date.now()
     this.diagP1On = !this.diagP1On
     this.diagP2On = false
-    this.diagText = 'P1:0 P2:-'
   },
 
   markP2() {
     if (!this.diagnoseLatency) return
-    const dt = this._t0 ? Date.now() - this._t0 : -1
     this.diagP2On = !this.diagP2On
-    this.diagText = 'P1:0 P2:' + dt + 'ms'
+  },
+
+  onAnimStart() {
+    if (this._t2) return
+    this._t2 = Date.now()
+    this.refreshDiagTiming()
+  },
+
+  onAnimEnd() {
+    this._animEndCount = (this._animEndCount || 0) + 1
+    if (this._animEndExpected > 0 && this._animEndCount < this._animEndExpected) {
+      return
+    }
+    if (!this._t3) {
+      this._t3 = Date.now()
+      this.refreshDiagTiming(true)
+    }
+  },
+
+  refreshDiagTiming(finalize) {
+    if (!this.diagnoseLatency) return
+    const t0 = this._t0 || 0
+    const t1 = this._t1 || 0
+    const t2 = this._t2 || 0
+    const t3 = this._t3 || 0
+    const inSet = t0 && t1 ? t1 - t0 : -1
+    const setStart = t1 && t2 ? t2 - t1 : -1
+    const animLen = t2 && t3 ? t3 - t2 : t1 && t3 ? t3 - t1 : -1
+    const e5 = this.e5Status ? ' ' + this.e5Status : ''
+    this.diagText = 'n=' + (this.visibleBeadCount || 10) + e5
+    this.diagLine1 = 'in→set:' + (inSet >= 0 ? inSet + 'ms' : '-')
+    this.diagLine2 = 'set→start:' + (setStart >= 0 ? setStart + 'ms' : '-')
+    if (finalize && inSet >= 0) {
+      this._timingHist.push({ inSet, setStart, animLen })
+      if (this._timingHist.length > TIMING_AVG_N) this._timingHist.shift()
+      const h = this._timingHist
+      const avg = (key) => {
+        const vals = h.map((x) => x[key]).filter((v) => v >= 0)
+        if (!vals.length) return -1
+        return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+      }
+      const a1 = avg('inSet')
+      const a2 = avg('setStart')
+      const a3 = avg('animLen')
+      this.diagLine3 =
+        'anim:' +
+        (animLen >= 0 ? animLen + 'ms' : '-') +
+        ' avg:' +
+        (a1 >= 0 ? a1 : '-') +
+        '/' +
+        (a2 >= 0 ? a2 : '-') +
+        '/' +
+        (a3 >= 0 ? a3 : '-')
+    } else {
+      this.diagLine3 =
+        'anim:' + (animLen >= 0 ? animLen + 'ms' : '-') + ' avg:-'
+    }
   },
 
   onTouchStart(e) {
@@ -417,6 +822,12 @@ export default {
 
   enqueueRoll(dir) {
     const d = Number(dir) < 0 ? -1 : 1
+    // t0 = 스와이프 판정 또는 탭 확정 시점
+    this._t0 = Date.now()
+    this._t1 = 0
+    this._t2 = 0
+    this._t3 = 0
+    this._animEndCount = 0
     if (!this._state) {
       this._state = normalizeState({ todayDate: formatDate() })
     }
@@ -429,37 +840,75 @@ export default {
   },
 
   clearAnimClasses() {
-    this.a0 = ''
-    this.a1 = ''
-    this.a2 = ''
-    this.a3 = ''
-    this.a4 = ''
-    this.a5 = ''
-    this.a6 = ''
-    this.a7 = ''
-    this.a8 = ''
-    this.a9 = ''
+    const count = this.visibleBeadCount || 10
+    const useE5 = !!this.e5DirectDom && this._e5Works !== false
+    for (let i = 0; i < count; i++) {
+      if (useE5) {
+        const ok = this.applyClassDirect(i, '')
+        if (!ok) {
+          this._e5Works = false
+          this.e5Status = 'E5:불가'
+          this['a' + i] = ''
+        }
+      } else {
+        this['a' + i] = ''
+      }
+    }
   },
 
-  /**
-   * animClass만 개별 필드 갱신 (src/left/top/size 불변).
-   * for+전체 배열 교체·이미지 재바인딩 회피.
-   */
   startRoll(dir) {
     const d = Number(dir) < 0 ? -1 : 1
     const result = applySwipeCount(this._state, d)
     this._state = result.state
     this._animating = true
     this._rollAlt = !this._rollAlt
-    const classes = animClassesForDrawOrder(d, {
+    const count = this.visibleBeadCount || 10
+    const classes = animClassesForVisible(d, count, {
       ...this.expOpts(),
       alt: this._rollAlt
     })
-    for (let i = 0; i < 10; i++) {
-      this['a' + i] = classes[i] || ''
+    const useE5 = !!this.e5DirectDom
+    let e5Ok = 0
+    let e5Fail = 0
+    for (let i = 0; i < count; i++) {
+      const cls = classes[i] || ''
+      if (useE5) {
+        const ok = this.applyClassDirect(i, cls)
+        if (ok) {
+          e5Ok++
+          // 바인딩 갱신 생략 (비용 비교용)
+        } else {
+          e5Fail++
+          this['a' + i] = cls
+        }
+      } else {
+        this['a' + i] = cls
+      }
     }
+    if (useE5) {
+      if (e5Ok > 0 && e5Fail === 0) {
+        this._e5Works = true
+        this.e5Status = 'E5:ok'
+      } else if (e5Ok === 0) {
+        this._e5Works = false
+        this.e5Status = 'E5:불가'
+      } else {
+        this.e5Status = 'E5:partial'
+      }
+    }
+    this._t1 = Date.now()
+    this._animEndExpected = classes.filter((c) => !!c).length || 1
     this.markP2()
+    this.refreshDiagTiming(false)
     this.clearAnimTimers()
+    // t2 폴백: animationstart 미지원 시 setTimeout(0)
+    this._t2Timer = setTimeout(() => {
+      this._t2Timer = null
+      if (!this._t2) {
+        this._t2 = Date.now()
+        this.refreshDiagTiming(false)
+      }
+    }, 0)
     const completedRound = !!result.completedRound
     const state = result.state
     this._sideTimer = setTimeout(() => {
@@ -468,6 +917,10 @@ export default {
       this.queueSave(state)
     }, 0)
     this._animTimer = setTimeout(() => {
+      if (!this._t3) {
+        this._t3 = Date.now()
+        this.refreshDiagTiming(true)
+      }
       this.finishRoll()
     }, CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS)
   },
@@ -520,7 +973,12 @@ export default {
   left: 0px;
   top: 0px;
 }
-/* 원형 안전영역: 중심(216,257), 상단쪽 r*0.4 ≈ y≈171 */
+.bead-solid {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  background-color: #8b5a2b;
+}
 .diag-layer {
   position: absolute;
   left: 0px;
@@ -536,23 +994,50 @@ export default {
 }
 .diag-dot.p1 {
   left: 178px;
-  top: 148px;
+  top: 128px;
 }
 .diag-dot.p2 {
   left: 210px;
-  top: 148px;
+  top: 128px;
 }
 .dot-on {
   background-color: #e8c48a;
 }
 .diag-text {
   position: absolute;
-  left: 140px;
-  top: 176px;
-  width: 152px;
+  left: 120px;
+  top: 154px;
+  width: 192px;
+  text-align: center;
+  font-size: 20px;
+  color: #e8c48a;
+}
+.diag-line {
+  position: absolute;
+  left: 90px;
+  top: 180px;
+  width: 252px;
   text-align: center;
   font-size: 22px;
-  color: #e8c48a;
+  color: #f3e2c4;
+}
+.diag-line2 {
+  position: absolute;
+  left: 90px;
+  top: 206px;
+  width: 252px;
+  text-align: center;
+  font-size: 22px;
+  color: #f3e2c4;
+}
+.diag-line3 {
+  position: absolute;
+  left: 70px;
+  top: 232px;
+  width: 292px;
+  text-align: center;
+  font-size: 20px;
+  color: #c4a574;
 }
 /* CHAIN_KF_BEGIN */
 .roll-next-0 {

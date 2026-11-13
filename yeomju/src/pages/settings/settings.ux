@@ -45,7 +45,7 @@
     </div>
 
     <text class="label">진단</text>
-    <text class="hint">P1=터치시작 · P2=애니클래스 · 중앙 안전영역</text>
+    <text class="hint">타이밍 in→set / set→start / anim · 중앙 표시</text>
     <div class="row">
       <div class="chip {{diagnoseLatency ? 'chip-on' : ''}}" onclick="setDiagOn">
         <text class="chip-text">켜기</text>
@@ -55,19 +55,25 @@
       </div>
     </div>
 
-    <text class="label">단일 구슬 테스트</text>
-    <text class="hint">포커스 1개만 keyframe (노드수 원인 확인)</text>
+    <text class="label">표시 구슬 수</text>
+    <text class="hint">1=포커스 · 3=앞열 · 6=화면 · 10=전체(기본)</text>
     <div class="row">
-      <div class="chip {{singleBeadTest ? 'chip-on' : ''}}" onclick="setSingleOn">
-        <text class="chip-text">켜기</text>
+      <div class="chip {{visibleBeadCount === 1 ? 'chip-on' : ''}}" onclick="pickCount1">
+        <text class="chip-text">1</text>
       </div>
-      <div class="chip {{!singleBeadTest ? 'chip-on' : ''}}" onclick="setSingleOff">
-        <text class="chip-text">끄기</text>
+      <div class="chip {{visibleBeadCount === 3 ? 'chip-on' : ''}}" onclick="pickCount3">
+        <text class="chip-text">3</text>
+      </div>
+      <div class="chip {{visibleBeadCount === 6 ? 'chip-on' : ''}}" onclick="pickCount6">
+        <text class="chip-text">6</text>
+      </div>
+      <div class="chip {{visibleBeadCount === 10 ? 'chip-on' : ''}}" onclick="pickCount10">
+        <text class="chip-text">10</text>
       </div>
     </div>
 
     <text class="label">실험 E1 애니 최소화</text>
-    <text class="hint">버퍼↔버퍼 생략 · 기본 켜짐 · 애니 8/10</text>
+    <text class="hint">버퍼↔버퍼 생략 · 기본 켜짐</text>
     <div class="row">
       <div class="chip {{e1Minimize ? 'chip-on' : ''}}" onclick="setE1On">
         <text class="chip-text">켜기</text>
@@ -78,7 +84,7 @@
     </div>
 
     <text class="label">실험 E2 scale 제거</text>
-    <text class="hint">translate만 · 열별 동일크기 · 형상 변경 · 기본 끔</text>
+    <text class="hint">translate만 · 형상 변경 · 기본 끔</text>
     <div class="row">
       <div class="chip {{e2NoScale ? 'chip-on' : ''}}" onclick="setE2On">
         <text class="chip-text">켜기</text>
@@ -89,7 +95,7 @@
     </div>
 
     <text class="label">실험 E3 뒷열 저해상</text>
-    <text class="hint">앞255/뒤160 원본=표시 · 기본 켜짐</text>
+    <text class="hint">앞255/뒤160 · 기본 켜짐</text>
     <div class="row">
       <div class="chip {{e3SplitSrc ? 'chip-on' : ''}}" onclick="setE3On">
         <text class="chip-text">켜기</text>
@@ -100,12 +106,34 @@
     </div>
 
     <text class="label">실험 E4 뒷열 스냅</text>
-    <text class="hint">뒷열 애니 생략 · 형상 변경 · 기본 끔 · 애니 4</text>
+    <text class="hint">뒷열 애니 생략 · 기본 끔</text>
     <div class="row">
       <div class="chip {{e4SkipBack ? 'chip-on' : ''}}" onclick="setE4On">
         <text class="chip-text">켜기</text>
       </div>
       <div class="chip {{!e4SkipBack ? 'chip-on' : ''}}" onclick="setE4Off">
+        <text class="chip-text">끄기</text>
+      </div>
+    </div>
+
+    <text class="label">실험 E5 $element 클래스</text>
+    <text class="hint">바인딩 대신 직접 클래스 · API 없으면 불가</text>
+    <div class="row">
+      <div class="chip {{e5DirectDom ? 'chip-on' : ''}}" onclick="setE5On">
+        <text class="chip-text">켜기</text>
+      </div>
+      <div class="chip {{!e5DirectDom ? 'chip-on' : ''}}" onclick="setE5Off">
+        <text class="chip-text">끄기</text>
+      </div>
+    </div>
+
+    <text class="label">실험 E6 단색 원</text>
+    <text class="hint">이미지 대신 div 원 · 디코드 분리 · 기본 끔</text>
+    <div class="row">
+      <div class="chip {{e6Solid ? 'chip-on' : ''}}" onclick="setE6On">
+        <text class="chip-text">켜기</text>
+      </div>
+      <div class="chip {{!e6Solid ? 'chip-on' : ''}}" onclick="setE6Off">
         <text class="chip-text">끄기</text>
       </div>
     </div>
@@ -120,7 +148,7 @@
       </div>
     </div>
 
-    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.4.2</text>
+    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.4.3</text>
   </div>
 </template>
 
@@ -131,11 +159,13 @@ import {
   setVibrateOnBead,
   setInputMode,
   setDiagnoseLatency,
-  setSingleBeadTest,
+  setVisibleBeadCount,
   setE1Minimize,
   setE2NoScale,
   setE3SplitSrc,
   setE4SkipBack,
+  setE5DirectDom,
+  setE6Solid,
   INPUT_MODE_HINTS
 } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
@@ -148,11 +178,13 @@ export default {
     inputMode: 'slide',
     inputHint: INPUT_MODE_HINTS.slide,
     diagnoseLatency: false,
-    singleBeadTest: false,
+    visibleBeadCount: 10,
     e1Minimize: true,
     e2NoScale: false,
     e3SplitSrc: true,
-    e4SkipBack: false
+    e4SkipBack: false,
+    e5DirectDom: false,
+    e6Solid: false
   },
 
   onShow() {
@@ -183,11 +215,13 @@ export default {
     this.inputMode = state.inputMode || 'slide'
     this.inputHint = INPUT_MODE_HINTS[this.inputMode] || INPUT_MODE_HINTS.slide
     this.diagnoseLatency = !!state.diagnoseLatency
-    this.singleBeadTest = !!state.singleBeadTest
+    this.visibleBeadCount = state.visibleBeadCount || 10
     this.e1Minimize = state.e1Minimize !== false
     this.e2NoScale = !!state.e2NoScale
     this.e3SplitSrc = state.e3SplitSrc !== false
     this.e4SkipBack = !!state.e4SkipBack
+    this.e5DirectDom = !!state.e5DirectDom
+    this.e6Solid = !!state.e6Solid
   },
 
   async persist(next) {
@@ -243,13 +277,22 @@ export default {
     if (!this._state) await this.reload()
     await this.persist(setDiagnoseLatency(this._state, false))
   },
-  async setSingleOn() {
+
+  async pickCount(n) {
     if (!this._state) await this.reload()
-    await this.persist(setSingleBeadTest(this._state, true))
+    await this.persist(setVisibleBeadCount(this._state, n))
   },
-  async setSingleOff() {
-    if (!this._state) await this.reload()
-    await this.persist(setSingleBeadTest(this._state, false))
+  pickCount1() {
+    this.pickCount(1)
+  },
+  pickCount3() {
+    this.pickCount(3)
+  },
+  pickCount6() {
+    this.pickCount(6)
+  },
+  pickCount10() {
+    this.pickCount(10)
   },
 
   async setE1On() {
@@ -283,6 +326,22 @@ export default {
   async setE4Off() {
     if (!this._state) await this.reload()
     await this.persist(setE4SkipBack(this._state, false))
+  },
+  async setE5On() {
+    if (!this._state) await this.reload()
+    await this.persist(setE5DirectDom(this._state, true))
+  },
+  async setE5Off() {
+    if (!this._state) await this.reload()
+    await this.persist(setE5DirectDom(this._state, false))
+  },
+  async setE6On() {
+    if (!this._state) await this.reload()
+    await this.persist(setE6Solid(this._state, true))
+  },
+  async setE6Off() {
+    if (!this._state) await this.reload()
+    await this.persist(setE6Solid(this._state, false))
   },
 
   confirmSession() {

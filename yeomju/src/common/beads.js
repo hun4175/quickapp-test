@@ -23,26 +23,35 @@ export const INPUT_MODE_HINTS = Object.freeze({
   touch: '탭 1회 = 한 칸 앞으로 (슬라이드 무시)'
 })
 
-/** 2.4.2 실험 토글 기본값 */
+/** 2.4.3: 표시 구슬 수 */
+export const VISIBLE_BEAD_COUNTS = Object.freeze([1, 3, 6, 10])
+
+/** 2.4.2+ 실험 토글 기본값 */
 export const EXP_DEFAULTS = Object.freeze({
   e1Minimize: true,
   e2NoScale: false,
   e3SplitSrc: true,
-  e4SkipBack: false
+  e4SkipBack: false,
+  e5DirectDom: false,
+  e6Solid: false
 })
 
 export const EXP_LABELS = Object.freeze({
   e1Minimize: 'E1 애니 최소화',
   e2NoScale: 'E2 scale 제거',
   e3SplitSrc: 'E3 뒷열 저해상',
-  e4SkipBack: 'E4 뒷열 스냅'
+  e4SkipBack: 'E4 뒷열 스냅',
+  e5DirectDom: 'E5 $element 클래스',
+  e6Solid: 'E6 단색 원'
 })
 
 export const EXP_HINTS = Object.freeze({
   e1Minimize: '버퍼↔버퍼 애니 생략 (기본 켜짐)',
   e2NoScale: 'translate만 · 열별 동일 크기 (형상 변경, 기본 끔)',
   e3SplitSrc: '앞255/뒤160 원본=표시 (기본 켜짐)',
-  e4SkipBack: '뒷열 애니 생략·종료 스냅 (형상 변경, 기본 끔)'
+  e4SkipBack: '뒷열 애니 생략·종료 스냅 (형상 변경, 기본 끔)',
+  e5DirectDom: 'data 바인딩 대신 $element 직접 클래스 (API 없으면 불가)',
+  e6Solid: '이미지 대신 단색 원 (디코드 분리, 기본 끔)'
 })
 
 export const DEFAULT_STATE = Object.freeze({
@@ -53,16 +62,17 @@ export const DEFAULT_STATE = Object.freeze({
   todayDate: '',
   todayTotal: 0,
   inputMode: 'slide',
-  /** 2.4.1 진단: P1/P2 점·ms 표시 */
   diagnoseLatency: false,
-  /** 2.4.1: 포커스 구슬만 keyframe */
+  /** @deprecated 2.4.3: visibleBeadCount=1 로 대체 */
   singleBeadTest: false,
-  /** 2.4.2 실험 */
+  visibleBeadCount: 10,
   e1Minimize: true,
   e2NoScale: false,
   e3SplitSrc: true,
   e4SkipBack: false,
-  stateSchema: 6
+  e5DirectDom: false,
+  e6Solid: false,
+  stateSchema: 7
 })
 
 /**
@@ -78,8 +88,15 @@ export const formatDate = (date = new Date()) => {
   return y + '-' + pad(m) + '-' + pad(d)
 }
 
+const normalizeVisibleCount = (raw, singleBeadTest) => {
+  const n = Math.floor(Number(raw))
+  if (VISIBLE_BEAD_COUNTS.includes(n)) return n
+  if (singleBeadTest === true) return 1
+  return DEFAULT_STATE.visibleBeadCount
+}
+
 /**
- * 저장값/부분 객체를 안전한 상태로 정규화 (animMode/debug 제거)
+ * 저장값/부분 객체를 안전한 상태로 정규화
  * @param {object} [raw]
  * @returns {object}
  */
@@ -99,8 +116,10 @@ export const normalizeState = (raw) => {
   const schemaRaw = Math.floor(Number(src.stateSchema) || 0)
   const stateSchema = schemaRaw > 0 ? schemaRaw : 1
 
-  // schema≥6: 명시값 존중. schema<6 미이관 원본은 기본값(아래 migrate에서 채움)
+  const singleBeadTest = src.singleBeadTest === true
   const hasExp = Object.prototype.hasOwnProperty.call(src, 'e1Minimize')
+  const visibleBeadCount = normalizeVisibleCount(src.visibleBeadCount, singleBeadTest)
+
   return {
     bead: beadNum % beadsPerRound,
     rounds,
@@ -110,49 +129,50 @@ export const normalizeState = (raw) => {
     todayTotal,
     inputMode,
     diagnoseLatency: src.diagnoseLatency === true,
-    singleBeadTest: src.singleBeadTest === true,
+    singleBeadTest: visibleBeadCount === 1,
+    visibleBeadCount,
     e1Minimize: hasExp ? src.e1Minimize !== false : DEFAULT_STATE.e1Minimize,
     e2NoScale: src.e2NoScale === true,
     e3SplitSrc: Object.prototype.hasOwnProperty.call(src, 'e3SplitSrc')
       ? src.e3SplitSrc !== false
       : DEFAULT_STATE.e3SplitSrc,
     e4SkipBack: src.e4SkipBack === true,
+    e5DirectDom: src.e5DirectDom === true,
+    e6Solid: src.e6Solid === true,
     stateSchema
   }
 }
 
 /**
- * 2.4.2: schema≥6. 실험 토글 기본값 확보. 레거시 animMode 제거.
+ * 2.4.3: schema≥7. 표시 구슬 수·E5/E6 기본값.
  * @param {object} state
  * @returns {{ state: object, migrated: boolean }}
  */
 export const migrateAnimModeForStability = (state) => {
   const s = normalizeState(state)
-  if (s.stateSchema >= 6) {
+  if (s.stateSchema >= 7) {
     return { state: s, migrated: false }
   }
+  const fromSingle = s.singleBeadTest === true ? 1 : s.visibleBeadCount || 10
   return {
     state: {
       ...s,
-      stateSchema: 6,
+      stateSchema: 7,
       inputMode: INPUT_MODES.includes(s.inputMode) ? s.inputMode : 'slide',
-      diagnoseLatency: false,
-      singleBeadTest: false,
-      e1Minimize: true,
-      e2NoScale: false,
-      e3SplitSrc: true,
-      e4SkipBack: false
+      diagnoseLatency: s.diagnoseLatency === true,
+      singleBeadTest: fromSingle === 1,
+      visibleBeadCount: normalizeVisibleCount(fromSingle, false),
+      e1Minimize: s.e1Minimize !== false,
+      e2NoScale: !!s.e2NoScale,
+      e3SplitSrc: s.e3SplitSrc !== false,
+      e4SkipBack: !!s.e4SkipBack,
+      e5DirectDom: false,
+      e6Solid: false
     },
     migrated: true
   }
 }
 
-/**
- * 날짜가 바뀌면 오늘 합계만 리셋 (바퀴/현재 알은 유지)
- * @param {object} state
- * @param {string} today
- * @returns {{ state: object, rolled: boolean }}
- */
 export const ensureToday = (state, today) => {
   const s = normalizeState(state)
   if (s.todayDate === today) {
@@ -168,19 +188,8 @@ export const ensureToday = (state, today) => {
   }
 }
 
-/**
- * 스와이프 카운트 모드.
- * - 'plus_both' : 위·아래 모두 +1 (기본)
- * - 'down_undo' : 위=+1, 아래=-1(되돌리기)
- */
 export const SWIPE_COUNT_MODE = 'plus_both'
 
-/**
- * 염주알 하나 전진.
- * @param {object} state
- * @param {string} [today]
- * @returns {{ state: object, completedRound: boolean }}
- */
 export const advanceBead = (state, today = formatDate()) => {
   const ensured = ensureToday(state, today).state
   const nextBead = ensured.bead + 1
@@ -208,12 +217,6 @@ export const advanceBead = (state, today = formatDate()) => {
   }
 }
 
-/**
- * 염주알 하나 되돌리기(아래 스와이프 undo 모드용).
- * @param {object} state
- * @param {string} [today]
- * @returns {{ state: object, completedRound: boolean, retreated: boolean }}
- */
 export const retreatBead = (state, today = formatDate()) => {
   const ensured = ensureToday(state, today).state
   if (ensured.bead > 0) {
@@ -242,14 +245,6 @@ export const retreatBead = (state, today = formatDate()) => {
   return { state: ensured, completedRound: false, retreated: false }
 }
 
-/**
- * 스와이프/탭 한 칸에 대한 카운트 반영.
- * 터치 모드 탭은 swipeDir=+1 로 호출 (plus_both·down_undo 동일 규칙).
- * @param {object} state
- * @param {number} swipeDir 1=앞, -1=아래
- * @param {string} [today]
- * @returns {{ state: object, completedRound: boolean }}
- */
 export const applySwipeCount = (state, swipeDir, today = formatDate()) => {
   if (SWIPE_COUNT_MODE === 'down_undo' && Number(swipeDir) < 0) {
     const r = retreatBead(state, today)
@@ -289,7 +284,22 @@ export const setDiagnoseLatency = (state, enabled) => {
 
 export const setSingleBeadTest = (state, enabled) => {
   const s = normalizeState(state)
-  return { ...s, singleBeadTest: !!enabled }
+  const on = !!enabled
+  return {
+    ...s,
+    singleBeadTest: on,
+    visibleBeadCount: on ? 1 : s.visibleBeadCount === 1 ? 10 : s.visibleBeadCount
+  }
+}
+
+export const setVisibleBeadCount = (state, count) => {
+  const s = normalizeState(state)
+  const visibleBeadCount = normalizeVisibleCount(count, false)
+  return {
+    ...s,
+    visibleBeadCount,
+    singleBeadTest: visibleBeadCount === 1
+  }
 }
 
 export const setExpFlag = (state, key, enabled) => {
@@ -302,6 +312,8 @@ export const setE1Minimize = (state, enabled) => setExpFlag(state, 'e1Minimize',
 export const setE2NoScale = (state, enabled) => setExpFlag(state, 'e2NoScale', enabled)
 export const setE3SplitSrc = (state, enabled) => setExpFlag(state, 'e3SplitSrc', enabled)
 export const setE4SkipBack = (state, enabled) => setExpFlag(state, 'e4SkipBack', enabled)
+export const setE5DirectDom = (state, enabled) => setExpFlag(state, 'e5DirectDom', enabled)
+export const setE6Solid = (state, enabled) => setExpFlag(state, 'e6Solid', enabled)
 
 export const resetSession = (state) => {
   const s = normalizeState(state)

@@ -41,7 +41,12 @@ import {
   pathProgressAtTime,
   BEAD_SRC_FRONT,
   BEAD_SRC_BACK,
-  BEAD_BACK_DISPLAY
+  BEAD_BACK_DISPLAY,
+  VISIBLE_BEAD_COUNTS,
+  visibleHomeSlotsForCount,
+  visibleDrawOrder,
+  createVisibleBeads,
+  animClassesForVisible
 } from '../src/common/ring.js'
 import {
   SHARED_KEYFRAME_PCTS,
@@ -239,6 +244,22 @@ describe('keyframe=스냅 · 커버리지', () => {
     assert.ok(front.every((b) => b.src === BEAD_SRC_FRONT))
     assert.equal(BEAD_SRC_FRONT, '/common/bead-front-255.png')
     assert.equal(BEAD_SRC_BACK, '/common/bead-back-160.png')
+  })
+
+  it('2.4.3 표시 구슬 수 1/3/6/10', () => {
+    assert.deepEqual([...VISIBLE_BEAD_COUNTS], [1, 3, 6, 10])
+    assert.deepEqual(visibleHomeSlotsForCount(1), [0])
+    assert.deepEqual(visibleHomeSlotsForCount(3).sort((a, b) => a - b), [0, 1, 9])
+    assert.deepEqual(visibleHomeSlotsForCount(6).sort((a, b) => a - b), [
+      0, 1, 4, 5, 6, 9
+    ])
+    assert.equal(createVisibleBeads(1).length, 1)
+    assert.equal(createVisibleBeads(3).length, 3)
+    assert.equal(createVisibleBeads(6).length, 6)
+    assert.equal(createVisibleBeads(10).length, 10)
+    assert.equal(visibleDrawOrder(3).length, 3)
+    assert.equal(animClassesForVisible(1, 1, { e3SplitSrc: true }).filter(Boolean).length, 1)
+    assert.equal(animClassesForVisible(1, 3, { e3SplitSrc: true }).filter(Boolean).length, 3)
   })
 })
 

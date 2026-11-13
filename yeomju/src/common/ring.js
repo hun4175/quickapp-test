@@ -498,6 +498,54 @@ export const animNodeCountReport = (dir = 1) => {
   return { all, e1, e1e4 }
 }
 
+/** 2.4.3: 화면에 실제로 올릴 구슬 수 */
+export const VISIBLE_BEAD_COUNTS = Object.freeze([1, 3, 6, 10])
+
+/**
+ * 표시 개수별 homeSlot 집합.
+ * 1=포커스, 3=앞열 화면 내, 6=화면 내(버퍼 제외), 10=전체
+ */
+export const visibleHomeSlotsForCount = (count, opts = {}) => {
+  const n = Math.floor(Number(count) || 10)
+  if (n <= 1) return [0]
+  if (n === 3) {
+    const slots = layoutChainSlots(ringOpts(opts))
+    return slots
+      .filter((s) => s.depth >= FRONT_DEPTH_MIN && !isSlotFullyOffScreen(s, opts))
+      .map((s) => s.index)
+      .sort((a, b) => a - b)
+  }
+  if (n === 6) return onScreenSlotIndices(opts)
+  return fixedDrawOrder(opts).slice().sort((a, b) => a - b)
+}
+
+/** fixedDrawOrder 중 표시 대상만 (그리기 순서 유지) */
+export const visibleDrawOrder = (count, opts = {}) => {
+  const allow = new Set(visibleHomeSlotsForCount(count, opts))
+  return fixedDrawOrder(opts).filter((h) => allow.has(h))
+}
+
+/**
+ * 표시용 비드 배열 (그리기 순서, 길이=count).
+ */
+export const createVisibleBeads = (count, opts = {}) => {
+  const order = visibleDrawOrder(count, opts)
+  const all = createChainBeads(opts)
+  const byHome = new Map(all.map((b) => [b.homeSlot, b]))
+  return order.map((h) => byHome.get(h)).filter(Boolean)
+}
+
+/** 표시 순서에 대응하는 animClass 배열 */
+export const animClassesForVisible = (dir, count, opts = {}) => {
+  const order = visibleDrawOrder(count, opts)
+  const d = Number(dir) < 0 ? -1 : 1
+  const focusOnly = opts.singleBead === true || Math.floor(Number(count) || 10) <= 1
+  return order.map((home) => {
+    if (focusOnly && home !== 0) return ''
+    return rollClassForSlot(home, d, opts)
+  })
+}
+
 export const advanceChainBeadsWithAnim = (beads, _dir, nextDir, opts = {}) => {
   const home = snapBeadsHome(beads, opts)
   if (nextDir == null || nextDir === 0) return home
