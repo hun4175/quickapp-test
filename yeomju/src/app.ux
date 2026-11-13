@@ -1,0 +1,14 @@
+<script>
+/**
+ * 앱 전역 생명주기.
+ * 네트워크 feature 는 선언하지 않음 — 모든 데이터는 system.storage 로컬만 사용.
+ */
+export default {
+  onCreate() {
+    console.log('염주굴리기 앱 생성')
+  },
+  onDestroy() {
+    console.log('염주굴리기 앱 종료')
+  }
+}
+</script>

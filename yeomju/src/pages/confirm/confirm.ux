@@ -1,0 +1,120 @@
+<template>
+  <div class="page" onswipe="onSwipe">
+    <text class="title">확인</text>
+    <text class="msg">{{message}}</text>
+
+    <div class="col">
+      <div class="action danger" onclick="doReset">
+        <text class="action-text">초기화 실행</text>
+      </div>
+      <div class="action" onclick="goBack">
+        <text class="action-text">취소</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import vibrator from '@system.vibrator'
+import { resetSession, resetAll } from '../../common/beads.js'
+import { loadState, saveState } from '../../common/persist.js'
+
+export default {
+  // mode 는 router params 로 덮어쓸 수 있게 public
+  public: {
+    mode: 'session'
+  },
+  private: {
+    message: ''
+  },
+
+  onInit() {
+    const mode = this.mode === 'all' ? 'all' : 'session'
+    this.mode = mode
+    this.message =
+      mode === 'all'
+        ? '오늘 합계와 현재 바퀴·알을 모두 지웁니다. 되돌릴 수 없습니다.'
+        : '현재 바퀴 수와 알 수만 0으로 돌립니다. 오늘 합계는 유지됩니다.'
+  },
+
+  onBackPress() {
+    router.back()
+    return true
+  },
+
+  onSwipe(e) {
+    if (e && e.direction === 'right') {
+      router.back()
+    }
+  },
+
+  async doReset() {
+    const state = await loadState()
+    const next = this.mode === 'all' ? resetAll(state) : resetSession(state)
+    await saveState(next)
+    vibrator.vibrate({ mode: 'long' })
+    // 확인 페이지만 닫아 설정으로 복귀 (onShow 에서 갱신)
+    router.back()
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #140e0a;
+  padding: 24px;
+}
+
+.title {
+  font-size: 30px;
+  font-weight: bold;
+  color: #e8c48a;
+}
+
+.msg {
+  width: 88%;
+  margin-top: 20px;
+  margin-bottom: 36px;
+  font-size: 22px;
+  color: #c4a882;
+  text-align: center;
+}
+
+.col {
+  width: 92%;
+  flex-direction: column;
+  align-items: center;
+}
+
+.action {
+  width: 92%;
+  height: 56px;
+  margin-top: 12px;
+  border-radius: 28px;
+  background-color: #2a1c12;
+  justify-content: center;
+  align-items: center;
+  border-width: 1px;
+  border-color: #4a3420;
+}
+
+.danger {
+  border-color: #8a3a2a;
+  background-color: #3a1812;
+}
+
+.action-text {
+  font-size: 24px;
+  color: #f3e2c4;
+}
+</style>

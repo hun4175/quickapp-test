@@ -1,0 +1,307 @@
+<template>
+  <!-- 메인: 탭/스와이프로 염주알 전진. 우측 스와이프 복귀는 onBackPress 가 담당. -->
+  <div class="page" onswipe="onSwipe">
+    <div class="top">
+      <text class="brand">염주굴리기</text>
+      <text class="today">오늘 {{todayTotal}}</text>
+    </div>
+
+    <div class="stage" onclick="onTap">
+      <div class="halo {{rolling ? 'halo-roll' : ''}}"></div>
+      <div class="bead {{rolling ? 'bead-roll' : ''}}"></div>
+      <text class="plus" show="{{showPlus}}">+1</text>
+    </div>
+
+    <div class="count-area" onclick="onTap">
+      <text class="count">{{bead}} / {{beadsPerRound}}</text>
+      <text class="rounds">바퀴 {{rounds}}</text>
+      <text class="hint">탭 또는 위로/왼쪽 스와이프</text>
+    </div>
+
+    <div class="bar">
+      <div class="btn" onclick="goSettings">
+        <text class="btn-text">설정</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import vibrator from '@system.vibrator'
+import { advanceBead } from '../../common/beads.js'
+import { loadState, saveState } from '../../common/persist.js'
+
+export default {
+  private: {
+    bead: 0,
+    rounds: 0,
+    beadsPerRound: 108,
+    todayTotal: 0,
+    vibrateOnBead: true,
+    rolling: false,
+    showPlus: false,
+    busy: false
+  },
+
+  onInit() {
+    this._state = null
+    this._animTimer = null
+  },
+
+  onShow() {
+    this.reload()
+  },
+
+  onDestroy() {
+    if (this._animTimer) {
+      clearTimeout(this._animTimer)
+      this._animTimer = null
+    }
+  },
+
+  /**
+   * 홈에서는 시스템 기본 복귀(앱 종료)를 따름.
+   * 설정/확인 페이지에서만 가로채기.
+   */
+  onBackPress() {
+    return false
+  },
+
+  async reload() {
+    const state = await loadState()
+    this.applyState(state)
+  },
+
+  applyState(state) {
+    this._state = state
+    this.bead = state.bead
+    this.rounds = state.rounds
+    this.beadsPerRound = state.beadsPerRound
+    this.todayTotal = state.todayTotal
+    this.vibrateOnBead = state.vibrateOnBead
+  },
+
+  onTap() {
+    this.tick()
+  },
+
+  onSwipe(e) {
+    if (!e || !e.direction) return
+    // 오른쪽은 시스템 복귀와 겹칠 수 있어 카운트에서 제외
+    if (e.direction === 'up' || e.direction === 'left') {
+      this.tick()
+    }
+  },
+
+  async tick() {
+    if (this.busy) return
+    this.busy = true
+    try {
+      if (!this._state) {
+        await this.reload()
+      }
+      const result = advanceBead(this._state)
+      this.applyState(result.state)
+      await saveState(result.state)
+      this.playFeedback(result.completedRound)
+    } finally {
+      this.busy = false
+    }
+  },
+
+  playFeedback(completedRound) {
+    if (this.vibrateOnBead) {
+      vibrator.vibrate({ mode: 'short' })
+    }
+    if (completedRound) {
+      // 한 바퀴 완료: 긴 진동으로 구분 (문서상 REDMI Watch 6 지원 vibrate short/long)
+      vibrator.vibrate({ mode: 'long' })
+    }
+
+    this.rolling = false
+    this.showPlus = false
+    // 다음 프레임에서 애니메이션 클래스 재적용
+    setTimeout(() => {
+      this.rolling = true
+      this.showPlus = true
+    }, 16)
+
+    if (this._animTimer) clearTimeout(this._animTimer)
+    this._animTimer = setTimeout(() => {
+      this.rolling = false
+      this.showPlus = false
+    }, 280)
+  },
+
+  goSettings() {
+    router.push({ uri: '/pages/settings' })
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  /* 단색 배경 — Vela CSS 그라데이션 지원은 기기별 미확인 */
+  background-color: #1a120c;
+}
+
+.top {
+  width: 100%;
+  margin-top: 28px;
+  flex-direction: column;
+  align-items: center;
+}
+
+.brand {
+  font-size: 34px;
+  font-weight: bold;
+  color: #e8c48a;
+}
+
+.today {
+  margin-top: 6px;
+  font-size: 22px;
+  color: #9a7b55;
+}
+
+.stage {
+  width: 220px;
+  height: 220px;
+  margin-top: 28px;
+  justify-content: center;
+  align-items: center;
+}
+
+.halo {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 100px;
+  border-width: 3px;
+  border-color: #6b4a2a;
+  background-color: #503018;
+  opacity: 0.4;
+}
+
+.halo-roll {
+  animation-name: haloPulse;
+  animation-duration: 280ms;
+  animation-timing-function: ease-out;
+}
+
+.bead {
+  width: 72px;
+  height: 72px;
+  border-radius: 36px;
+  background-color: #c48a4a;
+  border-width: 2px;
+  border-color: #f0d2a0;
+}
+
+.bead-roll {
+  animation-name: beadSpin;
+  animation-duration: 280ms;
+  animation-timing-function: ease-out;
+}
+
+.plus {
+  position: absolute;
+  top: 18px;
+  right: 28px;
+  font-size: 28px;
+  font-weight: bold;
+  color: #f5d9a8;
+  animation-name: plusUp;
+  animation-duration: 280ms;
+}
+
+.count-area {
+  margin-top: 18px;
+  flex-direction: column;
+  align-items: center;
+}
+
+.count {
+  font-size: 48px;
+  font-weight: bold;
+  color: #f3e2c4;
+}
+
+.rounds {
+  margin-top: 4px;
+  font-size: 26px;
+  color: #b89462;
+}
+
+.hint {
+  margin-top: 12px;
+  font-size: 18px;
+  color: #6e563c;
+}
+
+.bar {
+  margin-top: 28px;
+  flex-direction: row;
+  justify-content: center;
+}
+
+.btn {
+  width: 160px;
+  height: 56px;
+  border-radius: 28px;
+  background-color: #3a2818;
+  justify-content: center;
+  align-items: center;
+  border-width: 1px;
+  border-color: #6b4a2a;
+}
+
+.btn-text {
+  font-size: 24px;
+  color: #e8c48a;
+}
+
+@keyframes beadSpin {
+  0% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  45% {
+    transform: translateY(-18px) rotate(120deg);
+  }
+  100% {
+    transform: translateY(0px) rotate(240deg);
+  }
+}
+
+@keyframes haloPulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes plusUp {
+  0% {
+    transform: translateY(0px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-36px);
+    opacity: 0;
+  }
+}
+</style>

@@ -1,0 +1,250 @@
+<template>
+  <div class="page" onswipe="onSwipe">
+    <div class="header">
+      <div class="back" onclick="goBack">
+        <text class="back-text">‹ 뒤로</text>
+      </div>
+      <text class="title">설정</text>
+    </div>
+
+    <text class="label">한 바퀴 알 개수</text>
+    <div class="row">
+      <div class="chip {{beadsPerRound === 108 ? 'chip-on' : ''}}" onclick="pick108">
+        <text class="chip-text">108</text>
+      </div>
+      <div class="chip {{beadsPerRound === 54 ? 'chip-on' : ''}}" onclick="pick54">
+        <text class="chip-text">54</text>
+      </div>
+      <div class="chip {{beadsPerRound === 27 ? 'chip-on' : ''}}" onclick="pick27">
+        <text class="chip-text">27</text>
+      </div>
+      <div class="chip {{beadsPerRound === 21 ? 'chip-on' : ''}}" onclick="pick21">
+        <text class="chip-text">21</text>
+      </div>
+    </div>
+
+    <text class="label">알마다 짧은 진동</text>
+    <div class="row">
+      <div class="chip {{vibrateOnBead ? 'chip-on' : ''}}" onclick="setVibrateOn">
+        <text class="chip-text">켜기</text>
+      </div>
+      <div class="chip {{!vibrateOnBead ? 'chip-on' : ''}}" onclick="setVibrateOff">
+        <text class="chip-text">끄기</text>
+      </div>
+    </div>
+
+    <text class="label">데이터</text>
+    <div class="col">
+      <div class="action" onclick="confirmSession">
+        <text class="action-text">현재 바퀴·알 초기화</text>
+      </div>
+      <div class="action danger" onclick="confirmAll">
+        <text class="action-text">오늘 합계까지 초기화</text>
+      </div>
+    </div>
+
+    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만</text>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import { setBeadsPerRound, setVibrateOnBead } from '../../common/beads.js'
+import { loadState, saveState } from '../../common/persist.js'
+
+export default {
+  private: {
+    beadsPerRound: 108,
+    vibrateOnBead: true,
+    todayTotal: 0
+  },
+
+  onShow() {
+    this.reload()
+  },
+
+  onBackPress() {
+    router.back()
+    return true
+  },
+
+  onSwipe(e) {
+    if (e && e.direction === 'right') {
+      router.back()
+    }
+  },
+
+  async reload() {
+    const state = await loadState()
+    this._state = state
+    this.beadsPerRound = state.beadsPerRound
+    this.vibrateOnBead = state.vibrateOnBead
+    this.todayTotal = state.todayTotal
+  },
+
+  async persist(next) {
+    this._state = next
+    this.beadsPerRound = next.beadsPerRound
+    this.vibrateOnBead = next.vibrateOnBead
+    this.todayTotal = next.todayTotal
+    await saveState(next)
+  },
+
+  async pickBeads(n) {
+    if (!this._state) await this.reload()
+    await this.persist(setBeadsPerRound(this._state, n))
+  },
+
+  pick108() {
+    this.pickBeads(108)
+  },
+  pick54() {
+    this.pickBeads(54)
+  },
+  pick27() {
+    this.pickBeads(27)
+  },
+  pick21() {
+    this.pickBeads(21)
+  },
+
+  async setVibrateOn() {
+    if (!this._state) await this.reload()
+    await this.persist(setVibrateOnBead(this._state, true))
+  },
+
+  async setVibrateOff() {
+    if (!this._state) await this.reload()
+    await this.persist(setVibrateOnBead(this._state, false))
+  },
+
+  confirmSession() {
+    router.push({
+      uri: '/pages/confirm',
+      params: { mode: 'session' }
+    })
+  },
+
+  confirmAll() {
+    router.push({
+      uri: '/pages/confirm',
+      params: { mode: 'all' }
+    })
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  background-color: #140e0a;
+  padding-bottom: 24px;
+}
+
+.header {
+  width: 100%;
+  height: 72px;
+  margin-top: 12px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+.back {
+  position: absolute;
+  left: 12px;
+  height: 48px;
+  padding-left: 8px;
+  padding-right: 8px;
+  justify-content: center;
+}
+
+.back-text {
+  font-size: 24px;
+  color: #b89462;
+}
+
+.title {
+  font-size: 28px;
+  color: #e8c48a;
+  font-weight: bold;
+}
+
+.label {
+  width: 90%;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  font-size: 20px;
+  color: #9a7b55;
+}
+
+.row {
+  width: 92%;
+  flex-direction: row;
+  justify-content: space-around;
+  flex-wrap: wrap;
+}
+
+.col {
+  width: 92%;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chip {
+  width: 88px;
+  height: 48px;
+  margin: 4px;
+  border-radius: 24px;
+  background-color: #2a1c12;
+  justify-content: center;
+  align-items: center;
+  border-width: 1px;
+  border-color: #4a3420;
+}
+
+.chip-on {
+  background-color: #6b4520;
+  border-color: #e8c48a;
+}
+
+.chip-text {
+  font-size: 22px;
+  color: #f3e2c4;
+}
+
+.action {
+  width: 92%;
+  height: 56px;
+  margin-top: 10px;
+  border-radius: 28px;
+  background-color: #2a1c12;
+  justify-content: center;
+  align-items: center;
+  border-width: 1px;
+  border-color: #4a3420;
+}
+
+.danger {
+  border-color: #8a3a2a;
+  background-color: #3a1812;
+}
+
+.action-text {
+  font-size: 22px;
+  color: #f3e2c4;
+}
+
+.meta {
+  margin-top: 24px;
+  font-size: 18px;
+  color: #6e563c;
+}
+</style>
