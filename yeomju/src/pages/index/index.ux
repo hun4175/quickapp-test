@@ -1,5 +1,5 @@
 <template>
-  <!-- 2.7.1: S2 · 하단 횟수 텍스트 -->
+  <!-- 2.7.2: S2 · 하단 횟수 텍스트(가독성) -->
   <div
     class="page"
     ontouchstart="onTouchStart"
@@ -323,12 +323,13 @@ export default {
 .count {
   position: absolute;
   left: 0px;
-  bottom: 40px;
+  bottom: 36px;
   width: 432px;
-  height: 48px;
-  font-size: 40px;
-  color: #f3e2c4;
+  height: 56px;
+  font-size: 48px;
+  font-weight: bold;
+  color: #fff4d6;
   text-align: center;
-  text-shadow: 0px 1px 3px #000000;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
 }
 </style>

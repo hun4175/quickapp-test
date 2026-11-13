@@ -73,17 +73,28 @@
         <text class="opt-mark" if="{{!showCount}}">✓</text>
       </div>
 
-      <text class="meta">v2.7.1</text>
+      <text class="label">횟수 초기화</text>
+      <text class="hint">{{resetHint}}</text>
+      <div
+        class="opt {{resetArmed ? 'opt-warn' : ''}}"
+        onclick="onResetTap"
+      >
+        <text class="opt-text">{{resetLabel}}</text>
+      </div>
+
+      <text class="meta">v2.7.2</text>
     </div>
   </div>
 </template>
 
 <script>
 import router from '@system.router'
+import vibrator from '@system.vibrator'
 import {
   setInputMode,
   setBeadTheme,
   setShowCount,
+  resetTodayCount,
   INPUT_MODE_HINTS
 } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
@@ -93,11 +104,19 @@ export default {
     inputMode: 'slide',
     inputHint: INPUT_MODE_HINTS.slide,
     beadTheme: 'default',
-    showCount: true
+    showCount: true,
+    resetArmed: false,
+    resetLabel: '초기화',
+    resetHint: '두 번 눌러 확인'
   },
 
   onShow() {
+    this.disarmReset()
     this.reload()
+  },
+
+  onHide() {
+    this.disarmReset()
   },
 
   onBackPress() {
@@ -107,6 +126,18 @@ export default {
 
   onSwipe(e) {
     if (e && e.direction === 'right') router.back()
+  },
+
+  disarmReset() {
+    this.resetArmed = false
+    this.resetLabel = '초기화'
+    this.resetHint = '두 번 눌러 확인'
+  },
+
+  armReset() {
+    this.resetArmed = true
+    this.resetLabel = '한 번 더 누르면 초기화'
+    this.resetHint = '한 번 더 누르면 카운트 0'
   },
 
   async reload() {
@@ -128,6 +159,7 @@ export default {
   },
 
   async pickInput(mode) {
+    this.disarmReset()
     if (!this._state) await this.reload()
     await this.persist(setInputMode(this._state, mode))
   },
@@ -139,6 +171,7 @@ export default {
   },
 
   async pickTheme(theme) {
+    this.disarmReset()
     if (!this._state) await this.reload()
     await this.persist(setBeadTheme(this._state, theme))
   },
@@ -156,6 +189,7 @@ export default {
   },
 
   async pickShowCount(enabled) {
+    this.disarmReset()
     if (!this._state) await this.reload()
     await this.persist(setShowCount(this._state, enabled))
   },
@@ -166,7 +200,20 @@ export default {
     this.pickShowCount(false)
   },
 
+  async onResetTap() {
+    if (!this._state) await this.reload()
+    if (!this.resetArmed) {
+      this.armReset()
+      return
+    }
+    const next = resetTodayCount(this._state)
+    await this.persist(next)
+    this.disarmReset()
+    vibrator.vibrate({ mode: 'short' })
+  },
+
   goBack() {
+    this.disarmReset()
     router.back()
   }
 }
@@ -248,6 +295,10 @@ export default {
 .opt-on {
   border-color: #e8c48a;
   background-color: #4a3420;
+}
+.opt-warn {
+  border-color: #e8a060;
+  background-color: #4a2818;
 }
 .opt-text {
   font-size: 32px;

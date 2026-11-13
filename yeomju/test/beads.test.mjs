@@ -19,8 +19,10 @@ import {
   setBeadTheme,
   setShowCount,
   migrateAnimModeForStability,
+  resetTodayCount,
   resetSession,
   resetAll,
+  DEFAULT_STATE,
   progressRatio,
   serializeState,
   deserializeState,
@@ -52,6 +54,14 @@ describe('normalizeState', () => {
     assert.equal(normalizeState({}).showCount, true)
     assert.equal(normalizeState({ showCount: false }).showCount, false)
     assert.equal(normalizeState({ showCount: true }).showCount, true)
+  })
+
+  it('첫 설치·빈 저장값 카운트는 0', () => {
+    assert.equal(DEFAULT_STATE.todayTotal, 0)
+    assert.equal(normalizeState({}).todayTotal, 0)
+    assert.equal(deserializeState('').todayTotal, 0)
+    assert.equal(deserializeState(null).todayTotal, 0)
+    assert.equal(deserializeState('not-json').todayTotal, 0)
   })
 
   it('허용되지 않은 알 개수는 108로', () => {
@@ -152,6 +162,24 @@ describe('설정·초기화', () => {
     assert.equal(round.todayTotal, 42)
     assert.equal(round.showCount, false)
     assert.equal(round.beadTheme, 'jade')
+  })
+
+  it('resetTodayCount · 카운트만 0 · bead/rounds 유지', () => {
+    const next = resetTodayCount({
+      bead: 10,
+      rounds: 2,
+      todayTotal: 50,
+      todayDate: '2026-11-13',
+      showCount: true,
+      beadTheme: 'pinkjade'
+    })
+    assert.equal(next.todayTotal, 0)
+    assert.equal(next.bead, 10)
+    assert.equal(next.rounds, 2)
+    assert.equal(next.beadTheme, 'pinkjade')
+    assert.equal(next.showCount, true)
+    const round = deserializeState(serializeState(next))
+    assert.equal(round.todayTotal, 0)
   })
 
   it('resetSession / resetAll', () => {

@@ -1,6 +1,6 @@
 /**
  * 염주 카운트 순수 로직 (워치 런타임 / Node 테스트 공용).
- * 2.7.1: 횟수 표시 토글 · 재질 테마.
+ * 2.7.2: 횟수 초기화 · 카운트 가독성.
  */
 
 /** 한 바퀴 알 개수 선택지 (염주/묵주 관례) — 기본 108, UI 노출 없음 */
@@ -235,6 +235,16 @@ export const setBeadTheme = (state, theme) => {
 export const setShowCount = (state, enabled) => {
   const s = normalizeState(state)
   return { ...s, showCount: !!enabled }
+}
+
+/**
+ * 메인 카운트(todayTotal)만 0. bead/rounds 유지.
+ * @param {object} state
+ * @returns {object}
+ */
+export const resetTodayCount = (state) => {
+  const s = normalizeState(state)
+  return { ...s, todayTotal: 0 }
 }
 
 export const resetSession = (state) => {

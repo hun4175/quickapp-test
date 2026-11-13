@@ -1,25 +1,25 @@
-# 빌드 정보 — 2.7.1 (횟수 표시 복원)
+# 빌드 정보 — 2.7.2 (횟수 초기화 · 가독성)
 
 ## 산출물 (사실)
 
-- `yeomju/dist/com.yeomju.mala.debug.2.7.1.rpk`
-- 크기: 930825 bytes
-- SHA256: `2fdf85fc7052e053c2d199830d2c3ff2867cd0955db7103f72610e84f0456b6a`
-- versionName 2.7.1 / versionCode 30
-- 단위 테스트: 27 passed
+- `yeomju/dist/com.yeomju.mala.debug.2.7.2.rpk`
+- 크기: 931262 bytes
+- SHA256: `23c12b209571945ff9d43c9f8395b5ee8811b02bf9d6a3fa0df764add24fdd0d`
+- versionName 2.7.2 / versionCode 31
+- 단위 테스트: 29 passed
 
 ## 변경
 
-- 메인 하단 카운트 텍스트 복원 (박스 없음 · `#f3e2c4` · text-shadow · 40px · bottom 40px)
-- 설정 `횟수 표시` 켜기/끄기 (기본 켜기, storage `showCount`)
-- 염주 섹션 힌트 `구슬 재질`
-- stateSchema 14 · `todayTotal` 저장 유지 확인
+- 설정 `횟수 초기화` 두 번 탭 확인 → `todayTotal` 0 저장
+- 카운트 스타일: bold · 48px · `#fff4d6` · 다방향 text-shadow · bottom 36px
+- 첫 설치 카운트 0 확인 (`DEFAULT_STATE` / 빈 storage)
+- 프리뷰 108은 예시값 (실기기 첫 실행은 0)
 
 ## 프리뷰
 
-- `docs/preview-2.7.1-main.png` (4테마 · 카운트 표시)
-- `docs/preview-2.7.1-settings.png` (상단·하단)
+- `docs/preview-2.7.2-main.png`
+- `docs/preview-2.7.2-settings.png`
 
 ## 미확인
 
-- 실기기 카운트 가독성·S2 체감 (**단정하지 않음**)
+- 실기기 연핑크 옥 위 가독성·초기화 UX (**단정하지 않음**)
