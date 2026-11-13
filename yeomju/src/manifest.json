@@ -1,8 +1,8 @@
 {
   "package": "com.yeomju.mala",
   "name": "염주굴리기",
-  "versionName": "2.5.1",
-  "versionCode": 24,
+  "versionName": "2.5.2",
+  "versionCode": 25,
   "minPlatformVersion": 1000,
   "icon": "/common/logo.png",
   "deviceTypeList": [

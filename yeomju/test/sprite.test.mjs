@@ -11,6 +11,7 @@ import {
   SPRITE_NEXT,
   SPRITE_PREV,
   SPRITE_FILES_SUM_BYTES,
+  SPRITE_PNG32_SUM_BYTES,
   spriteFramesForDir,
   spriteImageFrames
 } from '../src/common/sprite-meta.js'
@@ -18,19 +19,20 @@ import {
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 describe('sprite meta', () => {
-  it('4프레임 · 150ms · idle 공유 · first/last 동일 경로', () => {
+  it('4프레임 · JPG · idle 공유 · first/last 동일 경로', () => {
     assert.equal(SPRITE_DURATION_MS, 150)
     assert.equal(SPRITE_FRAME_COUNT, 4)
     assert.equal(SPRITE_NEXT.length, 4)
     assert.equal(SPRITE_PREV.length, 4)
+    assert.ok(SPRITE_IDLE.endsWith('.jpg'))
     assert.equal(SPRITE_NEXT[0], SPRITE_IDLE)
     assert.equal(SPRITE_NEXT[SPRITE_NEXT.length - 1], SPRITE_IDLE)
     assert.equal(SPRITE_PREV[0], SPRITE_IDLE)
     assert.equal(SPRITE_PREV[SPRITE_PREV.length - 1], SPRITE_IDLE)
     assert.ok(SPRITE_CROP.width > 0 && SPRITE_CROP.height > 0)
     assert.ok(SPRITE_FILES_SUM_BYTES > 0)
-    // 2.5.1: 풀컬러 PNG (PNG8 열화 없음). 상한은 보고용.
-    assert.ok(SPRITE_FILES_SUM_BYTES < 2_500_000)
+    assert.ok(SPRITE_FILES_SUM_BYTES < 500_000)
+    assert.ok(SPRITE_PNG32_SUM_BYTES > SPRITE_FILES_SUM_BYTES)
   })
 
   it('방향 헬퍼 · 파일 존재', () => {

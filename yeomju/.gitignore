@@ -12,3 +12,6 @@ build/
 dist/*
 !dist/*.rpk
 !dist/BUILD_INFO.md
+
+# 스프라이트 PNG32 비교 산출물 (rpk 미포함)
+scripts/out/

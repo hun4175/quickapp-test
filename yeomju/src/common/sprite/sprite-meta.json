@@ -1,11 +1,11 @@
 {
-  "version": "2.5.1",
+  "version": "2.5.2",
   "screenW": 432,
   "screenH": 514,
   "crop": {
-    "left": 85,
+    "left": 86,
     "top": 0,
-    "width": 347,
+    "width": 346,
     "height": 514
   },
   "durationMs": 150,
@@ -16,8 +16,10 @@
     0.6666666666666666,
     1.0
   ],
-  "format": "PNG32",
-  "source": "scripts/assets/bead-new-src.png",
+  "format": "JPEG",
+  "jpegQuality": 90,
+  "jpegSubsampling": "4:4:4",
+  "source": "scripts/assets/bead-src-cut.png",
   "geom": {
     "slotCount": 11,
     "backCount": 6,
@@ -32,25 +34,35 @@
       "sizePrev": 251
     }
   },
-  "idle": "/common/sprite/idle.png",
+  "idle": "/common/sprite/idle.jpg",
   "next": [
-    "/common/sprite/idle.png",
-    "/common/sprite/next-1.png",
-    "/common/sprite/next-2.png",
-    "/common/sprite/idle.png"
+    "/common/sprite/idle.jpg",
+    "/common/sprite/next-1.jpg",
+    "/common/sprite/next-2.jpg",
+    "/common/sprite/idle.jpg"
   ],
   "prev": [
-    "/common/sprite/idle.png",
-    "/common/sprite/prev-1.png",
-    "/common/sprite/prev-2.png",
-    "/common/sprite/idle.png"
+    "/common/sprite/idle.jpg",
+    "/common/sprite/prev-1.jpg",
+    "/common/sprite/prev-2.jpg",
+    "/common/sprite/idle.jpg"
   ],
   "fileSizes": {
-    "idle.png": 163646,
-    "next-1.png": 167769,
-    "next-2.png": 166424,
-    "prev-1.png": 165985,
-    "prev-2.png": 167373
+    "idle.jpg": 56334,
+    "next-1.jpg": 57797,
+    "next-2.jpg": 57535,
+    "prev-1.jpg": 57560,
+    "prev-2.jpg": 57815
   },
-  "filesSumBytes": 831197
+  "filesSumBytes": 287041,
+  "png32Compare": {
+    "fileSizes": {
+      "idle.png": 264177,
+      "next-1.png": 273202,
+      "next-2.png": 271634,
+      "prev-1.png": 271711,
+      "prev-2.png": 273247
+    },
+    "filesSumBytes": 1353971
+  }
 }

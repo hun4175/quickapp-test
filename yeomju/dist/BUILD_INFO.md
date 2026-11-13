@@ -1,41 +1,53 @@
-# 빌드 정보 — 2.5.1 (S2 고정 · 고품질 프레임 · 뒷줄 밀도)
+# 빌드 정보 — 2.5.2 (컷 알파 소스 · JPG 프레임)
 
 ## 산출물 (사실)
 
-- `yeomju/dist/com.yeomju.mala.debug.2.5.1.rpk`
-- 크기: 883126 bytes
-- SHA256: `e8f130f31fa4a6fbade613ac8fa81c9a9630444468325c9704254902e43aa50e`
-- versionName 2.5.1 / versionCode 24
+- `yeomju/dist/com.yeomju.mala.debug.2.5.2.rpk`
+- 크기: 336774 bytes
+- SHA256: `e4085879ec8cd2b04e46da33749bb4621b1781f8735fbc7c8cc0ec5ed4b8a1cb`
+- versionName 2.5.2 / versionCode 25
 - 단위 테스트: 31 passed
 
-## 스프라이트 프레임 (PNG32 · LANCZOS)
+## 스프라이트 프레임 (JPG q90 · 4:4:4 · 기본)
 
 | 파일 | bytes |
 |------|------:|
-| idle.png | 163646 |
-| next-1.png | 167769 |
-| next-2.png | 166424 |
-| prev-1.png | 165985 |
-| prev-2.png | 167373 |
-| **합계** | **831197** |
+| idle.jpg | 56334 |
+| next-1.jpg | 57797 |
+| next-2.jpg | 57535 |
+| prev-1.jpg | 57560 |
+| prev-2.jpg | 57815 |
+| **합계** | **287041** |
 
-- 원본: `scripts/assets/bead-new-src.png` (2048×2048 RGBA, rpk 미포함)
-- 크롭: 347×514
-- 기하: slotCount=11 · backCount=6 · 앞줄 focus gap≈0.981 유지
+## PNG32 비교용 (rpk 미포함 · `scripts/out/sprite-png32/`)
 
-## 2.5.1 변경
+| 파일 | bytes |
+|------|------:|
+| idle.png | 264177 |
+| next-1.png | 273202 |
+| next-2.png | 271634 |
+| prev-1.png | 271711 |
+| prev-2.png | 273247 |
+| **합계** | **1353971** |
 
-1. 렌더 **S2만** (image-animator/S, 노드/L, E1–E9, 표시수 제거)
-2. 설정: 입력 방식 + 타이밍 표시 on/off(기본 off, off 시 계측 비용 0)
-3. 고품질 단일 원본 LANCZOS → 풀컬러 PNG 프레임
-4. 뒷줄 구슬 밀도↑ (간격비≈0.981), 첫·끝=idle 픽셀 동일
-5. 미사용 bead-front/back/wood 런타임 자산 삭제
+- JPG 합계 287041 vs PNG32 합계 1353971 (약 4.7× 작음)
+- 2.5.1 rpk 883126 → 2.5.2 rpk 336774
 
-## 크기 대안 (제안만 · 미적용)
+## 소스·기하
 
-- PNG8/적응형 팔레트: 이전 2.5.0 ~167KB 합계 수준까지 축소 가능하나 열화 있음
-- WebP/압축 레벨·크롭 강화: 플랫폼 지원·품질 확인 후
+- 원본: `scripts/assets/bead-src-cut.png` (1200×1200 RGBA, 원형 AA 알파, 외부 투명, rpk 미포함)
+- 배경: `(12,10,8)` 합성 · 후광·회색 사각·워터마크 없음
+- 크롭: 346×514
+- 기하: slotCount=11 · backCount=6 · 앞줄 focus gap≈0.981 · focus size 255 (2.3.1/2.5.0과 동일 표시 지름·위치)
+- 프리뷰: `docs/preview-2.5.2-compare.png` (2.5.0 idle vs 2.5.2 idle/mid/end)
+
+## 2.5.2 변경
+
+1. 불투명 `bead-new-src.png` 폐기 → 컷 알파 `bead-src-cut.png`로 재합성
+2. 런타임 프레임 JPG (quality≈90, subsampling=0 / 4:4:4); PNG32는 용량 비교만
+3. 앞줄 표시 크기·간격은 2.3.1/2.5.0 유지, 뒷줄 밀도는 2.5.1과 동일
+4. versionCode 25
 
 ## 미확인
 
-- 실기기 체감 (**단정하지 않음**)
+- 실기기 JPG src 스왑·체감 (**단정하지 않음**)

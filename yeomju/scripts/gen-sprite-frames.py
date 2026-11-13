@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """
-2.5.1: 고품질 원본(bead-new-src.png) LANCZOS 리샘플 → 풀컬러 PNG 프레임.
+2.5.2: bead-src-cut.png (원형 알파) → 검정 배경 합성 → JPG(q90/4:4:4) 기본.
 
-- 방향당 4프레임 (t=0, 1/3, 2/3, 1.0), 150ms linear
-- 첫·끝 프레임 픽셀 동일(idle)
-- 앞줄 간격 유지 · 뒷줄 밀도↑ (ring.js buildChainAngles)
-- 산출: src/common/sprite/*.png + sprite-meta.js
-- 프리뷰: docs/preview-2.5.1-*.png (+ 2.5.0 비교)
+- 방향당 4프레임, 첫·끝=idle 픽셀 동일
+- 앞줄 간격 2.3.1/2.5.0 (focus≈0.981) · 뒷줄 밀도 2.5.1
+- PNG32도 사이드카로 저장해 용량 비교 (런타임 기본은 JPG)
 """
 from __future__ import annotations
 
@@ -18,13 +16,15 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "src" / "common" / "sprite"
+OUT_PNG = ROOT / "scripts" / "out" / "sprite-png32"  # 비교용 · rpk 미포함
 DOCS = ROOT / "docs"
 ASSETS = ROOT / "scripts" / "assets"
-SRC_BEAD = ASSETS / "bead-new-src.png"
+SRC_BEAD = ASSETS / "bead-src-cut.png"
 W, H = 432, 514
 BG = (12, 10, 8, 255)
 PROGRESS = [0.0, 1.0 / 3.0, 2.0 / 3.0, 1.0]
 PAD = 4
+JPG_QUALITY = 90
 
 NODE = r"""
 import { DEFAULT_RING, layoutOptsFromExps, pathProgressAtTime } from './src/common/ring.js'
@@ -63,7 +63,21 @@ console.log(JSON.stringify({
 """
 
 
-def save_png_rgba(im: Image.Image, path: Path) -> int:
+def save_jpg(im: Image.Image, path: Path) -> int:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rgb = im.convert("RGB")
+    # subsampling=0 → 4:4:4
+    rgb.save(
+        path,
+        format="JPEG",
+        quality=JPG_QUALITY,
+        subsampling=0,
+        optimize=True,
+    )
+    return path.stat().st_size
+
+
+def save_png32(im: Image.Image, path: Path) -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
     im.save(path, format="PNG", optimize=True, compress_level=9)
     return path.stat().st_size
@@ -145,53 +159,65 @@ def main() -> None:
         return im.crop(crop)
 
     OUT.mkdir(parents=True, exist_ok=True)
-    for p in OUT.glob("*.png"):
+    OUT_PNG.mkdir(parents=True, exist_ok=True)
+    for p in OUT.glob("*"):
+        if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".json"):
+            p.unlink()
+    for p in OUT_PNG.glob("*.png"):
         p.unlink()
 
-    sizes = {}
-    sizes["idle.png"] = save_png_rgba(crop_im(idle), OUT / "idle.png")
+    jpg_sizes = {}
+    png_sizes = {}
 
-    next_paths = ["idle.png"]
+    def write_pair(name_stem: str, im: Image.Image):
+        c = crop_im(im)
+        jpg_sizes[name_stem + ".jpg"] = save_jpg(c, OUT / (name_stem + ".jpg"))
+        png_sizes[name_stem + ".png"] = save_png32(c, OUT_PNG / (name_stem + ".png"))
+
+    write_pair("idle", idle)
+    next_paths = ["idle.jpg"]
     for i in (1, 2):
-        name = f"next-{i}.png"
-        sizes[name] = save_png_rgba(crop_im(full["next"][i]), OUT / name)
-        next_paths.append(name)
-    next_paths.append("idle.png")
+        write_pair(f"next-{i}", full["next"][i])
+        next_paths.append(f"next-{i}.jpg")
+    next_paths.append("idle.jpg")
 
-    prev_paths = ["idle.png"]
+    prev_paths = ["idle.jpg"]
     for i in (1, 2):
-        name = f"prev-{i}.png"
-        sizes[name] = save_png_rgba(crop_im(full["prev"][i]), OUT / name)
-        prev_paths.append(name)
-    prev_paths.append("idle.png")
+        write_pair(f"prev-{i}", full["prev"][i])
+        prev_paths.append(f"prev-{i}.jpg")
+    prev_paths.append("idle.jpg")
 
-    total = sum(sizes.values())
-    print("frame sizes:", sizes)
-    print("filesSumBytes=", total)
+    jpg_total = sum(jpg_sizes.values())
+    png_total = sum(png_sizes.values())
+    print("jpg sizes:", jpg_sizes, "sum=", jpg_total)
+    print("png32 sizes:", png_sizes, "sum=", png_total)
 
     meta = {
-        "version": "2.5.1",
+        "version": "2.5.2",
         "screenW": W,
         "screenH": H,
         "crop": {"left": crop[0], "top": crop[1], "width": cw, "height": ch},
         "durationMs": 150,
         "frameCount": 4,
         "progress": PROGRESS,
-        "format": "PNG32",
-        "source": "scripts/assets/bead-new-src.png",
+        "format": "JPEG",
+        "jpegQuality": JPG_QUALITY,
+        "jpegSubsampling": "4:4:4",
+        "source": "scripts/assets/bead-src-cut.png",
         "geom": geom_meta,
-        "idle": "/common/sprite/idle.png",
+        "idle": "/common/sprite/idle.jpg",
         "next": ["/common/sprite/" + p for p in next_paths],
         "prev": ["/common/sprite/" + p for p in prev_paths],
-        "fileSizes": sizes,
-        "filesSumBytes": total,
+        "fileSizes": jpg_sizes,
+        "filesSumBytes": jpg_total,
+        "png32Compare": {"fileSizes": png_sizes, "filesSumBytes": png_total},
     }
     (OUT / "sprite-meta.json").write_text(
         json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
 
     js = f"""/**
- * 2.5.1 스프라이트 메타 (gen-sprite-frames.py 생성 · 수동 수정 금지)
+ * 2.5.2 스프라이트 메타 (gen-sprite-frames.py 생성 · 수동 수정 금지)
  */
 export const SPRITE_DURATION_MS = {meta['durationMs']}
 export const SPRITE_FRAME_COUNT = {meta['frameCount']}
@@ -199,7 +225,8 @@ export const SPRITE_CROP = Object.freeze({json.dumps(meta['crop'])})
 export const SPRITE_IDLE = {json.dumps(meta['idle'])}
 export const SPRITE_NEXT = Object.freeze({json.dumps(meta['next'])})
 export const SPRITE_PREV = Object.freeze({json.dumps(meta['prev'])})
-export const SPRITE_FILES_SUM_BYTES = {total}
+export const SPRITE_FILES_SUM_BYTES = {jpg_total}
+export const SPRITE_PNG32_SUM_BYTES = {png_total}
 
 export const spriteFramesForDir = (dir) =>
   Number(dir) < 0 ? [...SPRITE_PREV] : [...SPRITE_NEXT]
@@ -210,10 +237,10 @@ export const spriteImageFrames = (dir) =>
     (ROOT / "src" / "common" / "sprite-meta.js").write_text(js, encoding="utf-8")
 
     DOCS.mkdir(parents=True, exist_ok=True)
-    idle.save(DOCS / "preview-2.5.1-idle.png")
-    full["next"][1].save(DOCS / "preview-2.5.1-mid.png")
+    idle.save(DOCS / "preview-2.5.2-idle.png")
+    full["next"][1].save(DOCS / "preview-2.5.2-mid.png")
+    full["next"][-1].save(DOCS / "preview-2.5.2-end.png")
 
-    # compare: 2.5.0 idle (if present) | 2.5.1 idle | 2.5.1 mid | 2.5.1 end
     old = DOCS / "preview-2.5.0-sprite-idle.png"
     strip = Image.new("RGBA", (W * 4, H + 28), (20, 16, 12, 255))
     d = ImageDraw.Draw(strip)
@@ -222,15 +249,15 @@ export const spriteImageFrames = (dir) =>
         cols.append((Image.open(old).convert("RGBA").resize((W, H)), "2.5.0 idle"))
     else:
         cols.append((idle, "2.5.0 n/a"))
-    cols.append((idle, "2.5.1 idle"))
-    cols.append((full["next"][1], "2.5.1 mid"))
-    cols.append((full["next"][-1], "2.5.1 end"))
+    cols.append((idle, "2.5.2 idle"))
+    cols.append((full["next"][1], "2.5.2 mid"))
+    cols.append((full["next"][-1], "2.5.2 end"))
     for i, (im, lab) in enumerate(cols):
         if im.size != (W, H):
             im = im.resize((W, H), Image.Resampling.LANCZOS)
         strip.paste(im, (i * W, 28))
         d.text((i * W + 8, 6), lab, fill=(200, 180, 140, 255))
-    strip.save(DOCS / "preview-2.5.1-compare.png")
+    strip.save(DOCS / "preview-2.5.2-compare.png")
     print("previews ok")
 
 
