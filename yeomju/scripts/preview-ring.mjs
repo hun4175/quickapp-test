@@ -1,5 +1,5 @@
 /**
- * 2.2.0 미리보기: 0/25/50/75/100% + 버퍼 슬롯 화면 밖 수치 로그.
+ * 2.3.0 미리보기: 0/25/50/75/100% + 버퍼·앞열 간격 로그.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -15,7 +15,8 @@ import {
   onScreenSlotIndices,
   isSlotFullyOffScreen,
   createChainBeads,
-  MAX_RENDER_NODES
+  MAX_RENDER_NODES,
+  frontAdjacentGapRatios
 } from '../src/common/ring.js'
 import { layoutRing } from '../src/common/ring-kf.js'
 
@@ -246,7 +247,7 @@ for (let i = 0; i < parts.length; i++) {
   }
   drawText(strip, stripW, stripH, Math.round(parts[i].p * 100) + '%', i * W + 8, 6, 2, 200, 180, 140)
 }
-writePng(path.join(docsDir, 'preview-2.2.0.png'), stripW, stripH, strip)
+writePng(path.join(docsDir, 'preview-2.3.0.png'), stripW, stripH, strip)
 writePng(path.join(docsDir, 'preview-432x514.png'), W, H, parts[0].rgba)
 
 const slots = layoutChainSlots()
@@ -265,11 +266,12 @@ const buffers = bufferSlotIndices().map((i) => {
 console.log(
   JSON.stringify(
     {
-      version: '2.2.0',
+      version: '2.3.0',
       slots: SLOT_COUNT,
       nodes: createChainBeads().length,
       maxNodes: MAX_RENDER_NODES,
       ms: CHAIN_ANIM_MS,
+      frontGap: frontAdjacentGapRatios(),
       onScreen: onScreenSlotIndices(),
       buffers
     },
