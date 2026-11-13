@@ -1,5 +1,5 @@
 <template>
-  <!-- 2.6.0: S2 · 테마별 JPG src 스왑 -->
+  <!-- 2.7.1: S2 · 하단 횟수 텍스트 -->
   <div
     class="page"
     ontouchstart="onTouchStart"
@@ -14,6 +14,7 @@
         style="left: {{spriteLeft}}px; top: {{spriteTop}}px; width: {{spriteW}}px; height: {{spriteH}}px;"
       ></image>
     </div>
+    <text class="count" if="{{showCount}}">{{countText}}</text>
   </div>
 </template>
 
@@ -43,6 +44,8 @@ export default {
     vibrateOnBead: true,
     inputMode: 'slide',
     beadTheme: 'default',
+    showCount: true,
+    countText: '0',
     spriteFrameSrc: '/common/sprite/idle.jpg',
     spriteLeft: SPRITE_CROP.left,
     spriteTop: SPRITE_CROP.top,
@@ -115,6 +118,11 @@ export default {
     return false
   },
 
+  syncCount() {
+    const n = this._state ? Math.max(0, Math.floor(Number(this._state.todayTotal) || 0)) : 0
+    this.countText = String(n)
+  },
+
   currentIdle() {
     const theme = this.beadTheme || 'default'
     const phase = themePhase(this._state ? this._state.todayTotal : 0)
@@ -127,6 +135,8 @@ export default {
     this.vibrateOnBead = state.vibrateOnBead !== false
     this.inputMode = state.inputMode || 'slide'
     this.beadTheme = state.beadTheme || 'default'
+    this.showCount = state.showCount !== false
+    this.syncCount()
     this.spriteFrameSrc = this.currentIdle()
     this.spriteLeft = SPRITE_CROP.left
     this.spriteTop = SPRITE_CROP.top
@@ -234,6 +244,8 @@ export default {
     const phaseFrom = themePhase(this._state.todayTotal)
     const result = applySwipeCount(this._state, d)
     this._state = result.state
+    // 카운트 텍스트만 갱신 (S2 프레임 교체와 분리)
+    this.syncCount()
     this._animating = true
     this.clearAnimTimers()
     const theme = this.beadTheme || 'default'
@@ -307,5 +319,16 @@ export default {
 }
 .sprite-img {
   position: absolute;
+}
+.count {
+  position: absolute;
+  left: 0px;
+  bottom: 40px;
+  width: 432px;
+  height: 48px;
+  font-size: 40px;
+  color: #f3e2c4;
+  text-align: center;
+  text-shadow: 0px 1px 3px #000000;
 }
 </style>

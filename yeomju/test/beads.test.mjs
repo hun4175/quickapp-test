@@ -17,6 +17,7 @@ import {
   setVibrateOnBead,
   setInputMode,
   setBeadTheme,
+  setShowCount,
   migrateAnimModeForStability,
   resetSession,
   resetAll,
@@ -41,9 +42,16 @@ describe('normalizeState', () => {
     })
     assert.equal(s.beadTheme, 'default')
     assert.equal(s.inputMode, 'slide')
+    assert.equal(s.showCount, true)
     assert.equal(s.renderMode, undefined)
     assert.equal(normalizeState({ beadTheme: 'namu' }).beadTheme, 'default')
     assert.equal(normalizeState({ beadTheme: 'jade' }).beadTheme, 'jade')
+  })
+
+  it('showCount 기본 on · 명시 false만 끔', () => {
+    assert.equal(normalizeState({}).showCount, true)
+    assert.equal(normalizeState({ showCount: false }).showCount, false)
+    assert.equal(normalizeState({ showCount: true }).showCount, true)
   })
 
   it('허용되지 않은 알 개수는 108로', () => {
@@ -109,7 +117,7 @@ describe('설정·초기화', () => {
     assert.equal(setVibrateOnBead({}, false).vibrateOnBead, false)
   })
 
-  it('2.7.0 schema≥13 · 테마', () => {
+  it('2.7.1 schema≥14 · 테마 · showCount', () => {
     assert.deepEqual(
       [...BEAD_THEMES],
       ['default', 'goldwood', 'jade', 'pinkjade']
@@ -119,16 +127,31 @@ describe('설정·초기화', () => {
       stateSchema: 12
     })
     assert.equal(m.migrated, true)
-    assert.equal(m.state.stateSchema, 13)
+    assert.equal(m.state.stateSchema, 14)
     assert.equal(m.state.beadTheme, 'default')
+    assert.equal(m.state.showCount, true)
     assert.equal(setBeadTheme({}, 'goldwood').beadTheme, 'goldwood')
     assert.equal(setBeadTheme({}, 'pinkjade').beadTheme, 'pinkjade')
     assert.equal(setBeadTheme({}, 'ommani').beadTheme, 'default')
+    assert.equal(setShowCount({}, false).showCount, false)
+    assert.equal(setShowCount({ showCount: false }, true).showCount, true)
   })
 
   it('inputMode', () => {
     assert.deepEqual([...INPUT_MODES], ['slide', 'touch'])
     assert.equal(setInputMode({}, 'touch').inputMode, 'touch')
+  })
+
+  it('serialize가 showCount·todayTotal 유지', () => {
+    const s = normalizeState({
+      todayTotal: 42,
+      showCount: false,
+      beadTheme: 'jade'
+    })
+    const round = deserializeState(serializeState(s))
+    assert.equal(round.todayTotal, 42)
+    assert.equal(round.showCount, false)
+    assert.equal(round.beadTheme, 'jade')
   })
 
   it('resetSession / resetAll', () => {

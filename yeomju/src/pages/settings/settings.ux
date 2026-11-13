@@ -26,7 +26,7 @@
       </div>
 
       <text class="label">염주</text>
-      <text class="hint">{{themeHint}}</text>
+      <text class="hint">구슬 재질</text>
       <div
         class="opt {{beadTheme === 'default' ? 'opt-on' : ''}}"
         onclick="pickThemeDefault"
@@ -56,7 +56,24 @@
         <text class="opt-mark" if="{{beadTheme === 'pinkjade'}}">✓</text>
       </div>
 
-      <text class="meta">v2.7.0</text>
+      <text class="label">횟수 표시</text>
+      <text class="hint">메인 화면 하단 카운트</text>
+      <div
+        class="opt {{showCount ? 'opt-on' : ''}}"
+        onclick="pickShowCountOn"
+      >
+        <text class="opt-text">켜기</text>
+        <text class="opt-mark" if="{{showCount}}">✓</text>
+      </div>
+      <div
+        class="opt {{!showCount ? 'opt-on' : ''}}"
+        onclick="pickShowCountOff"
+      >
+        <text class="opt-text">끄기</text>
+        <text class="opt-mark" if="{{!showCount}}">✓</text>
+      </div>
+
+      <text class="meta">v2.7.1</text>
     </div>
   </div>
 </template>
@@ -66,8 +83,8 @@ import router from '@system.router'
 import {
   setInputMode,
   setBeadTheme,
-  INPUT_MODE_HINTS,
-  BEAD_THEME_HINTS
+  setShowCount,
+  INPUT_MODE_HINTS
 } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
 
@@ -76,7 +93,7 @@ export default {
     inputMode: 'slide',
     inputHint: INPUT_MODE_HINTS.slide,
     beadTheme: 'default',
-    themeHint: BEAD_THEME_HINTS.default
+    showCount: true
   },
 
   onShow() {
@@ -102,8 +119,7 @@ export default {
     this.inputMode = state.inputMode || 'slide'
     this.inputHint = INPUT_MODE_HINTS[this.inputMode] || INPUT_MODE_HINTS.slide
     this.beadTheme = state.beadTheme || 'default'
-    this.themeHint =
-      BEAD_THEME_HINTS[this.beadTheme] || BEAD_THEME_HINTS.default
+    this.showCount = state.showCount !== false
   },
 
   async persist(next) {
@@ -137,6 +153,17 @@ export default {
   },
   pickThemePinkjade() {
     this.pickTheme('pinkjade')
+  },
+
+  async pickShowCount(enabled) {
+    if (!this._state) await this.reload()
+    await this.persist(setShowCount(this._state, enabled))
+  },
+  pickShowCountOn() {
+    this.pickShowCount(true)
+  },
+  pickShowCountOff() {
+    this.pickShowCount(false)
   },
 
   goBack() {

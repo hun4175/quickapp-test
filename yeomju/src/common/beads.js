@@ -1,6 +1,6 @@
 /**
  * 염주 카운트 순수 로직 (워치 런타임 / Node 테스트 공용).
- * 2.7.0: 기본·금박나무·옥·연핑크옥 (한자 테마 폐기).
+ * 2.7.1: 횟수 표시 토글 · 재질 테마.
  */
 
 /** 한 바퀴 알 개수 선택지 (염주/묵주 관례) — 기본 108, UI 노출 없음 */
@@ -34,11 +34,14 @@ export const BEAD_THEME_LABELS = Object.freeze({
   pinkjade: '연핑크 옥'
 })
 
+/** 염주 섹션 설명 (테마 공통) */
+export const BEAD_THEME_SECTION_HINT = '구슬 재질'
+
 export const BEAD_THEME_HINTS = Object.freeze({
-  default: '나무 구슬',
-  goldwood: '금박 나뭇결',
-  jade: '옥구슬',
-  pinkjade: '연핑크 옥구슬'
+  default: '구슬 재질',
+  goldwood: '구슬 재질',
+  jade: '구슬 재질',
+  pinkjade: '구슬 재질'
 })
 
 export const DEFAULT_STATE = Object.freeze({
@@ -50,7 +53,8 @@ export const DEFAULT_STATE = Object.freeze({
   todayTotal: 0,
   inputMode: 'slide',
   beadTheme: 'default',
-  stateSchema: 13
+  showCount: true,
+  stateSchema: 14
 })
 
 /**
@@ -93,6 +97,8 @@ export const normalizeState = (raw) => {
     : DEFAULT_STATE.inputMode
 
   const beadTheme = resolveTheme(src.beadTheme)
+  // 기본 on: 명시적으로 false일 때만 끔
+  const showCount = src.showCount !== false
 
   const schemaRaw = Math.floor(Number(src.stateSchema) || 0)
   const stateSchema = schemaRaw > 0 ? schemaRaw : 1
@@ -106,26 +112,28 @@ export const normalizeState = (raw) => {
     todayTotal,
     inputMode,
     beadTheme,
+    showCount,
     stateSchema
   }
 }
 
 /**
- * 2.7.0: schema≥13. 한자 테마 폐기.
+ * 2.7.1: schema≥14. showCount 추가.
  * @param {object} state
  * @returns {{ state: object, migrated: boolean }}
  */
 export const migrateAnimModeForStability = (state) => {
   const s = normalizeState(state)
-  if (s.stateSchema >= 13) {
+  if (s.stateSchema >= 14) {
     return { state: s, migrated: false }
   }
   return {
     state: {
       ...s,
-      stateSchema: 13,
+      stateSchema: 14,
       inputMode: INPUT_MODES.includes(s.inputMode) ? s.inputMode : 'slide',
-      beadTheme: resolveTheme(s.beadTheme)
+      beadTheme: resolveTheme(s.beadTheme),
+      showCount: s.showCount !== false
     },
     migrated: true
   }
@@ -222,6 +230,11 @@ export const setInputMode = (state, mode) => {
 export const setBeadTheme = (state, theme) => {
   const s = normalizeState(state)
   return { ...s, beadTheme: resolveTheme(theme) }
+}
+
+export const setShowCount = (state, enabled) => {
+  const s = normalizeState(state)
+  return { ...s, showCount: !!enabled }
 }
 
 export const resetSession = (state) => {
