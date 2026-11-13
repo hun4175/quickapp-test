@@ -1,31 +1,31 @@
-# 빌드 정보 — 1.6.0
-
-## 패키지
-
-- versionName: `1.6.0`
-- versionCode: `7`
-- package: `com.yeomju.mala`
+# 빌드 정보 — 1.7.0
 
 ## 산출물 (사실)
 
-- 파일: `yeomju/dist/com.yeomju.mala.debug.1.6.0.rpk`
-- 크기: 80533 bytes
-- SHA256: `0840d15c1a89cfce2bec502771eb3032921fa650da6f98573a88ab5b6fbb7d94`
+- `yeomju/dist/com.yeomju.mala.debug.1.7.0.rpk`
+- 크기: 81310 bytes
+- SHA256: `70c27ffb0ef92a548d1a114cf292d94963e1f7784d0c2c4fa27e6dd6f24c1303`
+- versionName 1.7.0 / versionCode 8
 
-## 1.6.0 구조
+## 2단 이동 원인 (코드 근거)
 
-- 체인 슬롯 **8개** (타원 등분). 구슬마다 `roll-next-i` / `roll-prev-i` → translate+scale 키프레임(중간 50%로 타원 근사)
-- 애니 중 left/top/size JS 재바인딩 없음. 종료 시 슬롯 인덱스·기하만 스냅
-- 메인 HUD 숨김(Today/카운트/Lap/설정/힌트 미렌더). 카운트·저장 로직 유지
-- 설정 진입: **longpress** (화면 가리는 버튼 없음)
-- wood 240px 단일. 180ms ease-out. 양방향 스와이프·pending·진동 유지
+1.6.0 `buildChainKeyframeCss` 가 모든 구슬에 `0% / 50% / 100%` 키프레임 + `animation-timing-function: ease-out` 을 넣음.
+CSS는 **키프레임 구간마다** timing function을 다시 적용하므로 0→50에서 ease-out 감속 후 50→100에서 다시 가속 → \"두 번에 걸쳐 이동\" 체감.
+
+## 1.7.0 변경
+
+- 앞열 직선(depth 높은 구간): `0→100%` 한 구간 + 단일 `ease-out`
+- 가장자리 곡선: `0/25/50/75/100` + `linear`, 위치는 `easeOutCubic` 베이크
+- duration **240ms**, scale 범위 축소(min 140 / max 228)
+- 화면 밖 전환은 `shouldAnimateTransition` 으로 클래스 생략 가능
+- 스냅: `transformAtProgress(...,1)` ≡ to 슬롯 (`snapMatchesEndKeyframe`)
+- 굴림당 클래스 부여 1회, 종료 시 기하+클래스 클리어 1회
+- HUD 숨김 / longpress / 양방향 / pending / 진동 유지
 
 ## 미리보기
 
-- `yeomju/docs/preview-1.6.0.png` (전/중/후, 라벨은 프레임 위 여백)
-- `yeomju/docs/preview-swipe-before.png` / `mid` / `after`
+- `yeomju/docs/preview-1.7.0.png` (0/25/50/75/100%)
 
 ## 미확인
 
-- 1.6.0 실기기 체인 체감·버벅임 (단정하지 않음)
-- longpress 설정 진입 실기기 감도
+- 실기기 2단 이동·프레임감 개선 여부 (단정하지 않음)

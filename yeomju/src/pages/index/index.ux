@@ -1,7 +1,7 @@
 <template>
   <!--
-    1.6.0: 구슬별 슬롯 i→i±1 @keyframes (translate+scale).
-    HUD 숨김(카운트·저장은 유지). 설정은 길게 누르기(longpress).
+    1.7.0: 앞열 0→100% 단일 ease-out / 가장자리 다점+linear(ease 베이크).
+    1.6.0 2단 이동(0/50/100+구간 ease) 제거. HUD 숨김, longpress 설정.
   -->
   <div
     class="page"
@@ -133,7 +133,6 @@ export default {
     if (dir) this.enqueueSwipe(dir)
   },
 
-  /** 설정 진입: 화면을 가리는 버튼 없이 longpress */
   onLongPress() {
     router.push({ uri: '/pages/settings' })
   },
@@ -189,8 +188,8 @@ export default {
   },
 
   /**
-   * 구슬별 roll-next-i / roll-prev-i 클래스만 토글.
-   * 종료 시 슬롯 인덱스·left/top/size 한 번 스냅 (프레임 루프 없음).
+   * 클래스 부여는 굴림당 1회. 타이머 종료 시 기하 스냅+클래스 제거를 한 번에
+   * (fill-mode forwards 끝 위치 = to 슬롯, 스냅 무튐).
    */
   ensureChainAnim() {
     if (this._animating) return
@@ -245,195 +244,215 @@ export default {
 /* CHAIN_KF_BEGIN */
 .roll-next-0 {
   animation-name: kf-next-0;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-prev-0 {
-  animation-name: kf-prev-0;
-  animation-duration: 180ms;
+  animation-duration: 240ms;
   animation-timing-function: ease-out;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
 @keyframes kf-next-0 {
   0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(9px, -115px) scale(0.988); }
-  100% { transform: translate(35px, -212px) scale(0.958); }
+  100% { transform: translate(35px, -212px) scale(0.974); }
 }
-@keyframes kf-prev-0 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(9px, 115px) scale(0.988); }
-  100% { transform: translate(35px, 212px) scale(0.958); }
-}
-.roll-next-1 {
-  animation-name: kf-next-1;
-  animation-duration: 180ms;
+.roll-prev-0 {
+  animation-name: kf-prev-0;
+  animation-duration: 240ms;
   animation-timing-function: ease-out;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
-.roll-prev-1 {
-  animation-name: kf-prev-1;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
+@keyframes kf-prev-0 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  100% { transform: translate(35px, 212px) scale(0.974); }
+}
+.roll-next-1 {
+  animation-name: kf-next-1;
+  animation-duration: 240ms;
+  animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
 @keyframes kf-next-1 {
   0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(38px, -65px) scale(0.948); }
-  100% { transform: translate(83px, -88px) scale(0.887); }
+  25% { transform: translate(45px, -72px) scale(0.956); }
+  50% { transform: translate(71px, -87px) scale(0.933); }
+  75% { transform: translate(82px, -88px) scale(0.925); }
+  100% { transform: translate(83px, -88px) scale(0.923); }
 }
-@keyframes kf-prev-1 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(-26px, 97px) scale(1.03); }
-  100% { transform: translate(-35px, 212px) scale(1.043); }
-}
-.roll-next-2 {
-  animation-name: kf-next-2;
-  animation-duration: 180ms;
+.roll-prev-1 {
+  animation-name: kf-prev-1;
+  animation-duration: 240ms;
   animation-timing-function: ease-out;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
-.roll-prev-2 {
-  animation-name: kf-prev-2;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
+@keyframes kf-prev-1 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  100% { transform: translate(-35px, 212px) scale(1.027); }
+}
+.roll-next-2 {
+  animation-name: kf-next-2;
+  animation-duration: 240ms;
+  animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
 @keyframes kf-next-2 {
   0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(45px, 23px) scale(0.926); }
-  100% { transform: translate(83px, 88px) scale(0.858); }
+  25% { transform: translate(52px, 30px) scale(0.949); }
+  50% { transform: translate(75px, 68px) scale(0.923); }
+  75% { transform: translate(82px, 85px) scale(0.914); }
+  100% { transform: translate(83px, 88px) scale(0.912); }
 }
-@keyframes kf-prev-2 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(-45px, 23px) scale(1.069); }
-  100% { transform: translate(-83px, 88px) scale(1.127); }
-}
-.roll-next-3 {
-  animation-name: kf-next-3;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
+.roll-prev-2 {
+  animation-name: kf-prev-2;
+  animation-duration: 240ms;
+  animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
-.roll-prev-3 {
-  animation-name: kf-prev-3;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
+@keyframes kf-prev-2 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  25% { transform: translate(-52px, 30px) scale(1.048); }
+  50% { transform: translate(-75px, 68px) scale(1.073); }
+  75% { transform: translate(-82px, 85px) scale(1.082); }
+  100% { transform: translate(-83px, 88px) scale(1.083); }
+}
+.roll-next-3 {
+  animation-name: kf-next-3;
+  animation-duration: 240ms;
+  animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
 @keyframes kf-next-3 {
   0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(26px, 97px) scale(0.937); }
-  100% { transform: translate(35px, 212px) scale(0.909); }
+  25% { transform: translate(29px, 114px) scale(0.969); }
+  50% { transform: translate(34px, 183px) scale(0.953); }
+  75% { transform: translate(35px, 208px) scale(0.947); }
+  100% { transform: translate(35px, 212px) scale(0.947); }
 }
-@keyframes kf-prev-3 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(-38px, -65px) scale(1.08); }
-  100% { transform: translate(-83px, -88px) scale(1.166); }
-}
-.roll-next-4 {
-  animation-name: kf-next-4;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
+.roll-prev-3 {
+  animation-name: kf-prev-3;
+  animation-duration: 240ms;
+  animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
-.roll-prev-4 {
-  animation-name: kf-prev-4;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
+@keyframes kf-prev-3 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  25% { transform: translate(-45px, -72px) scale(1.056); }
+  50% { transform: translate(-71px, -87px) scale(1.084); }
+  75% { transform: translate(-82px, -88px) scale(1.095); }
+  100% { transform: translate(-83px, -88px) scale(1.096); }
+}
+.roll-next-4 {
+  animation-name: kf-next-4;
+  animation-duration: 240ms;
+  animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
 @keyframes kf-next-4 {
   0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(-9px, 115px) scale(1.031); }
-  100% { transform: translate(-35px, 212px) scale(1.101); }
+  25% { transform: translate(-12px, 132px) scale(1.033); }
+  50% { transform: translate(-27px, 190px) scale(1.049); }
+  75% { transform: translate(-34px, 210px) scale(1.056); }
+  100% { transform: translate(-35px, 212px) scale(1.056); }
 }
-@keyframes kf-prev-4 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(-9px, -115px) scale(1.031); }
-  100% { transform: translate(-35px, -212px) scale(1.101); }
-}
-.roll-next-5 {
-  animation-name: kf-next-5;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
+.roll-prev-4 {
+  animation-name: kf-prev-4;
+  animation-duration: 240ms;
+  animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
-.roll-prev-5 {
-  animation-name: kf-prev-5;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
+@keyframes kf-prev-4 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  25% { transform: translate(-12px, -132px) scale(1.033); }
+  50% { transform: translate(-27px, -190px) scale(1.049); }
+  75% { transform: translate(-34px, -210px) scale(1.056); }
+  100% { transform: translate(-35px, -212px) scale(1.056); }
+}
+.roll-next-5 {
+  animation-name: kf-next-5;
+  animation-duration: 240ms;
+  animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
 @keyframes kf-next-5 {
   0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(-38px, 65px) scale(1.08); }
-  100% { transform: translate(-83px, 88px) scale(1.166); }
+  25% { transform: translate(-45px, 72px) scale(1.056); }
+  50% { transform: translate(-71px, 87px) scale(1.084); }
+  75% { transform: translate(-82px, 88px) scale(1.095); }
+  100% { transform: translate(-83px, 88px) scale(1.096); }
 }
-@keyframes kf-prev-5 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(26px, -97px) scale(0.937); }
-  100% { transform: translate(35px, -212px) scale(0.909); }
-}
-.roll-next-6 {
-  animation-name: kf-next-6;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
+.roll-prev-5 {
+  animation-name: kf-prev-5;
+  animation-duration: 240ms;
+  animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
-.roll-prev-6 {
-  animation-name: kf-prev-6;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
+@keyframes kf-prev-5 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  25% { transform: translate(29px, -114px) scale(0.969); }
+  50% { transform: translate(34px, -183px) scale(0.953); }
+  75% { transform: translate(35px, -208px) scale(0.947); }
+  100% { transform: translate(35px, -212px) scale(0.947); }
+}
+.roll-next-6 {
+  animation-name: kf-next-6;
+  animation-duration: 240ms;
+  animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
 @keyframes kf-next-6 {
   0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(-45px, -23px) scale(1.069); }
-  100% { transform: translate(-83px, -88px) scale(1.127); }
+  25% { transform: translate(-52px, -30px) scale(1.048); }
+  50% { transform: translate(-75px, -68px) scale(1.073); }
+  75% { transform: translate(-82px, -85px) scale(1.082); }
+  100% { transform: translate(-83px, -88px) scale(1.083); }
 }
-@keyframes kf-prev-6 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(45px, -23px) scale(0.926); }
-  100% { transform: translate(83px, -88px) scale(0.858); }
-}
-.roll-next-7 {
-  animation-name: kf-next-7;
-  animation-duration: 180ms;
-  animation-timing-function: ease-out;
+.roll-prev-6 {
+  animation-name: kf-prev-6;
+  animation-duration: 240ms;
+  animation-timing-function: linear;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
-.roll-prev-7 {
-  animation-name: kf-prev-7;
-  animation-duration: 180ms;
+@keyframes kf-prev-6 {
+  0% { transform: translate(0px, 0px) scale(1); }
+  25% { transform: translate(52px, -30px) scale(0.949); }
+  50% { transform: translate(75px, -68px) scale(0.923); }
+  75% { transform: translate(82px, -85px) scale(0.914); }
+  100% { transform: translate(83px, -88px) scale(0.912); }
+}
+.roll-next-7 {
+  animation-name: kf-next-7;
+  animation-duration: 240ms;
   animation-timing-function: ease-out;
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }
 @keyframes kf-next-7 {
   0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(-26px, -97px) scale(1.03); }
-  100% { transform: translate(-35px, -212px) scale(1.043); }
+  100% { transform: translate(-35px, -212px) scale(1.027); }
+}
+.roll-prev-7 {
+  animation-name: kf-prev-7;
+  animation-duration: 240ms;
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
 }
 @keyframes kf-prev-7 {
   0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(38px, 65px) scale(0.948); }
-  100% { transform: translate(83px, 88px) scale(0.887); }
+  25% { transform: translate(45px, 72px) scale(0.956); }
+  50% { transform: translate(71px, 87px) scale(0.933); }
+  75% { transform: translate(82px, 88px) scale(0.925); }
+  100% { transform: translate(83px, 88px) scale(0.923); }
 }
 
 /* CHAIN_KF_END */

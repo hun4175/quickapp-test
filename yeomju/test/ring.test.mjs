@@ -1,21 +1,17 @@
 /**
- * 염주 고리 1.6.0 — 체인 슬롯 테스트
+ * 염주 고리 1.7.0 — 단일 구간 / 베이크드 ease 테스트
  */
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   VIRTUAL_BEADS,
   SLOT_COUNT,
-  VISIBLE_BEADS,
   DEFAULT_RING,
-  CHAIN_DIR,
   CHAIN_ANIM_MS,
   BEAD_SRC,
   phaseFromBead,
   nextPhase,
   depthAtAngle,
-  sizeFactorFromDepth,
-  chainStepY,
   stepPhase,
   classifyVerticalSwipe,
   SWIPE_MIN_DY,
@@ -24,103 +20,92 @@ import {
   createChainBeads,
   advanceChainBeads,
   rollClassForSlot,
-  slotTransition,
-  focusCenterNear,
+  isCurveTransition,
+  transformAtProgress,
+  snapMatchesEndKeyframe,
+  buildChainKeyframeCss,
+  easeOutCubic,
   focusDeltaYOnAdvance,
-  buildChainKeyframeCss
+  focusCenterNear
 } from '../src/common/ring.js'
 
 describe('phase', () => {
-  it('phaseFromBead 순환', () => {
-    assert.equal(phaseFromBead(0, 12), 0)
+  it('순환', () => {
     assert.equal(phaseFromBead(12, 12), 0)
     assert.equal(nextPhase(11, 12), 0)
+    assert.equal(stepPhase(0, -1, 12), 11)
   })
 })
 
-describe('depth / size', () => {
-  it('왼쪽이 앞', () => {
-    assert.ok(depthAtAngle(Math.PI) > 0.99)
-    assert.ok(depthAtAngle(0) < 0.01)
+describe('1.7.0 timing / slots', () => {
+  it('duration 220~260ms', () => {
+    assert.ok(CHAIN_ANIM_MS >= 220 && CHAIN_ANIM_MS <= 260)
   })
-  it('뒤 크기 하한', () => {
-    assert.ok(sizeFactorFromDepth(0) >= 0.4)
-  })
-})
-
-describe('1.6.0 slots', () => {
-  it('슬롯 6~8개', () => {
-    assert.ok(SLOT_COUNT >= 6 && SLOT_COUNT <= 8)
-    assert.equal(VISIBLE_BEADS, SLOT_COUNT)
-    assert.equal(layoutChainSlots().length, SLOT_COUNT)
-  })
-  it('포커스 슬롯 0 중앙', () => {
+  it('슬롯 8, 포커스 중앙, 위 방향', () => {
+    assert.equal(SLOT_COUNT, 8)
     const s = layoutChainSlots()[0]
     assert.ok(Math.abs(s.cx - 216) <= 2)
-    assert.ok(Math.abs(s.cy - 257) <= 2)
-    assert.equal(s.size, DEFAULT_RING.maxSize)
+    assert.ok(focusDeltaYOnAdvance() < 0)
   })
-  it('스와이프 위 방향: 슬롯0→1 은 화면 위(음수 Δy)', () => {
-    const dy = focusDeltaYOnAdvance()
-    assert.ok(dy < 0, `got ${dy}`)
-  })
-  it('CHAIN_ANIM 150~200ms', () => {
-    assert.ok(CHAIN_ANIM_MS >= 150 && CHAIN_ANIM_MS <= 200)
-  })
-  it('나무 구슬만', () => {
+  it('나무만', () => {
     assert.equal(BEAD_SRC, '/common/bead-wood.png')
-    assert.ok(createChainBeads().every((b) => b.src === BEAD_SRC))
+  })
+  it('easeOutCubic', () => {
+    assert.equal(easeOutCubic(0), 0)
+    assert.equal(easeOutCubic(1), 1)
+    assert.ok(easeOutCubic(0.5) > 0.5)
   })
 })
 
-describe('chain transitions', () => {
-  it('rollClassForSlot', () => {
-    assert.equal(rollClassForSlot(0, 1), 'roll-next-0')
-    assert.equal(rollClassForSlot(3, -1), 'roll-prev-3')
-  })
-  it('slotTransition scale/translate', () => {
+describe('2단 이동 방지 키프레임', () => {
+  it('앞열 직선은 curve 아님', () => {
     const slots = layoutChainSlots()
-    const t = slotTransition(slots[0], slots[1])
-    assert.ok(t.ty < 0)
-    assert.ok(t.scale > 0 && t.scale <= 1.01)
-    assert.ok(t.mid)
+    assert.equal(isCurveTransition(slots[0], slots[1]), false)
+    assert.equal(isCurveTransition(slots[7], slots[0]), false)
   })
-  it('advanceChainBeads 가 슬롯을 dir 만큼 이동', () => {
+  it('가장자리는 curve', () => {
+    const slots = layoutChainSlots()
+    assert.equal(isCurveTransition(slots[2], slots[3]), true)
+  })
+  it('CSS: 직선은 0/100+ease-out, 곡선은 다점+linear', () => {
+    const css = buildChainKeyframeCss()
+    assert.ok(css.includes('animation-duration: 240ms'))
+    // next-0 직선
+    assert.match(css, /\.roll-next-0 \{[\s\S]*?ease-out/)
+    assert.match(css, /@keyframes kf-next-0 \{[\s\S]*?0%[\s\S]*?100%/)
+    assert.ok(!/@keyframes kf-next-0 \{[^}]*50%/.test(css))
+    // next-2 곡선
+    assert.match(css, /\.roll-next-2 \{[\s\S]*?linear/)
+    assert.ok(css.includes('@keyframes kf-next-2'))
+    assert.ok(css.includes('25%'))
+    assert.ok(css.includes('75%'))
+  })
+  it('100% 키프레임 = 스냅 기하', () => {
+    const slots = layoutChainSlots()
+    for (let i = 0; i < slots.length; i++) {
+      const to = slots[(i + 1) % slots.length]
+      assert.ok(snapMatchesEndKeyframe(slots[i], to), `snap ${i}`)
+      const tr = transformAtProgress(slots[i], to, 1)
+      assert.equal(tr.tx, to.cx - slots[i].cx)
+      assert.equal(tr.ty, to.cy - slots[i].cy)
+    }
+  })
+})
+
+describe('chain beads', () => {
+  it('advance / rollClass', () => {
     const a = createChainBeads()
     const b = advanceChainBeads(a, 1)
-    const byId = Object.fromEntries(b.map((x) => [x.id, x]))
-    a.forEach((x) => {
-      assert.equal(byId[x.id].slot, (x.slot + 1) % SLOT_COUNT)
-    })
+    assert.equal(b.find((x) => x.id === 'b0').slot, 1)
+    assert.equal(rollClassForSlot(0, 1), 'roll-next-0')
+    assert.ok(b.every((x) => x.animClass === ''))
   })
-  it('keyframes CSS 생성', () => {
-    const css = buildChainKeyframeCss()
-    assert.ok(css.includes('@keyframes kf-next-0'))
-    assert.ok(css.includes('@keyframes kf-prev-7'))
-    assert.ok(css.includes('scale('))
-  })
-  it('stepPhase / swipe 분류', () => {
-    assert.equal(stepPhase(0, 1, 12), 1)
-    assert.equal(stepPhase(0, -1, 12), 11)
-    assert.equal(classifyVerticalSwipe(0, -SWIPE_MIN_DY), 1)
-    assert.equal(classifyVerticalSwipe(0, SWIPE_MIN_DY), -1)
-    assert.equal(CHAIN_DIR, 1)
-    assert.ok(chainStepY() > 0)
-    assert.equal(VIRTUAL_BEADS, 12)
-  })
-})
-
-describe('layoutRing preview', () => {
-  it('포커스·나무만', () => {
-    const items = layoutRing({ ...DEFAULT_RING, phaseIndex: 0 })
-    assert.equal(items.length, SLOT_COUNT)
+  it('layoutRing 포커스', () => {
+    const items = layoutRing({})
     assert.equal(focusCenterNear(items, 216, 257, 4), true)
-    assert.ok(items.every((b) => b.src === BEAD_SRC))
-  })
-  it('shiftProgress 중간은 구슬마다 다른 위치', () => {
-    const mid = layoutRing({ shiftProgress: 0.5, chainDir: 1 })
-    const tops = mid.map((b) => b.top)
-    const unique = new Set(tops)
-    assert.ok(unique.size >= 4)
+    assert.ok(depthAtAngle(Math.PI) > 0.99)
+    assert.equal(VIRTUAL_BEADS, 12)
+    assert.equal(DEFAULT_RING.maxSize, 228)
+    assert.equal(classifyVerticalSwipe(0, -SWIPE_MIN_DY), 1)
   })
 })

@@ -1,17 +1,11 @@
 /**
- * 1.6.0 미리보기: 전/중/후. 라벨은 프레임 밖 여백(파일명으로도 구분).
+ * 1.7.0 미리보기: 0/25/50/75/100% (라벨은 프레임 위 여백).
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import { fileURLToPath } from 'node:url'
-import {
-  DEFAULT_RING,
-  SLOT_COUNT,
-  CHAIN_ANIM_MS,
-  layoutRing,
-  layoutChainSlots
-} from '../src/common/ring.js'
+import { DEFAULT_RING, SLOT_COUNT, CHAIN_ANIM_MS, layoutRing } from '../src/common/ring.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const W = 432
@@ -153,22 +147,9 @@ const FONT = {
   0: [0x0e, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0e],
   1: [0x04, 0x0c, 0x04, 0x04, 0x04, 0x04, 0x0e],
   2: [0x0e, 0x11, 0x01, 0x06, 0x08, 0x10, 0x1f],
-  3: [0x0e, 0x11, 0x01, 0x06, 0x01, 0x11, 0x0e],
-  4: [0x02, 0x06, 0x0a, 0x12, 0x1f, 0x02, 0x02],
   5: [0x1f, 0x10, 0x1e, 0x01, 0x01, 0x11, 0x0e],
-  6: [0x06, 0x08, 0x10, 0x1e, 0x11, 0x11, 0x0e],
-  '.': [0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x0c],
-  '-': [0x00, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00],
-  a: [0x00, 0x0e, 0x01, 0x0f, 0x11, 0x0f, 0x00],
-  b: [0x10, 0x10, 0x1e, 0x11, 0x11, 0x1e, 0x00],
-  e: [0x00, 0x0e, 0x11, 0x1f, 0x10, 0x0e, 0x00],
-  f: [0x06, 0x08, 0x08, 0x1e, 0x08, 0x08, 0x08],
-  i: [0x04, 0x00, 0x0c, 0x04, 0x04, 0x04, 0x0e],
-  m: [0x00, 0x1b, 0x15, 0x15, 0x15, 0x15, 0x00],
-  o: [0x00, 0x0e, 0x11, 0x11, 0x11, 0x0e, 0x00],
-  r: [0x00, 0x16, 0x19, 0x10, 0x10, 0x10, 0x00],
-  t: [0x08, 0x08, 0x1c, 0x08, 0x08, 0x08, 0x06],
-  w: [0x00, 0x11, 0x11, 0x15, 0x15, 0x0a, 0x00]
+  7: [0x1f, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08],
+  '%': [0x19, 0x1a, 0x04, 0x08, 0x13, 0x03, 0x00]
 }
 
 const drawText = (dst, dw, dh, text, x0, y0, scale, r, g, b) => {
@@ -207,34 +188,38 @@ const renderWatch = (shiftProgress) => {
     rgba[i * 4 + 2] = 8
     rgba[i * 4 + 3] = 255
   }
-  const beads = layoutRing({ ...DEFAULT_RING, shiftProgress, chainDir: 1 })
-  for (const b of beads) {
-    blitAlpha(rgba, W, H, wood, b.left, b.top, b.size)
-  }
+  // bakeEase false: 키프레임 % 와 동일 샘플(곡선용 linear 시간축)
+  const beads = layoutRing({
+    ...DEFAULT_RING,
+    shiftProgress,
+    chainDir: 1,
+    bakeEase: false
+  })
+  for (const b of beads) blitAlpha(rgba, W, H, wood, b.left, b.top, b.size)
   return { rgba, beads }
 }
 
 fs.mkdirSync(docsDir, { recursive: true })
 
-const frames = [
-  { file: 'preview-swipe-before.png', tag: 'before', shift: 0 },
-  { file: 'preview-swipe-mid.png', tag: 'mid', shift: 0.45 },
-  { file: 'preview-swipe-after.png', tag: 'after', shift: 0 }
-]
-
+const percents = [0, 0.25, 0.5, 0.75, 1]
 const parts = []
-for (const f of frames) {
-  // after = one step settled: use shift 0 but note filename; mid shows paths
-  const { rgba, beads } = renderWatch(f.shift)
-  // after frame: show next-slot static by advancing layout visually via shift≈1 then snap — use 0 for after as settled identical look
-  writePng(path.join(docsDir, f.file), W, H, rgba)
-  parts.push({ tag: f.tag, rgba, count: beads.length })
-  console.log('wrote', f.file, 'beads', beads.length)
+for (const p of percents) {
+  const { rgba, beads } = renderWatch(p)
+  const tag = Math.round(p * 100) + 'pct'
+  const file =
+    p === 0
+      ? 'preview-swipe-before.png'
+      : p === 1
+        ? 'preview-swipe-after.png'
+        : p === 0.5
+          ? 'preview-swipe-mid.png'
+          : null
+  if (file) writePng(path.join(docsDir, file), W, H, rgba)
+  parts.push({ tag, rgba, count: beads.length, p })
+  console.log(tag, 'beads', beads.length)
 }
 
-// after should look like before (identical wood chain) — regenerate after as before clone for settled state is OK;
-// for strip, mid must show divergent paths
-const stripW = W * 3
+const stripW = W * percents.length
 const stripH = H + PAD
 const strip = Buffer.alloc(stripW * stripH * 4, 0)
 for (let i = 0; i < strip.length; i += 4) {
@@ -243,25 +228,12 @@ for (let i = 0; i < strip.length; i += 4) {
   strip[i + 2] = 12
   strip[i + 3] = 255
 }
-for (let i = 0; i < 3; i++) {
+for (let i = 0; i < parts.length; i++) {
   for (let y = 0; y < H; y++) {
     parts[i].rgba.copy(strip, (y + PAD) * stripW * 4 + i * W * 4, y * W * 4, (y + 1) * W * 4)
   }
-  drawText(strip, stripW, stripH, parts[i].tag, i * W + 8, 6, 2, 200, 180, 140)
+  drawText(strip, stripW, stripH, Math.round(parts[i].p * 100) + '%', i * W + 8, 6, 2, 200, 180, 140)
 }
-writePng(path.join(docsDir, 'preview-1.6.0.png'), stripW, stripH, strip)
+writePng(path.join(docsDir, 'preview-1.7.0.png'), stripW, stripH, strip)
 writePng(path.join(docsDir, 'preview-432x514.png'), W, H, parts[0].rgba)
-
-console.log(
-  JSON.stringify(
-    {
-      version: '1.6.0',
-      slots: SLOT_COUNT,
-      animMs: CHAIN_ANIM_MS,
-      slotSample: layoutChainSlots().map((s) => ({ i: s.index, size: s.size, top: s.top })),
-      note: 'labels in pad above frames; not on watch face'
-    },
-    null,
-    2
-  )
-)
+console.log(JSON.stringify({ version: '1.7.0', slots: SLOT_COUNT, ms: CHAIN_ANIM_MS }, null, 2))

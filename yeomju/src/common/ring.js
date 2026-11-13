@@ -1,25 +1,26 @@
 /**
- * 염주 고리 — 1.6.0 체인 슬롯.
+ * 염주 고리 — 1.7.0 체인 슬롯.
  *
- * 구슬마다 타원 위 고정 슬롯 i → i±1 로 @keyframes(translate+scale).
- * 프레임마다 left/top/size JS 재바인딩 없음. 애니 종료 시 슬롯 인덱스만 교체.
+ * 1.6.0 2단 이동 원인: 키프레임 0/50/100 + 구간마다 ease-out
+ * → 50%에서 감속·재가속. 1.7.0은 앞열 직선은 0→100% 단일 ease-out,
+ *   가장자리만 0/25/50/75/100 + linear(위치값에 ease-out 베이크).
  */
 
 export const VIRTUAL_BEADS = 12
-/** 체인에 그리는 슬롯 수 (앞·뒤·가장자리 전환 포함, 6~8) */
 export const SLOT_COUNT = 8
 export const FRONT_COUNT = 3
 export const BACK_COUNT = 3
 export const VISIBLE_BEADS = SLOT_COUNT
 
 export const CHAIN_DIR = 1
-/** 체인 한 칸(ms) */
-export const CHAIN_ANIM_MS = 180
+/** 한 칸 duration — 프레임 간 이동거리 완화 */
+export const CHAIN_ANIM_MS = 240
 
 export const SWIPE_MIN_DY = 40
 export const SWIPE_VERTICAL_RATIO = 1.2
 export const BEAD_SRC = '/common/bead-wood.png'
 
+/** scale 변화 완화용 (스냅과 동일 기하 유지) */
 export const DEFAULT_RING = Object.freeze({
   screenW: 432,
   screenH: 514,
@@ -31,8 +32,8 @@ export const DEFAULT_RING = Object.freeze({
   ry: 300,
   cx: 334,
   cy: 257,
-  minSize: 100,
-  maxSize: 240,
+  minSize: 140,
+  maxSize: 228,
   virtual: VIRTUAL_BEADS,
   slotCount: SLOT_COUNT
 })
@@ -90,10 +91,12 @@ export const chainStepY = (ry = DEFAULT_RING.ry, virtual = VIRTUAL_BEADS) => {
   return Math.round(Number(ry) * Math.sin(step))
 }
 
-/**
- * 타원 위 한 점 → 슬롯 기하.
- * angle: 수학 각도(라디안). focus=π(왼쪽).
- */
+/** cubic ease-out — 곡선 키프레임 위치 베이크용 */
+export const easeOutCubic = (t) => {
+  const x = Math.max(0, Math.min(1, Number(t) || 0))
+  return 1 - Math.pow(1 - x, 3)
+}
+
 export const slotGeomAtAngle = (angle, opts = {}) => {
   const focusX = Number(opts.focusX != null ? opts.focusX : DEFAULT_RING.focusX)
   const focusY = Number(opts.focusY != null ? opts.focusY : DEFAULT_RING.focusY)
@@ -120,130 +123,159 @@ export const slotGeomAtAngle = (angle, opts = {}) => {
   }
 }
 
-/**
- * 체인 슬롯.
- * 화면 y는 아래로 증가 → sin&gt;0 이 화면 아래.
- * i=0 포커스(π), i 증가 → 각도 + → 앞열에서 위(화면↑) → 뒤 → 아래 → 앞.
- * 스와이프 위(+1): 구슬 i → i+1.
- * @returns {Array<object>}
- */
 export const layoutChainSlots = (opts = {}) => {
   const n = Math.max(6, Math.min(8, Math.floor(Number(opts.slotCount) || SLOT_COUNT)))
   const step = (Math.PI * 2) / n
   const slots = []
   for (let i = 0; i < n; i++) {
     const angle = Math.PI + i * step
-    const g = slotGeomAtAngle(angle, opts)
-    slots.push({
-      index: i,
-      ...g,
-      src: BEAD_SRC
-    })
+    const g = slotGeomAtAngle(angle, { ...DEFAULT_RING, ...opts })
+    slots.push({ index: i, ...g, src: BEAD_SRC })
   }
   return slots
 }
 
+const ringOpts = (opts = {}) => ({ ...DEFAULT_RING, ...opts })
+
 /**
- * 슬롯 from → to 변환량 (transform-origin: center 기준).
- * @returns {{ tx: number, ty: number, scale: number, mid: { tx, ty, scale } }}
+ * from→to 각도 진행 (래핑 포함). dirSign: +1 next, -1 prev
  */
-export const slotTransition = (fromSlot, toSlot) => {
-  const scale = toSlot.size / fromSlot.size
-  const tx = toSlot.cx - fromSlot.cx
-  const ty = toSlot.cy - fromSlot.cy
-  // 체인 진행 방향 보간 (인덱스 +1 → 각도 증가, 래핑 포함)
+export const angledPair = (fromSlot, toSlot) => {
   let a0 = fromSlot.angle
   let a1 = toSlot.angle
-  const dIdx = toSlot.index - fromSlot.index
-  if (dIdx === 1 || dIdx === 1 - SLOT_COUNT || (dIdx < 0 && (dIdx + SLOT_COUNT) === 1)) {
+  const dIdx = ((toSlot.index - fromSlot.index) % SLOT_COUNT + SLOT_COUNT) % SLOT_COUNT
+  if (dIdx === 1) {
     while (a1 < a0) a1 += Math.PI * 2
   } else {
     while (a0 < a1) a0 += Math.PI * 2
   }
-  const midAngle = (a0 + a1) / 2
-  const mid = slotGeomAtAngle(midAngle, {
-    focusX: DEFAULT_RING.focusX,
-    focusY: DEFAULT_RING.focusY,
-    rx: DEFAULT_RING.rx,
-    ry: DEFAULT_RING.ry,
-    cx: DEFAULT_RING.cx,
-    cy: DEFAULT_RING.cy,
-    minSize: DEFAULT_RING.minSize,
-    maxSize: DEFAULT_RING.maxSize
-  })
-  const midScale = mid.size / fromSlot.size
-  const midTx = mid.cx - fromSlot.cx
-  const midTy = mid.cy - fromSlot.cy
-  return {
-    tx: Math.round(tx),
-    ty: Math.round(ty),
-    scale: Math.round(scale * 1000) / 1000,
-    mid: {
-      tx: Math.round(midTx),
-      ty: Math.round(midTy),
-      scale: Math.round(midScale * 1000) / 1000
+  return { a0, a1 }
+}
+
+/**
+ * 앞열에 가까운 직선 이동이면 false(단일 구간), 가장자리 곡선이면 true.
+ */
+export const isCurveTransition = (fromSlot, toSlot) => {
+  const dx = Math.abs(toSlot.cx - fromSlot.cx)
+  const dy = Math.abs(toSlot.cy - fromSlot.cy)
+  if (fromSlot.depth >= 0.72 && toSlot.depth >= 0.72 && dy >= dx) return false
+  if (dx >= 48) return true
+  return fromSlot.depth < 0.55 || toSlot.depth < 0.55
+}
+
+/**
+ * 화면(패딩 포함)에 거의 안 보이면 애니 생략.
+ */
+export const shouldAnimateTransition = (fromSlot, toSlot, opts = {}) => {
+  const pad = opts.pad != null ? opts.pad : 72
+  const w = opts.screenW != null ? opts.screenW : DEFAULT_RING.screenW
+  const h = opts.screenH != null ? opts.screenH : DEFAULT_RING.screenH
+  const visible = (s) =>
+    s.cx > -pad && s.cx < w + pad && s.cy > -pad && s.cy < h + pad
+  return visible(fromSlot) || visible(toSlot)
+}
+
+/**
+ * progress u∈[0,1] (경로 진행) → from 기준 translate/scale.
+ * 100% 값은 항상 to 슬롯과 픽셀 일치 (스냅 무튐).
+ */
+export const transformAtProgress = (fromSlot, toSlot, u, opts = {}) => {
+  const { a0, a1 } = angledPair(fromSlot, toSlot)
+  const t = Math.max(0, Math.min(1, Number(u) || 0))
+  if (t <= 0) return { tx: 0, ty: 0, scale: 1 }
+  if (t >= 1) {
+    return {
+      tx: toSlot.cx - fromSlot.cx,
+      ty: toSlot.cy - fromSlot.cy,
+      scale: Math.round((toSlot.size / fromSlot.size) * 1000) / 1000
     }
+  }
+  const angle = a0 + (a1 - a0) * t
+  const mid = slotGeomAtAngle(angle, ringOpts(opts))
+  // 크기는 from→to 선형 (경로 샘플 size 대신 끝점 보간 → 스냅 일치)
+  const size = fromSlot.size + (toSlot.size - fromSlot.size) * t
+  const scale = size / fromSlot.size
+  return {
+    tx: Math.round(mid.cx - fromSlot.cx),
+    ty: Math.round(mid.cy - fromSlot.cy),
+    scale: Math.round(scale * 1000) / 1000
   }
 }
 
-/**
- * 구슬별 애니 클래스명.
- * @param {number} slotIndex
- * @param {number} dir 1=next(i→i+1), -1=prev
- */
-export const rollClassForSlot = (slotIndex, dir) => {
-  const n = SLOT_COUNT
-  const i = ((Math.floor(Number(slotIndex) || 0) % n) + n) % n
-  return Number(dir) < 0 ? 'roll-prev-' + i : 'roll-next-' + i
+export const slotTransition = (fromSlot, toSlot, opts = {}) => {
+  const end = transformAtProgress(fromSlot, toSlot, 1, opts)
+  const mid = transformAtProgress(fromSlot, toSlot, 0.5, opts)
+  return { ...end, mid }
 }
 
 /**
- * @keyframes CSS 문자열 생성 (index.ux style 에 삽입).
+ * @param {number} slotIndex
+ * @param {number} dir
+ * @returns {string} 빈 문자열이면 애니 생략(화면 밖)
+ */
+export const rollClassForSlot = (slotIndex, dir, opts = {}) => {
+  const slots = layoutChainSlots(ringOpts(opts))
+  const n = slots.length
+  const i = ((Math.floor(Number(slotIndex) || 0) % n) + n) % n
+  const d = Number(dir) < 0 ? -1 : 1
+  const to = slots[(i + d + n) % n]
+  if (!shouldAnimateTransition(slots[i], to, opts)) return ''
+  return d < 0 ? 'roll-prev-' + i : 'roll-next-' + i
+}
+
+const kfLine = (pct, tr) =>
+  `  ${pct}% { transform: translate(${tr.tx}px, ${tr.ty}px) scale(${tr.scale}); }`
+
+/**
+ * 키프레임 CSS.
+ * - 직선: 0→100, ease-out
+ * - 곡선: 0/25/50/75/100, linear + 위치 ease-out 베이크
  */
 export const buildChainKeyframeCss = (opts = {}) => {
-  const slots = layoutChainSlots({ ...DEFAULT_RING, ...opts, slotCount: SLOT_COUNT })
+  const slots = layoutChainSlots(ringOpts(opts))
   const n = slots.length
   const ms = CHAIN_ANIM_MS
   const lines = []
+  const emit = (name, from, to, dirLabel) => {
+    const curve = isCurveTransition(from, to)
+    const timing = curve ? 'linear' : 'ease-out'
+    const cls = `roll-${dirLabel}-${from.index}`
+    lines.push(`.${cls} {
+  animation-name: kf-${dirLabel}-${from.index};
+  animation-duration: ${ms}ms;
+  animation-timing-function: ${timing};
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}`)
+    if (!curve) {
+      const end = transformAtProgress(from, to, 1, opts)
+      lines.push(`@keyframes kf-${dirLabel}-${from.index} {
+  0% { transform: translate(0px, 0px) scale(1); }
+${kfLine(100, end)}
+}`)
+    } else {
+      const keys = [0, 0.25, 0.5, 0.75, 1]
+      const body = keys
+        .map((k) => {
+          const u = k === 0 ? 0 : k === 1 ? 1 : easeOutCubic(k)
+          const tr = transformAtProgress(from, to, u, opts)
+          return kfLine(Math.round(k * 100), tr)
+        })
+        .join('\n')
+      lines.push(`@keyframes kf-${dirLabel}-${from.index} {
+${body}
+}`)
+    }
+  }
   for (let i = 0; i < n; i++) {
-    const next = slots[(i + 1) % n]
-    const prev = slots[(i - 1 + n) % n]
-    const tn = slotTransition(slots[i], next)
-    const tp = slotTransition(slots[i], prev)
-    lines.push(`.roll-next-${i} {
-  animation-name: kf-next-${i};
-  animation-duration: ${ms}ms;
-  animation-timing-function: ease-out;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}`)
-    lines.push(`.roll-prev-${i} {
-  animation-name: kf-prev-${i};
-  animation-duration: ${ms}ms;
-  animation-timing-function: ease-out;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}`)
-    lines.push(`@keyframes kf-next-${i} {
-  0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(${tn.mid.tx}px, ${tn.mid.ty}px) scale(${tn.mid.scale}); }
-  100% { transform: translate(${tn.tx}px, ${tn.ty}px) scale(${tn.scale}); }
-}`)
-    lines.push(`@keyframes kf-prev-${i} {
-  0% { transform: translate(0px, 0px) scale(1); }
-  50% { transform: translate(${tp.mid.tx}px, ${tp.mid.ty}px) scale(${tp.mid.scale}); }
-  100% { transform: translate(${tp.tx}px, ${tp.ty}px) scale(${tp.scale}); }
-}`)
+    emit('next', slots[i], slots[(i + 1) % n], 'next')
+    emit('prev', slots[i], slots[(i - 1 + n) % n], 'prev')
   }
   return lines.join('\n')
 }
 
-/**
- * UI 초기 구슬 목록 (depth 오름차순 = 뒤→앞 그리기).
- * @returns {Array<{id, slot, left, top, size, src, animClass}>}
- */
 export const createChainBeads = (opts = {}) => {
-  const slots = layoutChainSlots({ ...DEFAULT_RING, ...opts, slotCount: SLOT_COUNT })
+  const slots = layoutChainSlots(ringOpts(opts))
   return slots
     .map((s) => ({
       id: 'b' + s.index,
@@ -259,12 +291,11 @@ export const createChainBeads = (opts = {}) => {
 }
 
 /**
- * 애니 종료 후 슬롯 인덱스 교체 + 기하 스냅 (transform 리셋용).
- * @param {Array} beads
- * @param {number} dir
+ * 스냅: 마지막 키프레임 transform+from ≡ to 기하.
+ * animClass 빈 문자열로 transform 제거와 동시에 left/top/size=to.
  */
 export const advanceChainBeads = (beads, dir, opts = {}) => {
-  const slots = layoutChainSlots({ ...DEFAULT_RING, ...opts, slotCount: SLOT_COUNT })
+  const slots = layoutChainSlots(ringOpts(opts))
   const n = slots.length
   const d = Number(dir) < 0 ? -1 : 1
   const next = beads.map((b) => {
@@ -285,10 +316,12 @@ export const advanceChainBeads = (beads, dir, opts = {}) => {
   return next
 }
 
-/** 미리보기·테스트용: 슬롯 기하를 layoutRing 호환 형태로 */
+/** 미리보기: shiftProgress 에 ease-out 적용 가능 */
 export const layoutRing = (opts = {}) => {
-  const slots = layoutChainSlots({ ...DEFAULT_RING, ...opts, slotCount: opts.slotCount || SLOT_COUNT })
-  const shiftProgress = Math.max(0, Math.min(1, Number(opts.shiftProgress) || 0))
+  const slots = layoutChainSlots(ringOpts(opts))
+  const raw = Math.max(0, Math.min(1, Number(opts.shiftProgress) || 0))
+  const bakeEase = opts.bakeEase !== false
+  const p = raw === 0 || raw === 1 ? raw : bakeEase ? easeOutCubic(raw) : raw
   const dir = opts.chainDir != null ? (Number(opts.chainDir) >= 0 ? 1 : -1) : 1
   let items = slots.map((s) => ({
     key: s.index,
@@ -306,20 +339,14 @@ export const layoutRing = (opts = {}) => {
     cy: s.cy,
     angle: s.angle
   }))
-  if (shiftProgress > 0) {
+  if (p > 0) {
     items = items.map((b) => {
-      const toIdx = (b.key + dir + slots.length) % slots.length
-      const to = slots[toIdx]
+      const to = slots[(b.key + dir + slots.length) % slots.length]
       const from = slots[b.key]
-      const t = slotTransition(from, to)
-      // 선형 보간 (미리보기 중간 프레임)
-      const p = shiftProgress
-      const tx = t.tx * p
-      const ty = t.ty * p
-      const sc = 1 + (t.scale - 1) * p
-      const size = Math.round(from.size * sc)
-      const cx = from.cx + tx
-      const cy = from.cy + ty
+      const tr = transformAtProgress(from, to, p, opts)
+      const size = Math.round(from.size * tr.scale)
+      const cx = from.cx + tr.tx
+      const cy = from.cy + tr.ty
       return {
         ...b,
         size,
@@ -334,10 +361,8 @@ export const layoutRing = (opts = {}) => {
 }
 
 export const focusDeltaYOnAdvance = (opts = {}) => {
-  const slots = layoutChainSlots({ ...DEFAULT_RING, ...opts })
-  const a = slots[0]
-  const b = slots[1]
-  return b.top - a.top
+  const slots = layoutChainSlots(ringOpts(opts))
+  return slots[1].top - slots[0].top
 }
 
 export const focusCenterNear = (items, fx = 216, fy = 257, tol = 4) => {
@@ -348,7 +373,6 @@ export const focusCenterNear = (items, fx = 216, fy = 257, tol = 4) => {
   return Math.abs(cx - fx) <= tol && Math.abs(cy - fy) <= tol
 }
 
-/** 하위 호환 스텁 */
 export const layoutFixedSlots = (opts = {}) => {
   const beads = createChainBeads(opts)
   return {
@@ -362,4 +386,19 @@ export const rollClassForLane = (lane, dir = CHAIN_DIR) => {
   const up = Number(dir) >= 0
   if (lane === 'front') return up ? 'lane-roll-up' : 'lane-roll-down'
   return up ? 'lane-roll-down' : 'lane-roll-up'
+}
+
+/**
+ * 스냅 일치 검증: 100% transform 적용 시 중심·크기가 to 와 같음.
+ */
+export const snapMatchesEndKeyframe = (fromSlot, toSlot, tol = 1) => {
+  const tr = transformAtProgress(fromSlot, toSlot, 1)
+  const visCx = fromSlot.cx + tr.tx
+  const visCy = fromSlot.cy + tr.ty
+  const visSize = fromSlot.size * tr.scale
+  return (
+    Math.abs(visCx - toSlot.cx) <= tol &&
+    Math.abs(visCy - toSlot.cy) <= tol &&
+    Math.abs(visSize - toSlot.size) <= tol
+  )
 }
