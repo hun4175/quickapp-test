@@ -1,60 +1,69 @@
 /**
- * 염주 고리(세로 타원) 배치 순수 로직.
- * Vela UI 는 stack + left/top 으로 그리고, 회전량은 phaseIndex 로 표현한다.
- *
- * z-index: 공식 General Style 목록에 없음 → stack 자식 그리기 순서(뒤→앞)로 겹침 처리.
+ * 염주 고리 배치 (1.3.0).
+ * - 포커스(옥) 알 중심 = 화면 정중앙 (216, 257)
+ * - 앞열 3알 + 뒤열 4~5알만 렌더 (나머지 가상 슬롯은 계산만)
+ * - z-index 미문서 → stack 그리기 순서(뒤→앞)
  */
 
-/** 가시 알 수 — 크게 그릴 때 12알이면 앞열 위주로 겹쳐 보임 */
-export const VISIBLE_BEADS = 12
+/** 위상 순환용 가상 슬롯 수 */
+export const VIRTUAL_BEADS = 12
+/** 앞열(기준+위+아래) */
+export const FRONT_COUNT = 3
+/** 뒤열 */
+export const BACK_COUNT = 5
+
+/** @deprecated 테스트 호환 — 실제 렌더 개수는 front+back */
+export const VISIBLE_BEADS = FRONT_COUNT + BACK_COUNT
 
 /**
- * Watch 6 432×514 기준.
- * 앞쪽 알 지름 ≈ 화면 폭의 44%(190px). 고리는 화면 밖으로 잘리도록 rx/ry·cx 를 키움.
+ * Watch 6 432×514
+ * maxSize 247 ≈ 190×1.3 (폭의 ≈57%)
+ * 포커스 at π → cx = focusX + rx = 216 + rx
  */
 export const DEFAULT_RING = Object.freeze({
   screenW: 432,
   screenH: 514,
   width: 432,
   height: 514,
-  // 포커스(왼쪽 π)가 화면 중앙 근처에 오도록 cx 를 오른쪽으로
-  cx: 268,
-  cy: 268,
-  rx: 148,
-  ry: 228,
-  // 뒤 알도 점처럼 안 보이게 하한 상향 (≈22% / ≈44% of 432)
-  minSize: 96,
-  maxSize: 190
+  focusX: 216,
+  focusY: 257,
+  rx: 118,
+  ry: 300,
+  // 포커스 at π → cx = focusX + rx, cy = focusY
+  cx: 334,
+  cy: 257,
+  minSize: 120,
+  maxSize: 247,
+  virtual: VIRTUAL_BEADS,
+  frontCount: FRONT_COUNT,
+  backCount: BACK_COUNT
 })
 
 /**
- * 카운트 → 시각적 위상 인덱스
  * @param {number} bead
- * @param {number} [visible]
+ * @param {number} [virtual]
  * @returns {number}
  */
-export const phaseFromBead = (bead, visible = VISIBLE_BEADS) => {
-  const n = Math.max(1, Math.floor(Number(visible) || VISIBLE_BEADS))
+export const phaseFromBead = (bead, virtual = VIRTUAL_BEADS) => {
+  const n = Math.max(1, Math.floor(Number(virtual) || VIRTUAL_BEADS))
   const b = Math.max(0, Math.floor(Number(bead) || 0))
   return b % n
 }
 
 /**
- * 다음 위상
  * @param {number} phaseIndex
- * @param {number} [visible]
+ * @param {number} [virtual]
  * @returns {number}
  */
-export const nextPhase = (phaseIndex, visible = VISIBLE_BEADS) => {
-  const n = Math.max(1, Math.floor(Number(visible) || VISIBLE_BEADS))
+export const nextPhase = (phaseIndex, virtual = VIRTUAL_BEADS) => {
+  const n = Math.max(1, Math.floor(Number(virtual) || VIRTUAL_BEADS))
   const p = Math.max(0, Math.floor(Number(phaseIndex) || 0))
   return (p + 1) % n
 }
 
 /**
- * 타원 위 한 점의 깊이(0=뒤, 1=앞). 왼쪽(cos=-1)이 앞.
  * @param {number} angleRad
- * @returns {number}
+ * @returns {number} 0=뒤, 1=앞
  */
 export const depthAtAngle = (angleRad) => {
   const cos = Math.cos(angleRad)
@@ -62,47 +71,64 @@ export const depthAtAngle = (angleRad) => {
 }
 
 /**
- * 크기용 깊이 곡선 — 뒤쪽도 너무 작아지지 않게 압축
- * @param {number} depth 0..1
- * @returns {number} 0..1
+ * @param {number} depth
+ * @returns {number}
  */
 export const sizeFactorFromDepth = (depth) => {
   const d = Math.max(0, Math.min(1, Number(depth) || 0))
-  // 하한 0.15 확보 후 제곱근으로 중간대역 키움
-  return 0.15 + 0.85 * Math.sqrt(d)
+  // 앞은 크고, 뒤는 ~0.45 이상으로 유지해 연결감
+  return 0.42 + 0.58 * Math.pow(d, 0.85)
 }
 
 /**
- * 고리 위 알 배치. phaseIndex 가 커질수록 알이 한 칸씩 돈다.
- * 반환 배열은 stack 그리기용으로 depth 오름차순(뒤→앞) 정렬.
- *
+ * 원형 거리 (0..n/2)
+ * @param {number} a
+ * @param {number} b
+ * @param {number} n
+ */
+export const circularDistance = (a, b, n) => {
+  const d = Math.abs(((a % n) + n) % n - (((b % n) + n) % n))
+  return Math.min(d, n - d)
+}
+
+/**
+ * 고리 배치 — 앞 3 + 뒤 backCount 만 반환, depth 오름차순.
  * @param {object} [opts]
  * @returns {Array<object>}
  */
 export const layoutRing = (opts = {}) => {
-  const visible = Math.max(3, Math.floor(Number(opts.visible) || VISIBLE_BEADS))
-  const phaseIndex = Math.max(0, Math.floor(Number(opts.phaseIndex) || 0)) % visible
-  const cx = Number(opts.cx != null ? opts.cx : DEFAULT_RING.cx)
-  const cy = Number(opts.cy != null ? opts.cy : DEFAULT_RING.cy)
+  const virtual = Math.max(
+    8,
+    Math.floor(Number(opts.virtual != null ? opts.virtual : opts.visible) || VIRTUAL_BEADS)
+  )
+  const frontCount = Math.max(1, Math.floor(Number(opts.frontCount) || FRONT_COUNT))
+  const backCount = Math.max(1, Math.floor(Number(opts.backCount) || BACK_COUNT))
+  const phaseIndex = Math.max(0, Math.floor(Number(opts.phaseIndex) || 0)) % virtual
+
+  const focusX = Number(opts.focusX != null ? opts.focusX : DEFAULT_RING.focusX)
+  const focusY = Number(opts.focusY != null ? opts.focusY : DEFAULT_RING.focusY)
   const rx = Number(opts.rx != null ? opts.rx : DEFAULT_RING.rx)
   const ry = Number(opts.ry != null ? opts.ry : DEFAULT_RING.ry)
+  const cx = Number(opts.cx != null ? opts.cx : focusX + rx)
+  const cy = Number(opts.cy != null ? opts.cy : focusY)
   const minSize = Number(opts.minSize != null ? opts.minSize : DEFAULT_RING.minSize)
   const maxSize = Number(opts.maxSize != null ? opts.maxSize : DEFAULT_RING.maxSize)
 
-  const step = (Math.PI * 2) / visible
-  const focus = Math.PI
-  const items = []
+  const step = (Math.PI * 2) / virtual
+  const focusAngle = Math.PI
+  const all = []
 
-  for (let i = 0; i < visible; i++) {
-    const angle = focus + step * (i - phaseIndex)
+  for (let i = 0; i < virtual; i++) {
+    const angle = focusAngle + step * (i - phaseIndex)
     const depth = depthAtAngle(angle)
     const factor = sizeFactorFromDepth(depth)
     const size = Math.round(minSize + (maxSize - minSize) * factor)
     const x = cx + rx * Math.cos(angle)
     const y = cy + ry * Math.sin(angle)
-    const opacity = Math.round((0.55 + 0.45 * depth) * 100) / 100
+    const opacity = Math.round((0.62 + 0.38 * depth) * 100) / 100
     const focused = i === phaseIndex
-    items.push({
+    const distFromFocus = circularDistance(i, phaseIndex, virtual)
+    all.push({
       key: i,
       left: Math.round(x - size / 2),
       top: Math.round(y - size / 2),
@@ -111,31 +137,61 @@ export const layoutRing = (opts = {}) => {
       opacity,
       z: Math.round(depth * 100),
       focused,
+      distFromFocus,
+      lane: distFromFocus <= Math.floor(frontCount / 2) ? 'front' : 'back',
       src: focused ? '/common/bead-gem.png' : '/common/bead-wood.png'
     })
   }
 
-  // 앞 알이 위에 그려지도록 뒤→앞 (stack: 나중에 그린 자식이 위)
+  // 앞열: 포커스와 원형 거리 ≤ floor(frontCount/2) → 3개면 0,1
+  const frontLimit = Math.floor(frontCount / 2)
+  const front = all.filter((b) => b.distFromFocus <= frontLimit)
+  front.forEach((b) => {
+    b.lane = 'front'
+  })
+
+  // 뒤열: 앞이 아니고 depth 낮은(뒤) 후보 중 가장 뒤쪽에 가까운 backCount개
+  const backPool = all
+    .filter((b) => b.distFromFocus > frontLimit)
+    .sort((a, b) => a.depth - b.depth || a.key - b.key)
+  const back = backPool.slice(0, backCount)
+  back.forEach((b) => {
+    b.lane = 'back'
+  })
+
+  const items = [...back, ...front]
+  // 앞 알이 위: depth 오름차순
   items.sort((a, b) => a.z - b.z)
   return items
 }
 
 /**
- * 포커스 마커(흰 호) — 큰 앞 알을 감싸는 크기
+ * 포커스 마커 — 화면 중앙 기준 알을 감쌈
  * @param {object} [opts]
- * @returns {{ left: number, top: number, size: number }}
  */
 export const layoutFocusMarker = (opts = {}) => {
-  const cx = Number(opts.cx != null ? opts.cx : DEFAULT_RING.cx)
-  const cy = Number(opts.cy != null ? opts.cy : DEFAULT_RING.cy)
-  const rx = Number(opts.rx != null ? opts.rx : DEFAULT_RING.rx)
+  const focusX = Number(opts.focusX != null ? opts.focusX : DEFAULT_RING.focusX)
+  const focusY = Number(opts.focusY != null ? opts.focusY : DEFAULT_RING.focusY)
   const maxSize = Number(opts.maxSize != null ? opts.maxSize : DEFAULT_RING.maxSize)
-  const size = Math.round(maxSize + 28)
-  const x = cx - rx
-  const y = cy
+  const size = Math.round(maxSize + 32)
   return {
-    left: Math.round(x - size / 2),
-    top: Math.round(y - size / 2),
+    left: Math.round(focusX - size / 2),
+    top: Math.round(focusY - size / 2),
     size
   }
+}
+
+/**
+ * 포커스 알 중심이 목표 좌표인지 검증용
+ * @param {Array} items
+ * @param {number} [fx]
+ * @param {number} [fy]
+ * @param {number} [tol]
+ */
+export const focusCenterNear = (items, fx = 216, fy = 257, tol = 2) => {
+  const f = items.find((b) => b.focused)
+  if (!f) return false
+  const cx = f.left + f.size / 2
+  const cy = f.top + f.size / 2
+  return Math.abs(cx - fx) <= tol && Math.abs(cy - fy) <= tol
 }

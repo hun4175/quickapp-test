@@ -1,22 +1,23 @@
 /**
  * 432×514 레이아웃 시뮬레이션 PNG (실기기 스크린샷 아님).
- * 동일 layoutRing 좌표로 Node 에서 그린다.
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 import { fileURLToPath } from 'node:url'
-import { DEFAULT_RING, VISIBLE_BEADS, layoutRing, layoutFocusMarker } from '../src/common/ring.js'
+import {
+  DEFAULT_RING,
+  VIRTUAL_BEADS,
+  layoutRing,
+  layoutFocusMarker
+} from '../src/common/ring.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const W = 432
 const H = 514
-const outDir = path.join(__dirname, '../docs')
-const outPath = path.join(outDir, 'preview-432x514.png')
+const outPath = path.join(__dirname, '../docs/preview-432x514.png')
 
 const decodePng = (buf) => {
-  // 최소 PNG 디코더 (8bit RGBA only, 우리 에셋용)
-  if (buf[0] !== 0x89) throw new Error('not png')
   let offset = 8
   let width = 0
   let height = 0
@@ -28,9 +29,8 @@ const decodePng = (buf) => {
     if (type === 'IHDR') {
       width = data.readUInt32BE(0)
       height = data.readUInt32BE(4)
-    } else if (type === 'IDAT') {
-      idat.push(data)
-    } else if (type === 'IEND') break
+    } else if (type === 'IDAT') idat.push(data)
+    else if (type === 'IEND') break
     offset += 12 + len
   }
   const inflated = zlib.inflateSync(Buffer.concat(idat))
@@ -39,7 +39,7 @@ const decodePng = (buf) => {
   let p = 0
   for (let y = 0; y < height; y++) {
     const filter = inflated[i++]
-    if (filter !== 0) throw new Error('unsupported png filter ' + filter)
+    if (filter !== 0) throw new Error('png filter ' + filter)
     for (let x = 0; x < width; x++) {
       pixels[p++] = inflated[i++]
       pixels[p++] = inflated[i++]
@@ -50,35 +50,8 @@ const decodePng = (buf) => {
   return { width, height, pixels }
 }
 
-const loadAsset = (name) => {
-  const p = path.join(__dirname, '../src/common', name)
-  return decodePng(fs.readFileSync(p))
-}
-
-const blit = (dst, dw, dh, src, dx, dy, size) => {
-  const sw = src.width
-  const sh = src.height
-  for (let y = 0; y < size; y++) {
-    const sy = Math.min(sh - 1, Math.floor((y * sh) / size))
-    const dy2 = dy + y
-    if (dy2 < 0 || dy2 >= dh) continue
-    for (let x = 0; x < size; x++) {
-      const sx = Math.min(sw - 1, Math.floor((x * sw) / size))
-      const dx2 = dx + x
-      if (dx2 < 0 || dx2 >= dw) continue
-      const si = (sy * sw + sx) * 4
-      const a = src.pixels[si + 3] / 255
-      if (a <= 0) continue
-      const di = (dy2 * dw + dx2) * 4
-      const inv = 1 - a
-      // opacity 별도 적용은 호출측에서 알파 변조
-      dst[di] = Math.round(src.pixels[si] * a + dst[di] * inv)
-      dst[di + 1] = Math.round(src.pixels[si + 1] * a + dst[di + 1] * inv)
-      dst[di + 2] = Math.round(src.pixels[si + 2] * a + dst[di + 2] * inv)
-      dst[di + 3] = 255
-    }
-  }
-}
+const loadAsset = (name) =>
+  decodePng(fs.readFileSync(path.join(__dirname, '../src/common', name)))
 
 const blitAlpha = (dst, dw, dh, src, dx, dy, size, opacity) => {
   const sw = src.width
@@ -104,6 +77,22 @@ const blitAlpha = (dst, dw, dh, src, dx, dy, size, opacity) => {
   }
 }
 
+const crc32 = (buf) => {
+  let table = crc32.table
+  if (!table) {
+    table = new Uint32Array(256)
+    for (let n = 0; n < 256; n++) {
+      let c = n
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+      table[n] = c
+    }
+    crc32.table = table
+  }
+  let c = 0xffffffff
+  for (let i = 0; i < buf.length; i++) c = table[(c ^ buf[i]) & 0xff] ^ (c >>> 8)
+  return (c ^ 0xffffffff) >>> 0
+}
+
 const writePng = (file, width, height, rgba) => {
   const raw = Buffer.alloc((width * 4 + 1) * height)
   let o = 0
@@ -113,42 +102,6 @@ const writePng = (file, width, height, rgba) => {
     o += width * 4
   }
   const compressed = zlib.deflateSync(raw, { level: 9 })
-  const crc = (type, data) => {
-    const c = Buffer.concat([Buffer.from(type), data])
-    let crcVal = zlib.crc32 ? zlib.crc32(c) : (() => {
-      // node < has crc32 on zlib in recent versions; fallback
-      let crcTable
-      const make = () => {
-        crcTable = new Uint32Array(256)
-        for (let n = 0; n < 256; n++) {
-          let c = n
-          for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
-          crcTable[n] = c
-        }
-      }
-      make()
-      let crc = 0xffffffff
-      for (let i = 0; i < c.length; i++) crc = crcTable[(crc ^ c[i]) & 0xff] ^ (crc >>> 8)
-      return (crc ^ 0xffffffff) >>> 0
-    })()
-    return crcVal >>> 0
-  }
-  // Use crypto-free CRC
-  const crc32 = (buf) => {
-    let table = crc32.table
-    if (!table) {
-      table = new Uint32Array(256)
-      for (let n = 0; n < 256; n++) {
-        let c = n
-        for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
-        table[n] = c
-      }
-      crc32.table = table
-    }
-    let c = 0xffffffff
-    for (let i = 0; i < buf.length; i++) c = table[(c ^ buf[i]) & 0xff] ^ (c >>> 8)
-    return (c ^ 0xffffffff) >>> 0
-  }
   const chunk = (type, data) => {
     const len = Buffer.alloc(4)
     len.writeUInt32BE(data.length)
@@ -162,13 +115,87 @@ const writePng = (file, width, height, rgba) => {
   ihdr.writeUInt32BE(height, 4)
   ihdr[8] = 8
   ihdr[9] = 6
-  const png = Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    chunk('IHDR', ihdr),
-    chunk('IDAT', compressed),
-    chunk('IEND', Buffer.alloc(0))
-  ])
-  fs.writeFileSync(file, png)
+  fs.writeFileSync(
+    file,
+    Buffer.concat([
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+      chunk('IHDR', ihdr),
+      chunk('IDAT', compressed),
+      chunk('IEND', Buffer.alloc(0))
+    ])
+  )
+}
+
+// 5x7 비트맵 폰트 (숫자·한글 일부는 ASCII 대체)
+const FONT = {
+  ' ': [0, 0, 0, 0, 0, 0, 0],
+  0: [0x0e, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0e],
+  1: [0x04, 0x0c, 0x04, 0x04, 0x04, 0x04, 0x0e],
+  2: [0x0e, 0x11, 0x01, 0x06, 0x08, 0x10, 0x1f],
+  3: [0x0e, 0x11, 0x01, 0x06, 0x01, 0x11, 0x0e],
+  4: [0x02, 0x06, 0x0a, 0x12, 0x1f, 0x02, 0x02],
+  5: [0x1f, 0x10, 0x1e, 0x01, 0x01, 0x11, 0x0e],
+  6: [0x06, 0x08, 0x10, 0x1e, 0x11, 0x11, 0x0e],
+  7: [0x1f, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08],
+  8: [0x0e, 0x11, 0x11, 0x0e, 0x11, 0x11, 0x0e],
+  9: [0x0e, 0x11, 0x11, 0x0f, 0x01, 0x02, 0x0c],
+  '/': [0x01, 0x02, 0x04, 0x08, 0x10, 0x00, 0x00],
+  T: [0x1f, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04],
+  o: [0x00, 0x0e, 0x11, 0x11, 0x11, 0x0e, 0x00],
+  d: [0x01, 0x01, 0x0f, 0x11, 0x11, 0x0f, 0x00],
+  a: [0x00, 0x0e, 0x01, 0x0f, 0x11, 0x0f, 0x00],
+  y: [0x00, 0x11, 0x11, 0x0f, 0x01, 0x0e, 0x00],
+  L: [0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1f],
+  a2: [0x00, 0x0e, 0x01, 0x0f, 0x11, 0x0f, 0x00],
+  p: [0x00, 0x1e, 0x11, 0x1e, 0x10, 0x10, 0x00],
+  s: [0x00, 0x0f, 0x10, 0x0e, 0x01, 0x1e, 0x00]
+}
+
+const glyph = (ch) => {
+  if (FONT[ch]) return FONT[ch]
+  if (ch >= '0' && ch <= '9') return FONT[ch]
+  return FONT[' ']
+}
+
+const drawText = (dst, dw, dh, text, x0, y0, scale, r, g, b) => {
+  let x = x0
+  for (const ch of text) {
+    const rows = glyph(ch)
+    for (let row = 0; row < 7; row++) {
+      for (let col = 0; col < 5; col++) {
+        if ((rows[row] >> (4 - col)) & 1) {
+          for (let sy = 0; sy < scale; sy++) {
+            for (let sx = 0; sx < scale; sx++) {
+              const xx = x + col * scale + sx
+              const yy = y0 + row * scale + sy
+              if (xx < 0 || yy < 0 || xx >= dw || yy >= dh) continue
+              const i = (yy * dw + xx) * 4
+              dst[i] = r
+              dst[i + 1] = g
+              dst[i + 2] = b
+              dst[i + 3] = 255
+            }
+          }
+        }
+      }
+    }
+    x += 6 * scale
+  }
+}
+
+const fillRect = (dst, dw, dh, x, y, w, h, r, g, b, a) => {
+  for (let yy = y; yy < y + h; yy++) {
+    if (yy < 0 || yy >= dh) continue
+    for (let xx = x; xx < x + w; xx++) {
+      if (xx < 0 || xx >= dw) continue
+      const i = (yy * dw + xx) * 4
+      const aa = a / 255
+      dst[i] = Math.round(r * aa + dst[i] * (1 - aa))
+      dst[i + 1] = Math.round(g * aa + dst[i + 1] * (1 - aa))
+      dst[i + 2] = Math.round(b * aa + dst[i + 2] * (1 - aa))
+      dst[i + 3] = 255
+    }
+  }
 }
 
 const wood = loadAsset('bead-wood.png')
@@ -183,46 +210,42 @@ for (let i = 0; i < W * H; i++) {
   rgba[i * 4 + 3] = 255
 }
 
-const beads = layoutRing({ ...DEFAULT_RING, visible: VISIBLE_BEADS, phaseIndex: 0 })
+const beads = layoutRing({ ...DEFAULT_RING, virtual: VIRTUAL_BEADS, phaseIndex: 0 })
 for (const b of beads) {
-  const src = b.focused ? gem : wood
-  blitAlpha(rgba, W, H, src, b.left, b.top, b.size, b.opacity)
+  blitAlpha(rgba, W, H, b.focused ? gem : wood, b.left, b.top, b.size, b.opacity)
 }
 const marker = layoutFocusMarker(DEFAULT_RING)
-blit(rgba, W, H, arc, marker.left, marker.top, marker.size)
+blitAlpha(rgba, W, H, arc, marker.left, marker.top, marker.size, 1)
 
-// HUD chips (sim)
-const fillRect = (x, y, w, h, r, g, b, a) => {
-  for (let yy = y; yy < y + h; yy++) {
-    if (yy < 0 || yy >= H) continue
-    for (let xx = x; xx < x + w; xx++) {
-      if (xx < 0 || xx >= W) continue
-      const i = (yy * W + xx) * 4
-      const aa = a / 255
-      rgba[i] = Math.round(r * aa + rgba[i] * (1 - aa))
-      rgba[i + 1] = Math.round(g * aa + rgba[i + 1] * (1 - aa))
-      rgba[i + 2] = Math.round(b * aa + rgba[i + 2] * (1 - aa))
-    }
-  }
-}
-fillRect(156, 18, 120, 36, 26, 20, 16, 220)
-fillRect(76, 430, 280, 56, 26, 20, 16, 230)
+// HUD (rgba 배경만, 글자는 불투명)
+fillRect(rgba, W, H, 156, 14, 120, 36, 26, 20, 16, 224)
+drawText(rgba, W, H, 'Today 0', 168, 22, 2, 232, 196, 138)
 
-fs.mkdirSync(outDir, { recursive: true })
+fillRect(rgba, W, H, 86, 430, 260, 54, 26, 20, 16, 230)
+drawText(rgba, W, H, '0 / 108', 150, 438, 3, 243, 226, 196)
+drawText(rgba, W, H, 'Lap 0', 180, 462, 2, 184, 148, 98)
+
+fillRect(rgba, W, H, 146, 488, 140, 22, 42, 28, 18, 242)
+drawText(rgba, W, H, 'settings', 160, 492, 2, 232, 196, 138)
+
+fs.mkdirSync(path.dirname(outPath), { recursive: true })
 writePng(outPath, W, H, rgba)
 console.log('wrote', outPath)
 console.log('NOTE: simulation preview, NOT a device screenshot')
+const focused = beads.find((b) => b.focused)
 console.log(
   JSON.stringify(
     {
+      focusCenter: [focused.left + focused.size / 2, focused.top + focused.size / 2],
       maxSize: DEFAULT_RING.maxSize,
       minSize: DEFAULT_RING.minSize,
       rx: DEFAULT_RING.rx,
       ry: DEFAULT_RING.ry,
       cx: DEFAULT_RING.cx,
       cy: DEFAULT_RING.cy,
-      visible: VISIBLE_BEADS,
-      frontRatio: +(DEFAULT_RING.maxSize / W).toFixed(3)
+      renderCount: beads.length,
+      front: beads.filter((b) => b.lane === 'front').length,
+      back: beads.filter((b) => b.lane === 'back').length
     },
     null,
     2

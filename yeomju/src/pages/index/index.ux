@@ -1,8 +1,7 @@
 <template>
   <!--
-    큰 염주 고리: 화면 전체 stack. 알은 일부가 화면 밖으로 잘림.
-    z-index 미문서화 → depth 오름차순으로 stack 에 넣어 앞 알이 위에 그려짐.
-    HUD(오늘/카운트/설정)는 반투명 배경으로 구슬 위에 올림.
+    1.3.0: 포커스 알 = 화면 중앙. 앞 3 + 뒤 5만 렌더.
+    HUD 배경은 rgba (문서 지원) — 부모 opacity 로 글자를 흐리게 하지 않음.
   -->
   <div class="page" onswipe="onSwipe">
     <stack class="stage">
@@ -51,7 +50,7 @@ import vibrator from '@system.vibrator'
 import { advanceBead } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
 import {
-  VISIBLE_BEADS,
+  VIRTUAL_BEADS,
   DEFAULT_RING,
   phaseFromBead,
   layoutRing,
@@ -110,7 +109,7 @@ export default {
     this.beadsPerRound = state.beadsPerRound
     this.todayTotal = state.todayTotal
     this.vibrateOnBead = state.vibrateOnBead
-    this.refreshRing(phaseFromBead(state.bead, VISIBLE_BEADS))
+    this.refreshRing(phaseFromBead(state.bead, VIRTUAL_BEADS))
   },
 
   placeMarker() {
@@ -123,7 +122,7 @@ export default {
   refreshRing(phaseIndex) {
     this.ringBeads = layoutRing({
       ...DEFAULT_RING,
-      visible: VISIBLE_BEADS,
+      virtual: VIRTUAL_BEADS,
       phaseIndex
     })
   },
@@ -245,9 +244,9 @@ export default {
 
 .plus {
   position: absolute;
-  left: 96px;
-  top: 200px;
-  font-size: 32px;
+  left: 200px;
+  top: 120px;
+  font-size: 30px;
   font-weight: bold;
   color: #f5d9a8;
   animation-name: plusUp;
@@ -258,20 +257,20 @@ export default {
 
 .hud-top {
   width: 432px;
-  height: 64px;
-  margin-top: 10px;
+  height: 56px;
+  margin-top: 8px;
   flex-direction: row;
   justify-content: center;
   align-items: center;
 }
 
+/* rgba 배경만 반투명 — 자식 text 는 불투명 (color.html 문서) */
 .hud-chip {
   padding-left: 18px;
   padding-right: 18px;
   height: 40px;
   border-radius: 20px;
-  background-color: #1a1410;
-  opacity: 0.88;
+  background-color: rgba(26, 20, 16, 0.88);
   justify-content: center;
   align-items: center;
 }
@@ -284,25 +283,24 @@ export default {
 .hud-bottom {
   width: 432px;
   position: absolute;
-  bottom: 12px;
+  bottom: 10px;
   left: 0px;
   flex-direction: column;
   align-items: center;
 }
 
 .hud-panel {
-  width: 280px;
+  width: 260px;
   padding-top: 8px;
   padding-bottom: 8px;
   border-radius: 18px;
-  background-color: #1a1410;
-  opacity: 0.9;
+  background-color: rgba(26, 20, 16, 0.9);
   flex-direction: column;
   align-items: center;
 }
 
 .count {
-  font-size: 36px;
+  font-size: 34px;
   font-weight: bold;
   color: #f3e2c4;
 }
@@ -316,10 +314,9 @@ export default {
 .btn {
   width: 140px;
   height: 48px;
-  margin-top: 10px;
+  margin-top: 8px;
   border-radius: 24px;
-  background-color: #2a1c12;
-  opacity: 0.95;
+  background-color: rgba(42, 28, 18, 0.95);
   justify-content: center;
   align-items: center;
   border-width: 1px;
@@ -336,7 +333,7 @@ export default {
     transform: translateY(0px) rotate(0deg);
   }
   45% {
-    transform: translateY(18px) rotate(-3deg);
+    transform: translateY(20px) rotate(-3deg);
   }
   100% {
     transform: translateY(0px) rotate(0deg);
@@ -349,7 +346,7 @@ export default {
     opacity: 1;
   }
   100% {
-    transform: translateY(-32px);
+    transform: translateY(-36px);
     opacity: 0;
   }
 }
