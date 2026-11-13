@@ -3,8 +3,8 @@
 REDMI Watch 6용 **염주 굴리기** [Vela JS 퀵앱](https://iot.mi.com/vela/quickapp/).  
 화면 432×514 둥근 사각형에 맞춰, 미리 합성한 JPG 프레임으로 구슬을 굴립니다.
 
-**현재 버전:** 2.8.4 (`versionCode` 36)  
-**패키지:** [`dist/com.yeomju.mala.debug.2.8.4.rpk`](dist/com.yeomju.mala.debug.2.8.4.rpk)
+**현재 버전:** 2.8.5 (`versionCode` 37)  
+**패키지:** [`dist/com.yeomju.mala.release.2.8.5.rpk`](dist/com.yeomju.mala.release.2.8.5.rpk) — 자체 키 서명 (기능은 2.8.4와 동일)
 
 ![메인 화면](docs/preview-2.8.2-main-themes.png)
 
@@ -51,13 +51,19 @@ REDMI Watch 6용 **염주 굴리기** [Vela JS 퀵앱](https://iot.mi.com/vela/q
 
 ## 빌드
 
-필요: Node.js 18+, npm. 디버그 빌드는 toolkit 기본 인증서를 사용합니다.
+필요: Node.js 18+, npm.
+
+- `npm run build` (`aiot build`): toolkit 기본 디버그 인증서로 서명합니다.
+- `npm run release` (`aiot release`): 릴리즈 빌드입니다. 서명 키는 저장소에 포함하지 않으며, 로컬에 인증서를 두면 자체 키로 서명됩니다.
+
+현재 배포본은 자체 키(CN=yeomju)로 서명한 `dist/com.yeomju.mala.release.2.8.5.rpk`입니다.
 
 ```bash
 cd yeomju
 npm install
 npm test          # node --test test/*.test.mjs
-npm run build     # aiot build → dist/*.rpk
+npm run build     # aiot build → dist/*.rpk (디버그 서명)
+npm run release   # aiot release (자체 키가 있으면 그 키로 서명)
 ```
 
 기타 스크립트:
@@ -65,7 +71,6 @@ npm run build     # aiot build → dist/*.rpk
 | 명령 | 설명 |
 | --- | --- |
 | `npm start` | `aiot start --watch` |
-| `npm run release` | `aiot release` |
 | `npm run preview` | 링 프리뷰 (`scripts/preview-ring.mjs`) |
 | `npm run sprite` | 구슬 컷 + 테마 JPG 프레임 재생성 |
 | `npm run sprite:cut` | 구슬 원형 컷만 (`cut-bead-circle.py`) |
@@ -85,7 +90,7 @@ python3 scripts/gen-theme-sprites.py
 
 ## 설치
 
-디버그 `.rpk`를 워치에 올리는 방법은 기기·지역·Mi Fitness 버전에 따라 다를 수 있습니다.
+`.rpk`를 워치에 올리는 방법은 기기·지역·Mi Fitness 버전에 따라 다를 수 있습니다.
 
 공식 FAQ의 **디버그 / 서드파티 앱** 안내를 참고하세요:
 
@@ -116,7 +121,8 @@ yeomju/
 
 | 버전 | 내용 |
 | --- | --- |
-| **2.8.4** | 달성 진동 간격 300ms (0·300·600) |
+| **2.8.5** | 자체 키 서명 릴리즈 빌드 (기능은 2.8.4와 동일) |
+| 2.8.4 | 달성 진동 간격 300ms (0·300·600) |
 | 2.8.3 | 설정 부가설명 제거 · 진동 3펄스 |
 | 2.8.2 | 축하 문구 제거 · 카운트 항상 표시 |
 | 2.8.1 | `현재 / 목표` · 달성 시 0 리셋 · 광채 오버레이 |
