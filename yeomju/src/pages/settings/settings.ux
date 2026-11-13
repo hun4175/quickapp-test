@@ -49,7 +49,7 @@
         <text class="opt-mark" if="{{beadTheme === 'namu'}}">✓</text>
       </div>
 
-      <text class="meta">v2.6.0 · S2</text>
+      <text class="meta">v2.6.1</text>
     </div>
   </div>
 </template>
@@ -179,7 +179,7 @@ export default {
   flex-direction: column;
   align-items: center;
   overflow: scroll;
-  padding-bottom: 28px;
+  padding-bottom: 40px;
 }
 .label {
   width: 100%;
@@ -222,8 +222,12 @@ export default {
   font-weight: bold;
 }
 .meta {
-  margin-top: 16px;
+  width: 100%;
+  margin-top: 20px;
+  margin-bottom: 12px;
   font-size: 20px;
   color: #6e563c;
+  text-align: center;
+  flex-shrink: 0;
 }
 </style>

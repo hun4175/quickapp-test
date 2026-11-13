@@ -1,35 +1,19 @@
-# 빌드 정보 — 2.6.0 (염주 테마 3종)
+# 빌드 정보 — 2.6.1 (설정 버전 문구 · 프리뷰 수정)
 
 ## 산출물 (사실)
 
-- `yeomju/dist/com.yeomju.mala.debug.2.6.0.rpk`
-- 크기: 3146698 bytes
-- SHA256: `b9694af55646d294a25a0c6376b0a23d659a13ff52e310939502f7127e2d828f`
-- versionName 2.6.0 / versionCode 27
+- `yeomju/dist/com.yeomju.mala.debug.2.6.1.rpk`
+- 크기: 3146706 bytes
+- SHA256: `ac27d1680faecdf87b52a2dfa8837169a699a108123cdfa3b3f81e0b3a746cbc`
+- versionName 2.6.1 / versionCode 28
 - 단위 테스트: 27 passed
 
-## 테마
+## 2.6.1 변경
 
-| 테마 | 키 | 프레임 | 합계(bytes) |
-|------|-----|--------|------------:|
-| 기본 | default | 5 JPG q90 | 287041 |
-| 육자진언 | ommani | 30 JPG q85 (6위상) | 1410045 |
-| 나무아미타불 | namu | 30 JPG q85 (6위상) | 1417215 |
-| **스프라이트 합계** | | | **3114301** |
-
-- 한자: 앞줄 위→아래 연속 글자, 포커스=`todayTotal%6`, 뒷줄 plain
-- 각인: Noto Serif CJK 서브셋 · 구면 워프 · 나무결 비침
-- 기본 테마 프레임은 2.5.3과 동일
-
-## 설정
-
-- 입력 방식 + 염주(기본/육자진언/나무아미타불) · 대형 행 · 세로 스크롤
-- storage `beadTheme` · stateSchema 12
-
-## 프리뷰
-
-- `docs/preview-2.6.0-hanja.png` · `docs/preview-2.6.0-hanja-seq.png` · `docs/preview-2.6.0-settings.png`
+1. 설정 버전 문구 `v2.6.1` — 스크롤 마지막 항목 아래, S2 제거
+2. 프리뷰 `docs/preview-2.6.1-settings.png` (상단/하단) · 한글 라벨 CJK 폰트
+3. 한자 프리뷰 라벨 □ 깨짐 수정 (WenQuanYi)
 
 ## 미확인
 
-- 실기기 한자 테마·용량 체감 (**단정하지 않음**)
+- 실기기 설정 스크롤 (**단정하지 않음**)

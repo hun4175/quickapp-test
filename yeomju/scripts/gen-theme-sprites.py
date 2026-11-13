@@ -325,8 +325,23 @@ export const spriteImageFrames = (dir) =>
     )
 
 
+def label_font(size: int = 22):
+    """한글+한자 라벨용 (만트라 서브셋 OTF는 한글 없음 → □ 방지)."""
+    for path in (
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+        str(FONT),
+    ):
+        try:
+            return ImageFont.truetype(path, size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
+
+
 def make_previews(ommani_idle, namu_idle, ommani_mid, namu_mid, payload, assets):
     DOCS.mkdir(parents=True, exist_ok=True)
+    font = label_font(22)
     # strip: ommani idle/mid | namu idle/mid
     strip = Image.new("RGBA", (W * 4, H + 36), (20, 16, 12, 255))
     d = ImageDraw.Draw(strip)
@@ -336,10 +351,6 @@ def make_previews(ommani_idle, namu_idle, ommani_mid, namu_mid, payload, assets)
         (namu_idle[0], "나무 idle"),
         (namu_mid, "나무 mid"),
     ]
-    try:
-        font = ImageFont.truetype(str(FONT), 22)
-    except OSError:
-        font = ImageFont.load_default()
     for i, (im, lab) in enumerate(cols):
         strip.paste(im, (i * W, 36))
         d.text((i * W + 8, 8), lab, fill=(200, 180, 140, 255), font=font)
