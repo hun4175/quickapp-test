@@ -1,5 +1,7 @@
 # 염주굴리기 (Vela 퀵앱)
 
+> 앱 문서(최신): **[yeomju/README.md](yeomju/README.md)**
+
 REDMI Watch 6 **글로벌판** (`M2523W1`, productId `miwear.watch.p65`, 화면 432×514) 대상 염주(묵주) 카운터 퀵앱입니다.  
 Watch 6 Active(`M2564W1`)와는 다른 기기입니다. 혼동하지 마세요.
 
