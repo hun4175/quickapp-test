@@ -1,25 +1,35 @@
-# 빌드 정보 — 2.5.3 (실험 제거 · 설정 UI 확대)
+# 빌드 정보 — 2.6.0 (염주 테마 3종)
 
 ## 산출물 (사실)
 
-- `yeomju/dist/com.yeomju.mala.debug.2.5.3.rpk`
-- 크기: 328094 bytes
-- SHA256: `96d2dc902a3cd043ab21adf6d0b8b3ebcdc75abc4695841965591618ba14643d`
-- versionName 2.5.3 / versionCode 26
+- `yeomju/dist/com.yeomju.mala.debug.2.6.0.rpk`
+- 크기: 3146698 bytes
+- SHA256: `b9694af55646d294a25a0c6376b0a23d659a13ff52e310939502f7127e2d828f`
+- versionName 2.6.0 / versionCode 27
 - 단위 테스트: 27 passed
 
-## 2.5.3 변경
+## 테마
 
-1. 진단 로그·타이밍 표시·diag 페이지·timing 모듈 제거 (실기기 2.5.2 S2/JPG 정상 확인 후)
-2. 설정은 입력 방식(슬라이드/터치)만 · 대형 터치 행(높이 96px)·제목 36px·항목 32px · 좌우 여백 36px
-3. `ring-kf.js`를 `scripts/lib/`로 이동 (스프라이트 생성용, rpk 미포함)
-4. stateSchema 11 · diagnoseLatency 키 폐기
-5. 프리뷰: `docs/preview-2.5.3-settings.png`
+| 테마 | 키 | 프레임 | 합계(bytes) |
+|------|-----|--------|------------:|
+| 기본 | default | 5 JPG q90 | 287041 |
+| 육자진언 | ommani | 30 JPG q85 (6위상) | 1410045 |
+| 나무아미타불 | namu | 30 JPG q85 (6위상) | 1417215 |
+| **스프라이트 합계** | | | **3114301** |
 
-## 스프라이트 (변경 없음 · 2.5.2 JPG)
+- 한자: 앞줄 위→아래 연속 글자, 포커스=`todayTotal%6`, 뒷줄 plain
+- 각인: Noto Serif CJK 서브셋 · 구면 워프 · 나무결 비침
+- 기본 테마 프레임은 2.5.3과 동일
 
-- 프레임 합계 287041 B · 소스 `bead-src-cut.png`
+## 설정
+
+- 입력 방식 + 염주(기본/육자진언/나무아미타불) · 대형 행 · 세로 스크롤
+- storage `beadTheme` · stateSchema 12
+
+## 프리뷰
+
+- `docs/preview-2.6.0-hanja.png` · `docs/preview-2.6.0-hanja-seq.png` · `docs/preview-2.6.0-settings.png`
 
 ## 미확인
 
-- 실기기 설정 UI 체감 (**단정하지 않음**)
+- 실기기 한자 테마·용량 체감 (**단정하지 않음**)

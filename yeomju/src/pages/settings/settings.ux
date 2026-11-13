@@ -7,37 +7,69 @@
       <text class="title">설정</text>
     </div>
 
-    <text class="label">입력 방식</text>
-    <text class="hint">{{inputHint}}</text>
+    <div class="scroll">
+      <text class="label">입력 방식</text>
+      <text class="hint">{{inputHint}}</text>
+      <div
+        class="opt {{inputMode === 'slide' ? 'opt-on' : ''}}"
+        onclick="pickSlide"
+      >
+        <text class="opt-text">슬라이드</text>
+        <text class="opt-mark" if="{{inputMode === 'slide'}}">✓</text>
+      </div>
+      <div
+        class="opt {{inputMode === 'touch' ? 'opt-on' : ''}}"
+        onclick="pickTouch"
+      >
+        <text class="opt-text">터치</text>
+        <text class="opt-mark" if="{{inputMode === 'touch'}}">✓</text>
+      </div>
 
-    <div
-      class="opt {{inputMode === 'slide' ? 'opt-on' : ''}}"
-      onclick="pickSlide"
-    >
-      <text class="opt-text">슬라이드</text>
-      <text class="opt-mark" if="{{inputMode === 'slide'}}">✓</text>
-    </div>
-    <div
-      class="opt {{inputMode === 'touch' ? 'opt-on' : ''}}"
-      onclick="pickTouch"
-    >
-      <text class="opt-text">터치</text>
-      <text class="opt-mark" if="{{inputMode === 'touch'}}">✓</text>
-    </div>
+      <text class="label">염주</text>
+      <text class="hint">{{themeHint}}</text>
+      <div
+        class="opt {{beadTheme === 'default' ? 'opt-on' : ''}}"
+        onclick="pickThemeDefault"
+      >
+        <text class="opt-text">기본</text>
+        <text class="opt-mark" if="{{beadTheme === 'default'}}">✓</text>
+      </div>
+      <div
+        class="opt {{beadTheme === 'ommani' ? 'opt-on' : ''}}"
+        onclick="pickThemeOmmani"
+      >
+        <text class="opt-text">육자진언</text>
+        <text class="opt-mark" if="{{beadTheme === 'ommani'}}">✓</text>
+      </div>
+      <div
+        class="opt {{beadTheme === 'namu' ? 'opt-on' : ''}}"
+        onclick="pickThemeNamu"
+      >
+        <text class="opt-text">나무아미타불</text>
+        <text class="opt-mark" if="{{beadTheme === 'namu'}}">✓</text>
+      </div>
 
-    <text class="meta">v2.5.3 · S2</text>
+      <text class="meta">v2.6.0 · S2</text>
+    </div>
   </div>
 </template>
 
 <script>
 import router from '@system.router'
-import { setInputMode, INPUT_MODE_HINTS } from '../../common/beads.js'
+import {
+  setInputMode,
+  setBeadTheme,
+  INPUT_MODE_HINTS,
+  BEAD_THEME_HINTS
+} from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
 
 export default {
   private: {
     inputMode: 'slide',
-    inputHint: INPUT_MODE_HINTS.slide
+    inputHint: INPUT_MODE_HINTS.slide,
+    beadTheme: 'default',
+    themeHint: BEAD_THEME_HINTS.default
   },
 
   onShow() {
@@ -62,6 +94,9 @@ export default {
     this._state = state
     this.inputMode = state.inputMode || 'slide'
     this.inputHint = INPUT_MODE_HINTS[this.inputMode] || INPUT_MODE_HINTS.slide
+    this.beadTheme = state.beadTheme || 'default'
+    this.themeHint =
+      BEAD_THEME_HINTS[this.beadTheme] || BEAD_THEME_HINTS.default
   },
 
   async persist(next) {
@@ -80,6 +115,20 @@ export default {
     this.pickInput('touch')
   },
 
+  async pickTheme(theme) {
+    if (!this._state) await this.reload()
+    await this.persist(setBeadTheme(this._state, theme))
+  },
+  pickThemeDefault() {
+    this.pickTheme('default')
+  },
+  pickThemeOmmani() {
+    this.pickTheme('ommani')
+  },
+  pickThemeNamu() {
+    this.pickTheme('namu')
+  },
+
   goBack() {
     router.back()
   }
@@ -96,7 +145,7 @@ export default {
   padding-left: 36px;
   padding-right: 36px;
   padding-top: 28px;
-  padding-bottom: 36px;
+  padding-bottom: 12px;
 }
 .header {
   width: 100%;
@@ -104,7 +153,8 @@ export default {
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
 }
 .back {
   position: absolute;
@@ -123,23 +173,31 @@ export default {
   color: #e8c48a;
   font-weight: bold;
 }
+.scroll {
+  width: 100%;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  overflow: scroll;
+  padding-bottom: 28px;
+}
 .label {
   width: 100%;
-  margin-top: 20px;
+  margin-top: 16px;
   margin-bottom: 6px;
   font-size: 28px;
   color: #9a7b55;
 }
 .hint {
   width: 100%;
-  margin-bottom: 16px;
-  font-size: 24px;
+  margin-bottom: 12px;
+  font-size: 22px;
   color: #6e563c;
 }
 .opt {
   width: 100%;
   height: 96px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   padding-left: 22px;
   padding-right: 22px;
   flex-direction: row;
@@ -148,6 +206,7 @@ export default {
   background-color: #2a1e14;
   border-width: 3px;
   border-color: #3a2a18;
+  flex-shrink: 0;
 }
 .opt-on {
   border-color: #e8c48a;
@@ -163,7 +222,7 @@ export default {
   font-weight: bold;
 }
 .meta {
-  margin-top: 24px;
+  margin-top: 16px;
   font-size: 20px;
   color: #6e563c;
 }

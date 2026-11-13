@@ -1,5 +1,5 @@
 <template>
-  <!-- 2.5.3: S2 단일 image src 스왑 -->
+  <!-- 2.6.0: S2 · 테마별 JPG src 스왑 -->
   <div
     class="page"
     ontouchstart="onTouchStart"
@@ -30,8 +30,9 @@ import {
 import {
   SPRITE_DURATION_MS,
   SPRITE_CROP,
-  SPRITE_IDLE,
-  spriteFramesForDir
+  spriteIdleFor,
+  spriteFramesFor,
+  themePhase
 } from '../../common/sprite-meta.js'
 
 const LONGPRESS_MS = 560
@@ -41,7 +42,8 @@ export default {
   private: {
     vibrateOnBead: true,
     inputMode: 'slide',
-    spriteFrameSrc: SPRITE_IDLE,
+    beadTheme: 'default',
+    spriteFrameSrc: '/common/sprite/idle.jpg',
     spriteLeft: SPRITE_CROP.left,
     spriteTop: SPRITE_CROP.top,
     spriteW: SPRITE_CROP.width,
@@ -113,12 +115,19 @@ export default {
     return false
   },
 
+  currentIdle() {
+    const theme = this.beadTheme || 'default'
+    const phase = themePhase(this._state ? this._state.todayTotal : 0)
+    return spriteIdleFor(theme, phase)
+  },
+
   async reload() {
     const state = await loadState()
     this._state = state
     this.vibrateOnBead = state.vibrateOnBead !== false
     this.inputMode = state.inputMode || 'slide'
-    this.spriteFrameSrc = SPRITE_IDLE
+    this.beadTheme = state.beadTheme || 'default'
+    this.spriteFrameSrc = this.currentIdle()
     this.spriteLeft = SPRITE_CROP.left
     this.spriteTop = SPRITE_CROP.top
     this.spriteW = SPRITE_CROP.width
@@ -222,14 +231,16 @@ export default {
 
   startRoll(dir) {
     const d = Number(dir) < 0 ? -1 : 1
+    const phaseFrom = themePhase(this._state.todayTotal)
     const result = applySwipeCount(this._state, d)
     this._state = result.state
     this._animating = true
     this.clearAnimTimers()
-    const srcs = spriteFramesForDir(d)
+    const theme = this.beadTheme || 'default'
+    const srcs = spriteFramesFor(theme, d, phaseFrom)
     this._s2List = srcs
     this._s2Idx = 0
-    this.spriteFrameSrc = srcs[0] || SPRITE_IDLE
+    this.spriteFrameSrc = srcs[0] || this.currentIdle()
     const step = Math.max(
       1,
       Math.floor(SPRITE_DURATION_MS / Math.max(1, srcs.length - 1))
@@ -260,7 +271,7 @@ export default {
 
   finishRoll() {
     this.clearAnimTimers()
-    this.spriteFrameSrc = SPRITE_IDLE
+    this.spriteFrameSrc = this.currentIdle()
     this._animating = false
   },
 

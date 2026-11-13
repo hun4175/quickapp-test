@@ -1,6 +1,6 @@
 /**
  * 염주 카운트 순수 로직 (워치 런타임 / Node 테스트 공용).
- * 2.5.3: S2 고정. 진단·실험 토글 제거.
+ * 2.6.0: 염주 테마(기본/육자진언/나무아미타불).
  */
 
 /** 한 바퀴 알 개수 선택지 (염주/묵주 관례) — 기본 108, UI 노출 없음 */
@@ -19,6 +19,21 @@ export const INPUT_MODE_HINTS = Object.freeze({
   touch: '탭 1회 = 한 칸 앞으로'
 })
 
+/** 염주 테마 */
+export const BEAD_THEMES = Object.freeze(['default', 'ommani', 'namu'])
+
+export const BEAD_THEME_LABELS = Object.freeze({
+  default: '기본',
+  ommani: '육자진언',
+  namu: '나무아미타불'
+})
+
+export const BEAD_THEME_HINTS = Object.freeze({
+  default: '나무 구슬',
+  ommani: '唵嘛呢叭咪吽',
+  namu: '南無阿彌陀佛'
+})
+
 export const DEFAULT_STATE = Object.freeze({
   bead: 0,
   rounds: 0,
@@ -27,7 +42,8 @@ export const DEFAULT_STATE = Object.freeze({
   todayDate: '',
   todayTotal: 0,
   inputMode: 'slide',
-  stateSchema: 11
+  beadTheme: 'default',
+  stateSchema: 12
 })
 
 /**
@@ -45,7 +61,6 @@ export const formatDate = (date = new Date()) => {
 
 /**
  * 저장값/부분 객체를 안전한 상태로 정규화.
- * 없는·알 수 없는 키는 무시.
  * @param {object} [raw]
  * @returns {object}
  */
@@ -63,6 +78,10 @@ export const normalizeState = (raw) => {
     ? String(src.inputMode)
     : DEFAULT_STATE.inputMode
 
+  const beadTheme = BEAD_THEMES.includes(String(src.beadTheme))
+    ? String(src.beadTheme)
+    : DEFAULT_STATE.beadTheme
+
   const schemaRaw = Math.floor(Number(src.stateSchema) || 0)
   const stateSchema = schemaRaw > 0 ? schemaRaw : 1
 
@@ -74,25 +93,27 @@ export const normalizeState = (raw) => {
     todayDate: typeof src.todayDate === 'string' ? src.todayDate : '',
     todayTotal,
     inputMode,
+    beadTheme,
     stateSchema
   }
 }
 
 /**
- * 2.5.3: schema≥11. 진단·실험 키 폐기.
+ * 2.6.0: schema≥12. beadTheme 추가.
  * @param {object} state
  * @returns {{ state: object, migrated: boolean }}
  */
 export const migrateAnimModeForStability = (state) => {
   const s = normalizeState(state)
-  if (s.stateSchema >= 11) {
+  if (s.stateSchema >= 12) {
     return { state: s, migrated: false }
   }
   return {
     state: {
       ...s,
-      stateSchema: 11,
-      inputMode: INPUT_MODES.includes(s.inputMode) ? s.inputMode : 'slide'
+      stateSchema: 12,
+      inputMode: INPUT_MODES.includes(s.inputMode) ? s.inputMode : 'slide',
+      beadTheme: BEAD_THEMES.includes(s.beadTheme) ? s.beadTheme : 'default'
     },
     migrated: true
   }
@@ -184,6 +205,14 @@ export const setInputMode = (state, mode) => {
   const s = normalizeState(state)
   const inputMode = INPUT_MODES.includes(String(mode)) ? String(mode) : 'slide'
   return { ...s, inputMode }
+}
+
+export const setBeadTheme = (state, theme) => {
+  const s = normalizeState(state)
+  const beadTheme = BEAD_THEMES.includes(String(theme))
+    ? String(theme)
+    : 'default'
+  return { ...s, beadTheme }
 }
 
 export const resetSession = (state) => {

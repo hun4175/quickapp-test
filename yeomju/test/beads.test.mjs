@@ -7,6 +7,7 @@ import {
   BEAD_OPTIONS,
   SWIPE_COUNT_MODE,
   INPUT_MODES,
+  BEAD_THEMES,
   normalizeState,
   ensureToday,
   advanceBead,
@@ -15,6 +16,7 @@ import {
   setBeadsPerRound,
   setVibrateOnBead,
   setInputMode,
+  setBeadTheme,
   migrateAnimModeForStability,
   resetSession,
   resetAll,
@@ -36,14 +38,14 @@ describe('normalizeState', () => {
       e1Minimize: true,
       renderMode: 'L',
       diagnoseLatency: true,
-      visibleBeadCount: 3,
+      beadTheme: 'nope',
       foo: 1
     })
     assert.equal(s.bead, 0)
     assert.equal(s.beadsPerRound, 108)
     assert.equal(s.inputMode, 'slide')
+    assert.equal(s.beadTheme, 'default')
     assert.equal(s.diagnoseLatency, undefined)
-    assert.equal(s.e1Minimize, undefined)
     assert.equal(s.renderMode, undefined)
   })
 
@@ -116,31 +118,21 @@ describe('설정·초기화', () => {
     assert.equal(setVibrateOnBead({}, false).vibrateOnBead, false)
   })
 
-  it('2.5.3 schema≥11 마이그레이션 · 진단 키 폐기', () => {
+  it('2.6.0 schema≥12 · beadTheme', () => {
+    assert.deepEqual([...BEAD_THEMES], ['default', 'ommani', 'namu'])
     const m = migrateAnimModeForStability({
-      animMode: 'E',
-      e7TouchStartRoll: true,
-      renderMode: 'L',
       diagnoseLatency: true,
-      stateSchema: 1
+      stateSchema: 11
     })
     assert.equal(m.migrated, true)
-    assert.equal(m.state.stateSchema, 11)
-    assert.equal(m.state.inputMode, 'slide')
-    assert.equal(m.state.diagnoseLatency, undefined)
-    assert.equal(m.state.renderMode, undefined)
-    const from10 = migrateAnimModeForStability({
-      inputMode: 'touch',
-      diagnoseLatency: true,
-      stateSchema: 10
-    })
-    assert.equal(from10.migrated, true)
-    assert.equal(from10.state.stateSchema, 11)
-    assert.equal(from10.state.inputMode, 'touch')
-    assert.equal(from10.state.diagnoseLatency, undefined)
+    assert.equal(m.state.stateSchema, 12)
+    assert.equal(m.state.beadTheme, 'default')
+    assert.equal(setBeadTheme({}, 'ommani').beadTheme, 'ommani')
+    assert.equal(setBeadTheme({}, 'namu').beadTheme, 'namu')
+    assert.equal(setBeadTheme({}, 'x').beadTheme, 'default')
     const stable = migrateAnimModeForStability({
-      inputMode: 'touch',
-      stateSchema: 11
+      beadTheme: 'namu',
+      stateSchema: 12
     })
     assert.equal(stable.migrated, false)
   })
@@ -175,7 +167,11 @@ describe('설정·초기화', () => {
 
 describe('serialize', () => {
   it('roundtrip', () => {
-    const s = normalizeState({ bead: 3, todayDate: formatDate() })
+    const s = normalizeState({
+      bead: 3,
+      beadTheme: 'ommani',
+      todayDate: formatDate()
+    })
     assert.deepEqual(deserializeState(serializeState(s)), normalizeState(s))
   })
 
