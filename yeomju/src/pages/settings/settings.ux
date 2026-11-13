@@ -7,45 +7,19 @@
       <text class="title">설정</text>
     </div>
 
-    <text class="label">한 바퀴 알 개수</text>
-    <div class="row">
-      <div class="chip {{beadsPerRound === 108 ? 'chip-on' : ''}}" onclick="pick108">
-        <text class="chip-text">108</text>
-      </div>
-      <div class="chip {{beadsPerRound === 54 ? 'chip-on' : ''}}" onclick="pick54">
-        <text class="chip-text">54</text>
-      </div>
-      <div class="chip {{beadsPerRound === 27 ? 'chip-on' : ''}}" onclick="pick27">
-        <text class="chip-text">27</text>
-      </div>
-      <div class="chip {{beadsPerRound === 21 ? 'chip-on' : ''}}" onclick="pick21">
-        <text class="chip-text">21</text>
-      </div>
-    </div>
-
-    <text class="label">알마다 짧은 진동</text>
-    <div class="row">
-      <div class="chip {{vibrateOnBead ? 'chip-on' : ''}}" onclick="setVibrateOn">
-        <text class="chip-text">켜기</text>
-      </div>
-      <div class="chip {{!vibrateOnBead ? 'chip-on' : ''}}" onclick="setVibrateOff">
-        <text class="chip-text">끄기</text>
-      </div>
-    </div>
-
     <text class="label">입력 방식</text>
     <text class="hint">{{inputHint}}</text>
-    <div class="col">
-      <div class="chip-wide {{inputMode === 'slide' ? 'chip-on' : ''}}" onclick="pickSlide">
-        <text class="chip-text">슬라이드 (위·아래)</text>
+    <div class="row">
+      <div class="chip {{inputMode === 'slide' ? 'chip-on' : ''}}" onclick="pickSlide">
+        <text class="chip-text">슬라이드</text>
       </div>
-      <div class="chip-wide {{inputMode === 'touch' ? 'chip-on' : ''}}" onclick="pickTouch">
-        <text class="chip-text">터치 (탭=한 칸 앞)</text>
+      <div class="chip {{inputMode === 'touch' ? 'chip-on' : ''}}" onclick="pickTouch">
+        <text class="chip-text">터치</text>
       </div>
     </div>
 
-    <text class="label">진단</text>
-    <text class="hint">타이밍 · 하단 불투명 패널 · 최근 측정 별도 화면</text>
+    <text class="label">타이밍 표시</text>
+    <text class="hint">진단 패널 · 기본 끔</text>
     <div class="row">
       <div class="chip {{diagnoseLatency ? 'chip-on' : ''}}" onclick="setDiagOn">
         <text class="chip-text">켜기</text>
@@ -54,197 +28,30 @@
         <text class="chip-text">끄기</text>
       </div>
     </div>
-    <div class="col">
+    <div class="col" if="{{diagnoseLatency}}">
       <div class="chip-wide" onclick="openDiagLog">
         <text class="chip-text">최근 측정값 보기</text>
       </div>
     </div>
 
-    <text class="label">렌더 모드</text>
-    <text class="hint">S=스프라이트(기본) · S2=src스왑 · L=노드</text>
-    <div class="row">
-      <div class="chip {{renderMode === 'S' ? 'chip-on' : ''}}" onclick="pickModeS">
-        <text class="chip-text">S</text>
-      </div>
-      <div class="chip {{renderMode === 'S2' ? 'chip-on' : ''}}" onclick="pickModeS2">
-        <text class="chip-text">S2</text>
-      </div>
-      <div class="chip {{renderMode === 'L' ? 'chip-on' : ''}}" onclick="pickModeL">
-        <text class="chip-text">L</text>
-      </div>
-    </div>
-
-    <text class="label">표시 구슬 수</text>
-    <text class="hint">1=포커스 · 3=앞열 · 6=화면 · 10=전체(기본)</text>
-    <div class="row">
-      <div class="chip {{visibleBeadCount === 1 ? 'chip-on' : ''}}" onclick="pickCount1">
-        <text class="chip-text">1</text>
-      </div>
-      <div class="chip {{visibleBeadCount === 3 ? 'chip-on' : ''}}" onclick="pickCount3">
-        <text class="chip-text">3</text>
-      </div>
-      <div class="chip {{visibleBeadCount === 6 ? 'chip-on' : ''}}" onclick="pickCount6">
-        <text class="chip-text">6</text>
-      </div>
-      <div class="chip {{visibleBeadCount === 10 ? 'chip-on' : ''}}" onclick="pickCount10">
-        <text class="chip-text">10</text>
-      </div>
-    </div>
-
-    <text class="label">실험 E1 애니 최소화</text>
-    <text class="hint">버퍼↔버퍼 생략 · 기본 켜짐</text>
-    <div class="row">
-      <div class="chip {{e1Minimize ? 'chip-on' : ''}}" onclick="setE1On">
-        <text class="chip-text">켜기</text>
-      </div>
-      <div class="chip {{!e1Minimize ? 'chip-on' : ''}}" onclick="setE1Off">
-        <text class="chip-text">끄기</text>
-      </div>
-    </div>
-
-    <text class="label">실험 E2 scale 제거</text>
-    <text class="hint">translate만 · 형상 변경 · 기본 끔</text>
-    <div class="row">
-      <div class="chip {{e2NoScale ? 'chip-on' : ''}}" onclick="setE2On">
-        <text class="chip-text">켜기</text>
-      </div>
-      <div class="chip {{!e2NoScale ? 'chip-on' : ''}}" onclick="setE2Off">
-        <text class="chip-text">끄기</text>
-      </div>
-    </div>
-
-    <text class="label">실험 E3 뒷열 저해상</text>
-    <text class="hint">앞255/뒤160 · 기본 켜짐</text>
-    <div class="row">
-      <div class="chip {{e3SplitSrc ? 'chip-on' : ''}}" onclick="setE3On">
-        <text class="chip-text">켜기</text>
-      </div>
-      <div class="chip {{!e3SplitSrc ? 'chip-on' : ''}}" onclick="setE3Off">
-        <text class="chip-text">끄기</text>
-      </div>
-    </div>
-
-    <text class="label">실험 E4 뒷열 스냅</text>
-    <text class="hint">뒷열 애니 생략 · 기본 끔</text>
-    <div class="row">
-      <div class="chip {{e4SkipBack ? 'chip-on' : ''}}" onclick="setE4On">
-        <text class="chip-text">켜기</text>
-      </div>
-      <div class="chip {{!e4SkipBack ? 'chip-on' : ''}}" onclick="setE4Off">
-        <text class="chip-text">끄기</text>
-      </div>
-    </div>
-
-    <text class="label">실험 E5 $element 클래스</text>
-    <text class="hint">바인딩 대신 직접 클래스 · API 없으면 불가</text>
-    <div class="row">
-      <div class="chip {{e5DirectDom ? 'chip-on' : ''}}" onclick="setE5On">
-        <text class="chip-text">켜기</text>
-      </div>
-      <div class="chip {{!e5DirectDom ? 'chip-on' : ''}}" onclick="setE5Off">
-        <text class="chip-text">끄기</text>
-      </div>
-    </div>
-
-    <text class="label">실험 E6 단색 원</text>
-    <text class="hint">이미지 대신 div 원 · 디코드 분리 · 기본 끔</text>
-    <div class="row">
-      <div class="chip {{e6Solid ? 'chip-on' : ''}}" onclick="setE6On">
-        <text class="chip-text">켜기</text>
-      </div>
-      <div class="chip {{!e6Solid ? 'chip-on' : ''}}" onclick="setE6Off">
-        <text class="chip-text">끄기</text>
-      </div>
-    </div>
-
-    <text class="label">실험 E7 touchstart 즉시+1</text>
-    <text class="hint">터치 모드: start에서 +1 · 긴누름→설정(취소 없음)</text>
-    <div class="row">
-      <div class="chip {{e7TouchStartRoll ? 'chip-on' : ''}}" onclick="setE7On">
-        <text class="chip-text">켜기</text>
-      </div>
-      <div class="chip {{!e7TouchStartRoll ? 'chip-on' : ''}}" onclick="setE7Off">
-        <text class="chip-text">끄기</text>
-      </div>
-    </div>
-
-    <text class="label">실험 E8 click만</text>
-    <text class="hint">시스템 click으로만 굴림 · 터치 롤 생략</text>
-    <div class="row">
-      <div class="chip {{e8ClickOnly ? 'chip-on' : ''}}" onclick="setE8On">
-        <text class="chip-text">켜기</text>
-      </div>
-      <div class="chip {{!e8ClickOnly ? 'chip-on' : ''}}" onclick="setE8Off">
-        <text class="chip-text">끄기</text>
-      </div>
-    </div>
-
-    <text class="label">실험 E9 긴누름 끔</text>
-    <text class="hint">긴누름 타이머 비활성 · 진단패널 탭→설정</text>
-    <div class="row">
-      <div class="chip {{e9NoLongpress ? 'chip-on' : ''}}" onclick="setE9On">
-        <text class="chip-text">켜기</text>
-      </div>
-      <div class="chip {{!e9NoLongpress ? 'chip-on' : ''}}" onclick="setE9Off">
-        <text class="chip-text">끄기</text>
-      </div>
-    </div>
-
-    <text class="label">데이터</text>
-    <div class="col">
-      <div class="action" onclick="confirmSession">
-        <text class="action-text">현재 바퀴·알 초기화</text>
-      </div>
-      <div class="action danger" onclick="confirmAll">
-        <text class="action-text">오늘 합계까지 초기화</text>
-      </div>
-    </div>
-
-    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.5.0</text>
+    <text class="meta">v2.5.1 · S2</text>
   </div>
 </template>
 
 <script>
 import router from '@system.router'
 import {
-  setBeadsPerRound,
-  setVibrateOnBead,
   setInputMode,
   setDiagnoseLatency,
-  setVisibleBeadCount,
-  setE1Minimize,
-  setE2NoScale,
-  setE3SplitSrc,
-  setE4SkipBack,
-  setE5DirectDom,
-  setE6Solid,
-  setE7TouchStartRoll,
-  setE8ClickOnly,
-  setE9NoLongpress,
-  setRenderMode,
   INPUT_MODE_HINTS
 } from '../../common/beads.js'
 import { loadState, saveState } from '../../common/persist.js'
 
 export default {
   private: {
-    beadsPerRound: 108,
-    vibrateOnBead: true,
-    todayTotal: 0,
     inputMode: 'slide',
     inputHint: INPUT_MODE_HINTS.slide,
-    diagnoseLatency: false,
-    visibleBeadCount: 10,
-    e1Minimize: true,
-    e2NoScale: false,
-    e3SplitSrc: true,
-    e4SkipBack: false,
-    e5DirectDom: false,
-    e6Solid: false,
-    e7TouchStartRoll: false,
-    e8ClickOnly: false,
-    e9NoLongpress: false,
-    renderMode: 'S'
+    diagnoseLatency: false
   },
 
   onShow() {
@@ -257,9 +64,7 @@ export default {
   },
 
   onSwipe(e) {
-    if (e && e.direction === 'right') {
-      router.back()
-    }
+    if (e && e.direction === 'right') router.back()
   },
 
   async reload() {
@@ -269,23 +74,9 @@ export default {
 
   applyLocal(state) {
     this._state = state
-    this.beadsPerRound = state.beadsPerRound
-    this.vibrateOnBead = state.vibrateOnBead
-    this.todayTotal = state.todayTotal
     this.inputMode = state.inputMode || 'slide'
     this.inputHint = INPUT_MODE_HINTS[this.inputMode] || INPUT_MODE_HINTS.slide
     this.diagnoseLatency = !!state.diagnoseLatency
-    this.visibleBeadCount = state.visibleBeadCount || 10
-    this.e1Minimize = state.e1Minimize !== false
-    this.e2NoScale = !!state.e2NoScale
-    this.e3SplitSrc = state.e3SplitSrc !== false
-    this.e4SkipBack = !!state.e4SkipBack
-    this.e5DirectDom = !!state.e5DirectDom
-    this.e6Solid = !!state.e6Solid
-    this.e7TouchStartRoll = !!state.e7TouchStartRoll
-    this.e8ClickOnly = !!state.e8ClickOnly
-    this.e9NoLongpress = !!state.e9NoLongpress
-    this.renderMode = state.renderMode || 'S'
   },
 
   async persist(next) {
@@ -293,39 +84,10 @@ export default {
     this.applyLocal(next)
   },
 
-  async pickBeads(n) {
-    if (!this._state) await this.reload()
-    await this.persist(setBeadsPerRound(this._state, n))
-  },
-
-  pick108() {
-    this.pickBeads(108)
-  },
-  pick54() {
-    this.pickBeads(54)
-  },
-  pick27() {
-    this.pickBeads(27)
-  },
-  pick21() {
-    this.pickBeads(21)
-  },
-
-  async setVibrateOn() {
-    if (!this._state) await this.reload()
-    await this.persist(setVibrateOnBead(this._state, true))
-  },
-
-  async setVibrateOff() {
-    if (!this._state) await this.reload()
-    await this.persist(setVibrateOnBead(this._state, false))
-  },
-
   async pickInput(mode) {
     if (!this._state) await this.reload()
     await this.persist(setInputMode(this._state, mode))
   },
-
   pickSlide() {
     this.pickInput('slide')
   },
@@ -342,126 +104,8 @@ export default {
     await this.persist(setDiagnoseLatency(this._state, false))
   },
 
-  async pickRender(mode) {
-    if (!this._state) await this.reload()
-    await this.persist(setRenderMode(this._state, mode))
-  },
-  pickModeS() {
-    this.pickRender('S')
-  },
-  pickModeS2() {
-    this.pickRender('S2')
-  },
-  pickModeL() {
-    this.pickRender('L')
-  },
-
-  async pickCount(n) {
-    if (!this._state) await this.reload()
-    await this.persist(setVisibleBeadCount(this._state, n))
-  },
-  pickCount1() {
-    this.pickCount(1)
-  },
-  pickCount3() {
-    this.pickCount(3)
-  },
-  pickCount6() {
-    this.pickCount(6)
-  },
-  pickCount10() {
-    this.pickCount(10)
-  },
-
-  async setE1On() {
-    if (!this._state) await this.reload()
-    await this.persist(setE1Minimize(this._state, true))
-  },
-  async setE1Off() {
-    if (!this._state) await this.reload()
-    await this.persist(setE1Minimize(this._state, false))
-  },
-  async setE2On() {
-    if (!this._state) await this.reload()
-    await this.persist(setE2NoScale(this._state, true))
-  },
-  async setE2Off() {
-    if (!this._state) await this.reload()
-    await this.persist(setE2NoScale(this._state, false))
-  },
-  async setE3On() {
-    if (!this._state) await this.reload()
-    await this.persist(setE3SplitSrc(this._state, true))
-  },
-  async setE3Off() {
-    if (!this._state) await this.reload()
-    await this.persist(setE3SplitSrc(this._state, false))
-  },
-  async setE4On() {
-    if (!this._state) await this.reload()
-    await this.persist(setE4SkipBack(this._state, true))
-  },
-  async setE4Off() {
-    if (!this._state) await this.reload()
-    await this.persist(setE4SkipBack(this._state, false))
-  },
-  async setE5On() {
-    if (!this._state) await this.reload()
-    await this.persist(setE5DirectDom(this._state, true))
-  },
-  async setE5Off() {
-    if (!this._state) await this.reload()
-    await this.persist(setE5DirectDom(this._state, false))
-  },
-  async setE6On() {
-    if (!this._state) await this.reload()
-    await this.persist(setE6Solid(this._state, true))
-  },
-  async setE6Off() {
-    if (!this._state) await this.reload()
-    await this.persist(setE6Solid(this._state, false))
-  },
-  async setE7On() {
-    if (!this._state) await this.reload()
-    await this.persist(setE7TouchStartRoll(this._state, true))
-  },
-  async setE7Off() {
-    if (!this._state) await this.reload()
-    await this.persist(setE7TouchStartRoll(this._state, false))
-  },
-  async setE8On() {
-    if (!this._state) await this.reload()
-    await this.persist(setE8ClickOnly(this._state, true))
-  },
-  async setE8Off() {
-    if (!this._state) await this.reload()
-    await this.persist(setE8ClickOnly(this._state, false))
-  },
-  async setE9On() {
-    if (!this._state) await this.reload()
-    await this.persist(setE9NoLongpress(this._state, true))
-  },
-  async setE9Off() {
-    if (!this._state) await this.reload()
-    await this.persist(setE9NoLongpress(this._state, false))
-  },
-
   openDiagLog() {
     router.push({ uri: '/pages/diag' })
-  },
-
-  confirmSession() {
-    router.push({
-      uri: '/pages/confirm',
-      params: { mode: 'session' }
-    })
-  },
-
-  confirmAll() {
-    router.push({
-      uri: '/pages/confirm',
-      params: { mode: 'all' }
-    })
   },
 
   goBack() {
@@ -479,7 +123,6 @@ export default {
   background-color: #140e0a;
   padding-bottom: 24px;
 }
-
 .header {
   width: 100%;
   height: 72px;
@@ -488,7 +131,6 @@ export default {
   align-items: center;
   justify-content: center;
 }
-
 .back {
   position: absolute;
   left: 12px;
@@ -497,105 +139,74 @@ export default {
   padding-right: 8px;
   justify-content: center;
 }
-
 .back-text {
   font-size: 24px;
   color: #b89462;
 }
-
 .title {
   font-size: 28px;
   color: #e8c48a;
   font-weight: bold;
 }
-
 .label {
   width: 90%;
-  margin-top: 20px;
-  margin-bottom: 6px;
-  font-size: 20px;
+  margin-top: 18px;
+  margin-bottom: 4px;
+  font-size: 22px;
   color: #9a7b55;
 }
-
 .hint {
   width: 90%;
-  margin-bottom: 10px;
-  font-size: 16px;
+  margin-bottom: 8px;
+  font-size: 18px;
   color: #6e563c;
 }
-
 .row {
   width: 92%;
   flex-direction: row;
-  justify-content: space-around;
+  justify-content: center;
   flex-wrap: wrap;
 }
-
 .col {
   width: 92%;
   flex-direction: column;
   align-items: center;
+  margin-top: 8px;
 }
-
 .chip {
-  width: 88px;
   height: 48px;
+  min-width: 96px;
   margin: 4px;
-  border-radius: 24px;
-  background-color: #2a1c12;
+  padding-left: 14px;
+  padding-right: 14px;
+  background-color: #2a1e14;
+  border-width: 2px;
+  border-color: #3a2a18;
   justify-content: center;
   align-items: center;
-  border-width: 1px;
-  border-color: #4a3420;
 }
-
-.chip-wide {
-  width: 92%;
-  height: 48px;
-  margin-top: 6px;
-  border-radius: 24px;
-  background-color: #2a1c12;
-  justify-content: center;
-  align-items: center;
-  border-width: 1px;
-  border-color: #4a3420;
-}
-
 .chip-on {
-  background-color: #6b4520;
   border-color: #e8c48a;
+  background-color: #3a2a18;
 }
-
+.chip-wide {
+  width: 90%;
+  height: 48px;
+  margin-top: 4px;
+  background-color: #2a1e14;
+  border-width: 2px;
+  border-color: #3a2a18;
+  justify-content: center;
+  align-items: center;
+}
 .chip-text {
   font-size: 22px;
   color: #f3e2c4;
+  text-align: center;
 }
-
-.action {
-  width: 92%;
-  height: 56px;
-  margin-top: 10px;
-  border-radius: 28px;
-  background-color: #2a1c12;
-  justify-content: center;
-  align-items: center;
-  border-width: 1px;
-  border-color: #4a3420;
-}
-
-.danger {
-  border-color: #8a3a2a;
-  background-color: #3a1812;
-}
-
-.action-text {
-  font-size: 22px;
-  color: #f3e2c4;
-}
-
 .meta {
-  margin-top: 24px;
-  font-size: 18px;
+  margin-top: 28px;
+  font-size: 16px;
   color: #6e563c;
 }
 </style>

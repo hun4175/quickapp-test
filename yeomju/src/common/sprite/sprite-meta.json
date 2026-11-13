@@ -1,5 +1,5 @@
 {
-  "version": "2.5.0",
+  "version": "2.5.1",
   "screenW": 432,
   "screenH": 514,
   "crop": {
@@ -16,7 +16,22 @@
     0.6666666666666666,
     1.0
   ],
-  "colors": 32,
+  "format": "PNG32",
+  "source": "scripts/assets/bead-new-src.png",
+  "geom": {
+    "slotCount": 11,
+    "backCount": 6,
+    "frontCount": 5,
+    "focusGap": {
+      "next": 0.9805080589571669,
+      "prev": 0.9805080589571669,
+      "distNext": 248.06853891616322,
+      "distPrev": 248.06853891616322,
+      "size0": 255,
+      "size1": 251,
+      "sizePrev": 251
+    }
+  },
   "idle": "/common/sprite/idle.png",
   "next": [
     "/common/sprite/idle.png",
@@ -31,11 +46,11 @@
     "/common/sprite/idle.png"
   ],
   "fileSizes": {
-    "idle.png": 28000,
-    "next-1.png": 35331,
-    "next-2.png": 34129,
-    "prev-1.png": 33866,
-    "prev-2.png": 35294
+    "idle.png": 163646,
+    "next-1.png": 167769,
+    "next-2.png": 166424,
+    "prev-1.png": 165985,
+    "prev-2.png": 167373
   },
-  "filesSumBytes": 166620
+  "filesSumBytes": 831197
 }

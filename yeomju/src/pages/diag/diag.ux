@@ -18,25 +18,20 @@
     <text class="line" if="{{has1}}">{{d1d}}</text>
     <text class="line" if="{{has1}}">{{d1e}}</text>
     <text class="line" if="{{has1}}">{{d1f}}</text>
-    <text class="line" if="{{has1}}">{{d1g}}</text>
 
     <text class="label">#2–5 요약</text>
     <text class="line" if="{{has2}}">{{line2}}</text>
     <text class="line" if="{{has3}}">{{line3}}</text>
     <text class="line" if="{{has4}}">{{line4}}</text>
     <text class="line" if="{{has5}}">{{line5}}</text>
-    <text class="empty" if="{{!has1}}">아직 측정 없음 · 진단 켜고 굴리기</text>
+    <text class="empty" if="{{!has1}}">아직 측정 없음 · 타이밍 표시 켜고 굴리기</text>
 
-    <text class="label">현재 설정</text>
-    <text class="line">{{flagsLine}}</text>
-
-    <text class="meta">v2.5.0 · rm=S|S2|L · t0=swipe|tap|e7|click</text>
+    <text class="meta">v2.5.1 · S2</text>
   </div>
 </template>
 
 <script>
 import router from '@system.router'
-import { loadState } from '../../common/persist.js'
 import { loadTimingSamples } from '../../common/timing.js'
 import {
   timingAverages,
@@ -55,7 +50,6 @@ export default {
     d1d: '',
     d1e: '',
     d1f: '',
-    d1g: '',
     line2: '',
     line3: '',
     line4: '',
@@ -64,8 +58,7 @@ export default {
     has2: false,
     has3: false,
     has4: false,
-    has5: false,
-    flagsLine: 'n=10'
+    has5: false
   },
 
   onShow() {
@@ -109,7 +102,6 @@ export default {
       this.d1d = d[3] || ''
       this.d1e = d[4] || ''
       this.d1f = d[5] || ''
-      this.d1g = d[6] || ''
       this.has1 = true
     } else {
       this.has1 = false
@@ -123,21 +115,6 @@ export default {
     this.has3 = !!samples[2]
     this.has4 = !!samples[3]
     this.has5 = !!samples[4]
-
-    const st = await loadState()
-    this.flagsLine =
-      'rm=' +
-      (st.renderMode || 'S') +
-      ' n=' +
-      (st.visibleBeadCount || 10) +
-      ' mode=' +
-      (st.inputMode || 'slide') +
-      ' E7:' +
-      (st.e7TouchStartRoll ? 'on' : 'off') +
-      ' E8:' +
-      (st.e8ClickOnly ? 'on' : 'off') +
-      ' E9:' +
-      (st.e9NoLongpress ? 'on' : 'off')
   },
 
   goBack() {

@@ -1,30 +1,13 @@
 /**
  * 염주 카운트 순수 로직 (워치 런타임 / Node 테스트 공용).
- * @system.* 의존 없음 — 단위 테스트로 검증한다.
+ * 2.5.1: S2 고정. 실험 토글·렌더모드·표시수 제거.
  */
 
-/** 한 바퀴 알 개수 선택지 (염주/묵주 관례) */
+/** 한 바퀴 알 개수 선택지 (염주/묵주 관례) — 기본 108, UI 노출 없음 */
 export const BEAD_OPTIONS = [108, 54, 27, 21]
-
-/** 2.4.0: 애니 모드 제거. 구버전 저장값 정리용 심볼만 유지 */
-export const LEGACY_ANIM_MODES = Object.freeze(['A', 'B', 'C', 'D', 'E'])
-export const UNSAFE_ANIM_MODES = Object.freeze(['D', 'E'])
 
 /** 입력 방식: 슬라이드(기본) / 터치(탭=한 칸 앞) */
 export const INPUT_MODES = Object.freeze(['slide', 'touch'])
-
-/** 2.5.0: 렌더 모드 — S=image-animator 스프라이트 / S2=src 스왑 / L=레거시 노드 */
-export const RENDER_MODES = Object.freeze(['S', 'S2', 'L'])
-export const RENDER_MODE_LABELS = Object.freeze({
-  S: 'S 스프라이트',
-  S2: 'S2 src스왑',
-  L: 'L 노드'
-})
-export const RENDER_MODE_HINTS = Object.freeze({
-  S: '빌드타임 PNG 프레임 · image-animator 1개 (기본)',
-  S2: '단일 image src를 프레임별 교체 (animator 대체)',
-  L: '기존 10노드 CSS 키프레임 방식'
-})
 
 export const INPUT_MODE_LABELS = Object.freeze({
   slide: '슬라이드',
@@ -33,47 +16,7 @@ export const INPUT_MODE_LABELS = Object.freeze({
 
 export const INPUT_MODE_HINTS = Object.freeze({
   slide: '위·아래 스와이프로 굴리기',
-  touch: '탭 1회 = 한 칸 앞으로 (슬라이드 무시)'
-})
-
-/** 2.4.3: 표시 구슬 수 */
-export const VISIBLE_BEAD_COUNTS = Object.freeze([1, 3, 6, 10])
-
-/** 2.4.2+ 실험 토글 기본값 */
-export const EXP_DEFAULTS = Object.freeze({
-  e1Minimize: true,
-  e2NoScale: false,
-  e3SplitSrc: true,
-  e4SkipBack: false,
-  e5DirectDom: false,
-  e6Solid: false,
-  e7TouchStartRoll: false,
-  e8ClickOnly: false,
-  e9NoLongpress: false
-})
-
-export const EXP_LABELS = Object.freeze({
-  e1Minimize: 'E1 애니 최소화',
-  e2NoScale: 'E2 scale 제거',
-  e3SplitSrc: 'E3 뒷열 저해상',
-  e4SkipBack: 'E4 뒷열 스냅',
-  e5DirectDom: 'E5 $element 클래스',
-  e6Solid: 'E6 단색 원',
-  e7TouchStartRoll: 'E7 touchstart 즉시+1',
-  e8ClickOnly: 'E8 click만',
-  e9NoLongpress: 'E9 긴누름 타이머 끔'
-})
-
-export const EXP_HINTS = Object.freeze({
-  e1Minimize: '버퍼↔버퍼 애니 생략 (기본 켜짐)',
-  e2NoScale: 'translate만 · 열별 동일 크기 (형상 변경, 기본 끔)',
-  e3SplitSrc: '앞255/뒤160 원본=표시 (기본 켜짐)',
-  e4SkipBack: '뒷열 애니 생략·종료 스냅 (형상 변경, 기본 끔)',
-  e5DirectDom: 'data 바인딩 대신 $element 직접 클래스 (API 없으면 불가)',
-  e6Solid: '이미지 대신 단색 원 (디코드 분리, 기본 끔)',
-  e7TouchStartRoll: '터치 모드: touchstart에서 즉시 +1 (긴누름→설정, 취소 없음)',
-  e8ClickOnly: '시스템 click만으로 굴림 (터치 핸들러 롤 생략)',
-  e9NoLongpress: '긴누름 타이머 완전 비활성 (설정은 다른 경로)'
+  touch: '탭 1회 = 한 칸 앞으로'
 })
 
 export const DEFAULT_STATE = Object.freeze({
@@ -85,20 +28,7 @@ export const DEFAULT_STATE = Object.freeze({
   todayTotal: 0,
   inputMode: 'slide',
   diagnoseLatency: false,
-  /** @deprecated 2.4.3: visibleBeadCount=1 로 대체 */
-  singleBeadTest: false,
-  visibleBeadCount: 10,
-  e1Minimize: true,
-  e2NoScale: false,
-  e3SplitSrc: true,
-  e4SkipBack: false,
-  e5DirectDom: false,
-  e6Solid: false,
-  e7TouchStartRoll: false,
-  e8ClickOnly: false,
-  e9NoLongpress: false,
-  renderMode: 'S',
-  stateSchema: 9
+  stateSchema: 10
 })
 
 /**
@@ -114,15 +44,9 @@ export const formatDate = (date = new Date()) => {
   return y + '-' + pad(m) + '-' + pad(d)
 }
 
-const normalizeVisibleCount = (raw, singleBeadTest) => {
-  const n = Math.floor(Number(raw))
-  if (VISIBLE_BEAD_COUNTS.includes(n)) return n
-  if (singleBeadTest === true) return 1
-  return DEFAULT_STATE.visibleBeadCount
-}
-
 /**
- * 저장값/부분 객체를 안전한 상태로 정규화
+ * 저장값/부분 객체를 안전한 상태로 정규화.
+ * 없는·알 수 없는 키는 무시.
  * @param {object} [raw]
  * @returns {object}
  */
@@ -139,15 +63,9 @@ export const normalizeState = (raw) => {
   const inputMode = INPUT_MODES.includes(String(src.inputMode))
     ? String(src.inputMode)
     : DEFAULT_STATE.inputMode
-  const renderMode = RENDER_MODES.includes(String(src.renderMode))
-    ? String(src.renderMode)
-    : DEFAULT_STATE.renderMode
+
   const schemaRaw = Math.floor(Number(src.stateSchema) || 0)
   const stateSchema = schemaRaw > 0 ? schemaRaw : 1
-
-  const singleBeadTest = src.singleBeadTest === true
-  const hasExp = Object.prototype.hasOwnProperty.call(src, 'e1Minimize')
-  const visibleBeadCount = normalizeVisibleCount(src.visibleBeadCount, singleBeadTest)
 
   return {
     bead: beadNum % beadsPerRound,
@@ -158,53 +76,26 @@ export const normalizeState = (raw) => {
     todayTotal,
     inputMode,
     diagnoseLatency: src.diagnoseLatency === true,
-    singleBeadTest: visibleBeadCount === 1,
-    visibleBeadCount,
-    e1Minimize: hasExp ? src.e1Minimize !== false : DEFAULT_STATE.e1Minimize,
-    e2NoScale: src.e2NoScale === true,
-    e3SplitSrc: Object.prototype.hasOwnProperty.call(src, 'e3SplitSrc')
-      ? src.e3SplitSrc !== false
-      : DEFAULT_STATE.e3SplitSrc,
-    e4SkipBack: src.e4SkipBack === true,
-    e5DirectDom: src.e5DirectDom === true,
-    e6Solid: src.e6Solid === true,
-    e7TouchStartRoll: src.e7TouchStartRoll === true,
-    e8ClickOnly: src.e8ClickOnly === true,
-    e9NoLongpress: src.e9NoLongpress === true,
-    renderMode,
     stateSchema
   }
 }
 
 /**
- * 2.5.0: schema≥9. renderMode 기본 S.
+ * 2.5.1: schema≥10. 실험/렌더모드 키 폐기.
  * @param {object} state
  * @returns {{ state: object, migrated: boolean }}
  */
 export const migrateAnimModeForStability = (state) => {
   const s = normalizeState(state)
-  if (s.stateSchema >= 9) {
+  if (s.stateSchema >= 10) {
     return { state: s, migrated: false }
   }
-  const fromSingle = s.singleBeadTest === true ? 1 : s.visibleBeadCount || 10
   return {
     state: {
       ...s,
-      stateSchema: 9,
+      stateSchema: 10,
       inputMode: INPUT_MODES.includes(s.inputMode) ? s.inputMode : 'slide',
-      diagnoseLatency: s.diagnoseLatency === true,
-      singleBeadTest: fromSingle === 1,
-      visibleBeadCount: normalizeVisibleCount(fromSingle, false),
-      e1Minimize: s.e1Minimize !== false,
-      e2NoScale: !!s.e2NoScale,
-      e3SplitSrc: s.e3SplitSrc !== false,
-      e4SkipBack: !!s.e4SkipBack,
-      e5DirectDom: !!s.e5DirectDom,
-      e6Solid: !!s.e6Solid,
-      e7TouchStartRoll: s.stateSchema >= 8 ? !!s.e7TouchStartRoll : false,
-      e8ClickOnly: s.stateSchema >= 8 ? !!s.e8ClickOnly : false,
-      e9NoLongpress: s.stateSchema >= 8 ? !!s.e9NoLongpress : false,
-      renderMode: RENDER_MODES.includes(s.renderMode) ? s.renderMode : 'S'
+      diagnoseLatency: s.diagnoseLatency === true
     },
     migrated: true
   }
@@ -216,90 +107,74 @@ export const ensureToday = (state, today) => {
     return { state: s, rolled: false }
   }
   return {
-    state: {
-      ...s,
-      todayDate: today,
-      todayTotal: 0
-    },
+    state: { ...s, todayDate: today, todayTotal: 0 },
     rolled: true
   }
 }
 
-export const SWIPE_COUNT_MODE = 'plus_both'
-
-export const advanceBead = (state, today = formatDate()) => {
-  const ensured = ensureToday(state, today).state
-  const nextBead = ensured.bead + 1
-  const completedRound = nextBead >= ensured.beadsPerRound
-
-  if (completedRound) {
+export const advanceBead = (state) => {
+  const s = normalizeState(state)
+  const next = s.bead + 1
+  if (next >= s.beadsPerRound) {
     return {
       state: {
-        ...ensured,
+        ...s,
         bead: 0,
-        rounds: ensured.rounds + 1,
-        todayTotal: ensured.todayTotal + 1
+        rounds: s.rounds + 1,
+        todayTotal: s.todayTotal + 1
       },
       completedRound: true
     }
   }
+  return {
+    state: { ...s, bead: next, todayTotal: s.todayTotal + 1 },
+    completedRound: false
+  }
+}
 
+export const retreatBead = (state) => {
+  const s = normalizeState(state)
+  if (s.bead <= 0) {
+    if (s.rounds <= 0) {
+      return { state: s, completedRound: false }
+    }
+    return {
+      state: {
+        ...s,
+        bead: s.beadsPerRound - 1,
+        rounds: s.rounds - 1,
+        todayTotal: Math.max(0, s.todayTotal - 1)
+      },
+      completedRound: false
+    }
+  }
   return {
     state: {
-      ...ensured,
-      bead: nextBead,
-      todayTotal: ensured.todayTotal + 1
+      ...s,
+      bead: s.bead - 1,
+      todayTotal: Math.max(0, s.todayTotal - 1)
     },
     completedRound: false
   }
 }
 
-export const retreatBead = (state, today = formatDate()) => {
-  const ensured = ensureToday(state, today).state
-  if (ensured.bead > 0) {
-    return {
-      state: {
-        ...ensured,
-        bead: ensured.bead - 1,
-        todayTotal: Math.max(0, ensured.todayTotal - 1)
-      },
-      completedRound: false,
-      retreated: true
-    }
-  }
-  if (ensured.rounds > 0) {
-    return {
-      state: {
-        ...ensured,
-        bead: ensured.beadsPerRound - 1,
-        rounds: ensured.rounds - 1,
-        todayTotal: Math.max(0, ensured.todayTotal - 1)
-      },
-      completedRound: false,
-      retreated: true
-    }
-  }
-  return { state: ensured, completedRound: false, retreated: false }
+/** 양방향 모두 +1 (제품 기본) */
+export const SWIPE_COUNT_MODE = 'plus_both'
+
+export const applySwipeCount = (state, dir) => {
+  void dir
+  return advanceBead(state)
 }
 
-export const applySwipeCount = (state, swipeDir, today = formatDate()) => {
-  if (SWIPE_COUNT_MODE === 'down_undo' && Number(swipeDir) < 0) {
-    const r = retreatBead(state, today)
-    return { state: r.state, completedRound: false }
-  }
-  return advanceBead(state, today)
-}
-
-export const setBeadsPerRound = (state, beadsPerRound) => {
+export const setBeadsPerRound = (state, n) => {
   const s = normalizeState(state)
-  if (!BEAD_OPTIONS.includes(Number(beadsPerRound))) {
-    return s
-  }
-  const n = Number(beadsPerRound)
+  const beadsPerRound = BEAD_OPTIONS.includes(Number(n))
+    ? Number(n)
+    : s.beadsPerRound
   return {
     ...s,
-    beadsPerRound: n,
-    bead: s.bead % n
+    beadsPerRound,
+    bead: s.bead % beadsPerRound
   }
 }
 
@@ -310,56 +185,13 @@ export const setVibrateOnBead = (state, enabled) => {
 
 export const setInputMode = (state, mode) => {
   const s = normalizeState(state)
-  const inputMode = INPUT_MODES.includes(mode) ? mode : DEFAULT_STATE.inputMode
+  const inputMode = INPUT_MODES.includes(String(mode)) ? String(mode) : 'slide'
   return { ...s, inputMode }
 }
 
 export const setDiagnoseLatency = (state, enabled) => {
   const s = normalizeState(state)
   return { ...s, diagnoseLatency: !!enabled }
-}
-
-export const setSingleBeadTest = (state, enabled) => {
-  const s = normalizeState(state)
-  const on = !!enabled
-  return {
-    ...s,
-    singleBeadTest: on,
-    visibleBeadCount: on ? 1 : s.visibleBeadCount === 1 ? 10 : s.visibleBeadCount
-  }
-}
-
-export const setVisibleBeadCount = (state, count) => {
-  const s = normalizeState(state)
-  const visibleBeadCount = normalizeVisibleCount(count, false)
-  return {
-    ...s,
-    visibleBeadCount,
-    singleBeadTest: visibleBeadCount === 1
-  }
-}
-
-export const setExpFlag = (state, key, enabled) => {
-  const s = normalizeState(state)
-  if (!Object.prototype.hasOwnProperty.call(EXP_DEFAULTS, key)) return s
-  return { ...s, [key]: !!enabled }
-}
-
-export const setE1Minimize = (state, enabled) => setExpFlag(state, 'e1Minimize', enabled)
-export const setE2NoScale = (state, enabled) => setExpFlag(state, 'e2NoScale', enabled)
-export const setE3SplitSrc = (state, enabled) => setExpFlag(state, 'e3SplitSrc', enabled)
-export const setE4SkipBack = (state, enabled) => setExpFlag(state, 'e4SkipBack', enabled)
-export const setE5DirectDom = (state, enabled) => setExpFlag(state, 'e5DirectDom', enabled)
-export const setE6Solid = (state, enabled) => setExpFlag(state, 'e6Solid', enabled)
-export const setE7TouchStartRoll = (state, enabled) =>
-  setExpFlag(state, 'e7TouchStartRoll', enabled)
-export const setE8ClickOnly = (state, enabled) => setExpFlag(state, 'e8ClickOnly', enabled)
-export const setE9NoLongpress = (state, enabled) => setExpFlag(state, 'e9NoLongpress', enabled)
-
-export const setRenderMode = (state, mode) => {
-  const s = normalizeState(state)
-  const renderMode = RENDER_MODES.includes(String(mode)) ? String(mode) : 'S'
-  return { ...s, renderMode }
 }
 
 export const resetSession = (state) => {

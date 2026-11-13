@@ -29,7 +29,8 @@ describe('sprite meta', () => {
     assert.equal(SPRITE_PREV[SPRITE_PREV.length - 1], SPRITE_IDLE)
     assert.ok(SPRITE_CROP.width > 0 && SPRITE_CROP.height > 0)
     assert.ok(SPRITE_FILES_SUM_BYTES > 0)
-    assert.ok(SPRITE_FILES_SUM_BYTES < 400000)
+    // 2.5.1: 풀컬러 PNG (PNG8 열화 없음). 상한은 보고용.
+    assert.ok(SPRITE_FILES_SUM_BYTES < 2_500_000)
   })
 
   it('방향 헬퍼 · 파일 존재', () => {

@@ -1,20 +1,17 @@
 /**
- * 염주 고리 — 2.4.2 (기본 형상=2.3.1, 실험 토글 E1–E4).
- * - 노드 10, 홈 스냅, 150ms linear, 레인/opacity 금지.
- * - E1 애니 최소화(기본 on) E2 scale제거(off) E3 앞/뒤 이미지(on) E4 뒷열스냅(off)
+ * 염주 고리 — 2.5.1 (앞줄 간격=2.3.1 유지, 뒷줄 밀도↑).
+ * - 스프라이트 합성용 기하. 런타임 DOM 노드 제한 없음(S2).
+ * - 뒷줄 gap ratio ≈ 앞줄 포커스 인접(≈0.981).
  */
 
 export const VIRTUAL_BEADS = 12
-export const SLOT_COUNT = 10
 export const FRONT_COUNT = 3
-export const BACK_COUNT = 3
-export const VISIBLE_BEADS = FRONT_COUNT + BACK_COUNT
-export const BUFFER_BEADS = 4
-export const RENDER_BEADS = VISIBLE_BEADS + BUFFER_BEADS
-export const MAX_RENDER_NODES = 10
 export const FRONT_DEPTH_MIN = 0.55
 export const FRONT_GAP_RATIO_MIN = 0.92
 export const FRONT_GAP_RATIO_MAX = 1.0
+/** 뒷줄 목표 간격비 (앞줄 포커스 인접과 동일) */
+export const BACK_GAP_RATIO_TARGET = 0.981
+export const MAX_RENDER_NODES = 32
 
 export const CHAIN_DIR = 1
 export const CHAIN_ANIM_MS = 150
@@ -27,7 +24,7 @@ export const SWIPE_VERTICAL_RATIO = 1.2
 export const TAP_MAX_MOVE = 14
 
 export const BEAD_SRC = '/common/bead-wood-v3.png'
-/** E3: 앞열 표시 max(255) / 뒷열 160 원본=표시 */
+/** E3 호환 경로명(스프라이트는 단일 원본 리샘플) */
 export const BEAD_SRC_FRONT = '/common/bead-front-255.png'
 export const BEAD_SRC_BACK = '/common/bead-back-160.png'
 export const BEAD_BACK_DISPLAY = 160
@@ -46,8 +43,7 @@ export const DEFAULT_RING = Object.freeze({
   cy: 257,
   minSize: 165,
   maxSize: 255,
-  virtual: VIRTUAL_BEADS,
-  slotCount: SLOT_COUNT
+  virtual: VIRTUAL_BEADS
 })
 
 const ringOpts = (opts = {}) => ({ ...DEFAULT_RING, ...opts })
@@ -87,6 +83,76 @@ export const sizeFactorFromDepth = (depth) => {
   return 0.42 + 0.58 * Math.pow(d, 0.85)
 }
 
+/**
+ * 앞줄 각도=고전 10슬롯 유지, 뒷호만 목표 현 길이로 채움.
+ * @returns {number[]}
+ */
+export const buildChainAngles = (opts = {}) => {
+  const o = ringOpts(opts)
+  const backSize =
+    opts.backSize != null ? Number(opts.backSize) : BEAD_BACK_DISPLAY
+  const targetRatio =
+    opts.backGapRatio != null
+      ? Number(opts.backGapRatio)
+      : BACK_GAP_RATIO_TARGET
+  const chordTarget = Math.max(8, targetRatio * backSize)
+  const baseN = 10
+  const step = (Math.PI * 2) / baseN
+  const aFocus = Math.PI
+  const a1 = Math.PI + step
+  const a2 = Math.PI + 2 * step
+  const a8 = Math.PI + 8 * step
+  const a9 = Math.PI + 9 * step
+
+  const cxcy = (angle) => ({
+    cx: Math.round(o.cx + o.rx * Math.cos(angle)),
+    cy: Math.round(o.cy + o.ry * Math.sin(angle))
+  })
+
+  let aStart = a2 + 0.02
+  for (let k = 1; k <= 48; k++) {
+    const a = a2 + ((a8 - a2) * k) / 48
+    if (depthAtAngle(a) < FRONT_DEPTH_MIN) {
+      aStart = a
+      break
+    }
+  }
+
+  const back = [aStart]
+  let a = aStart
+  for (let guard = 0; guard < 48; guard++) {
+    let lo = 0.004
+    let hi = 0.9
+    for (let k = 0; k < 28; k++) {
+      const mid = (lo + hi) / 2
+      const g0 = cxcy(a)
+      const g1 = cxcy(a + mid)
+      const d = Math.hypot(g1.cx - g0.cx, g1.cy - g0.cy)
+      if (d < chordTarget) lo = mid
+      else hi = mid
+    }
+    const na = a + (lo + hi) / 2
+    if (na >= a8 - 0.02) break
+    if (depthAtAngle(na) >= FRONT_DEPTH_MIN) break
+    const gN = cxcy(na)
+    const g8 = cxcy(a8)
+    if (Math.hypot(gN.cx - g8.cx, gN.cy - g8.cy) < chordTarget * 0.55) break
+    a = na
+    back.push(a)
+  }
+
+  return [aFocus, a1, a2, ...back, a8, a9]
+}
+
+const _defaultAngles = buildChainAngles()
+export const SLOT_COUNT = _defaultAngles.length
+export const BACK_COUNT = _defaultAngles.filter(
+  (ang) => depthAtAngle(ang) < FRONT_DEPTH_MIN
+).length
+export const VISIBLE_BEADS = FRONT_COUNT + BACK_COUNT
+export const BUFFER_BEADS = Math.max(0, SLOT_COUNT - 6)
+export const RENDER_BEADS = SLOT_COUNT
+
 export const easeOutCubic = (t) => {
   const x = Math.max(0, Math.min(1, Number(t) || 0))
   return 1 - Math.pow(1 - x, 3)
@@ -124,22 +190,16 @@ export const slotGeomAtAngle = (angle, opts = {}) => {
 
 /**
  * @param {object} [opts]
- * @param {boolean} [opts.equalColumnSizes] E2: 앞열·뒷열 각각 동일 size
- * @param {boolean} [opts.e3SplitSrc] E3: 뒷열 size=BEAD_BACK_DISPLAY, src 분리
+ * @param {boolean} [opts.equalColumnSizes] 열별 동일 size (레거시)
+ * @param {boolean} [opts.e3SplitSrc] 뒷열 size=BEAD_BACK_DISPLAY (기본 on)
  */
 export const layoutChainSlots = (opts = {}) => {
   const o = ringOpts(opts)
-  const n = Math.max(
-    6,
-    Math.min(MAX_RENDER_NODES, Math.floor(Number(o.slotCount) || SLOT_COUNT))
-  )
-  const step = (Math.PI * 2) / n
-  let raw = []
-  for (let i = 0; i < n; i++) {
-    const angle = Math.PI + i * step
+  const angles = buildChainAngles(opts)
+  let raw = angles.map((angle, i) => {
     const g = slotGeomAtAngle(angle, o)
-    raw.push({ index: i, ...g, src: BEAD_SRC })
-  }
+    return { index: i, ...g, src: BEAD_SRC }
+  })
   if (opts.equalColumnSizes) {
     const front = raw.filter((s) => s.depth >= FRONT_DEPTH_MIN)
     const back = raw.filter((s) => s.depth < FRONT_DEPTH_MIN)
@@ -155,7 +215,8 @@ export const layoutChainSlots = (opts = {}) => {
       }
     })
   }
-  if (opts.e3SplitSrc) {
+  // 2.5.1: 뒷줄 고정 표시 지름 (단일 원본을 리샘플). e3SplitSrc!==false 기본.
+  if (opts.e3SplitSrc !== false) {
     raw = raw.map((s) => {
       if (s.depth >= FRONT_DEPTH_MIN) {
         return { ...s, src: BEAD_SRC_FRONT }
@@ -204,19 +265,8 @@ export const fixedDrawOrderFromSlots = (slots) => {
 }
 
 export const fixedDrawOrder = (opts = {}) => {
-  const o = ringOpts(opts)
-  const n = Math.max(
-    6,
-    Math.min(MAX_RENDER_NODES, Math.floor(Number(o.slotCount) || SLOT_COUNT))
-  )
-  const step = (Math.PI * 2) / n
-  const raw = []
-  for (let i = 0; i < n; i++) {
-    const angle = Math.PI + i * step
-    const g = slotGeomAtAngle(angle, o)
-    raw.push({ index: i, ...g })
-  }
-  return fixedDrawOrderFromSlots(raw)
+  const slots = layoutChainSlots(opts)
+  return fixedDrawOrderFromSlots(slots)
 }
 
 export const paintRankBySlot = (opts = {}) => {
@@ -406,9 +456,6 @@ export const layoutOptsFromExps = (exps = {}) => ({
 export const createChainBeads = (opts = {}) => {
   const layoutOpts = slotLayoutOpts(opts)
   const slots = layoutChainSlots({ ...ringOpts(opts), ...layoutOpts })
-  if (slots.length > MAX_RENDER_NODES) {
-    throw new Error('render nodes exceed MAX_RENDER_NODES')
-  }
   const order = fixedDrawOrder(opts)
   const rank = paintRankBySlot(opts)
   return order.map((slotIdx) => beadFromHomeSlot(slotIdx, slots[slotIdx], rank))

@@ -1,394 +1,22 @@
 <template>
-  <!--
-    2.5.0: 기본 렌더 S(스프라이트). L=레거시 노드 분기. 진단 타이밍 유지.
-  -->
+  <!-- 2.5.1: S2 단일 image src 스왑 · 진단 기본 off -->
   <div
     class="page"
     ontouchstart="onTouchStart"
     ontouchmove="onTouchMove"
     ontouchend="onTouchEnd"
     ontouchcancel="onTouchCancel"
-    onclick="onPageClick"
   >
     <stack class="stage">
-
-      <!-- 2.5.0 Sprite: idle image 1장 + image-animator / S2 src 스왑 -->
-      <div class="sprite-layer" if="{{isSprite}}">
+      <div class="sprite-layer">
         <image
-          if="{{!spritePlaying}}"
-          class="sprite-img"
-          src="{{spriteIdle}}"
-          style="left: {{spriteLeft}}px; top: {{spriteTop}}px; width: {{spriteW}}px; height: {{spriteH}}px;"
-        ></image>
-        <image-animator
-          if="{{isModeS && spritePlaying}}"
-          id="spriteAnim"
-          class="sprite-anim"
-          images="{{spriteFrames}}"
-          duration="{{spriteDuration}}"
-          iteration="1"
-          fillmode="forwards"
-          fixedsize="true"
-          style="left: {{spriteLeft}}px; top: {{spriteTop}}px; width: {{spriteW}}px; height: {{spriteH}}px;"
-        ></image-animator>
-        <image
-          if="{{isModeS2 && spritePlaying}}"
           class="sprite-img"
           src="{{spriteFrameSrc}}"
           style="left: {{spriteLeft}}px; top: {{spriteTop}}px; width: {{spriteW}}px; height: {{spriteH}}px;"
         ></image>
       </div>
-      <div class="ring-mover" if="{{isLegacy && visibleBeadCount === 1}}">
-        <div
-          id="bw0"
-          class="bead-wrap {{a0}}"
-          style="left: {{l0}}px; top: {{t0}}px; width: {{s0}}px; height: {{s0}}px; z-index: {{z0}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src0}}"
-            style="width: {{s0}}px; height: {{s0}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s0}}px; height: {{s0}}px; border-radius: {{r0}}px;"
-          ></div>
-        </div>
-      </div>
-      <div class="ring-mover" if="{{isLegacy && visibleBeadCount === 3}}">
-        <div
-          id="bw0"
-          class="bead-wrap {{a0}}"
-          style="left: {{l0}}px; top: {{t0}}px; width: {{s0}}px; height: {{s0}}px; z-index: {{z0}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src0}}"
-            style="width: {{s0}}px; height: {{s0}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s0}}px; height: {{s0}}px; border-radius: {{r0}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw1"
-          class="bead-wrap {{a1}}"
-          style="left: {{l1}}px; top: {{t1}}px; width: {{s1}}px; height: {{s1}}px; z-index: {{z1}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src1}}"
-            style="width: {{s1}}px; height: {{s1}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s1}}px; height: {{s1}}px; border-radius: {{r1}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw2"
-          class="bead-wrap {{a2}}"
-          style="left: {{l2}}px; top: {{t2}}px; width: {{s2}}px; height: {{s2}}px; z-index: {{z2}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src2}}"
-            style="width: {{s2}}px; height: {{s2}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s2}}px; height: {{s2}}px; border-radius: {{r2}}px;"
-          ></div>
-        </div>
-      </div>
-      <div class="ring-mover" if="{{isLegacy && visibleBeadCount === 6}}">
-        <div
-          id="bw0"
-          class="bead-wrap {{a0}}"
-          style="left: {{l0}}px; top: {{t0}}px; width: {{s0}}px; height: {{s0}}px; z-index: {{z0}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src0}}"
-            style="width: {{s0}}px; height: {{s0}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s0}}px; height: {{s0}}px; border-radius: {{r0}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw1"
-          class="bead-wrap {{a1}}"
-          style="left: {{l1}}px; top: {{t1}}px; width: {{s1}}px; height: {{s1}}px; z-index: {{z1}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src1}}"
-            style="width: {{s1}}px; height: {{s1}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s1}}px; height: {{s1}}px; border-radius: {{r1}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw2"
-          class="bead-wrap {{a2}}"
-          style="left: {{l2}}px; top: {{t2}}px; width: {{s2}}px; height: {{s2}}px; z-index: {{z2}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src2}}"
-            style="width: {{s2}}px; height: {{s2}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s2}}px; height: {{s2}}px; border-radius: {{r2}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw3"
-          class="bead-wrap {{a3}}"
-          style="left: {{l3}}px; top: {{t3}}px; width: {{s3}}px; height: {{s3}}px; z-index: {{z3}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src3}}"
-            style="width: {{s3}}px; height: {{s3}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s3}}px; height: {{s3}}px; border-radius: {{r3}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw4"
-          class="bead-wrap {{a4}}"
-          style="left: {{l4}}px; top: {{t4}}px; width: {{s4}}px; height: {{s4}}px; z-index: {{z4}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src4}}"
-            style="width: {{s4}}px; height: {{s4}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s4}}px; height: {{s4}}px; border-radius: {{r4}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw5"
-          class="bead-wrap {{a5}}"
-          style="left: {{l5}}px; top: {{t5}}px; width: {{s5}}px; height: {{s5}}px; z-index: {{z5}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src5}}"
-            style="width: {{s5}}px; height: {{s5}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s5}}px; height: {{s5}}px; border-radius: {{r5}}px;"
-          ></div>
-        </div>
-      </div>
-      <div class="ring-mover" if="{{isLegacy && visibleBeadCount === 10}}">
-        <div
-          id="bw0"
-          class="bead-wrap {{a0}}"
-          style="left: {{l0}}px; top: {{t0}}px; width: {{s0}}px; height: {{s0}}px; z-index: {{z0}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src0}}"
-            style="width: {{s0}}px; height: {{s0}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s0}}px; height: {{s0}}px; border-radius: {{r0}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw1"
-          class="bead-wrap {{a1}}"
-          style="left: {{l1}}px; top: {{t1}}px; width: {{s1}}px; height: {{s1}}px; z-index: {{z1}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src1}}"
-            style="width: {{s1}}px; height: {{s1}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s1}}px; height: {{s1}}px; border-radius: {{r1}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw2"
-          class="bead-wrap {{a2}}"
-          style="left: {{l2}}px; top: {{t2}}px; width: {{s2}}px; height: {{s2}}px; z-index: {{z2}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src2}}"
-            style="width: {{s2}}px; height: {{s2}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s2}}px; height: {{s2}}px; border-radius: {{r2}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw3"
-          class="bead-wrap {{a3}}"
-          style="left: {{l3}}px; top: {{t3}}px; width: {{s3}}px; height: {{s3}}px; z-index: {{z3}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src3}}"
-            style="width: {{s3}}px; height: {{s3}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s3}}px; height: {{s3}}px; border-radius: {{r3}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw4"
-          class="bead-wrap {{a4}}"
-          style="left: {{l4}}px; top: {{t4}}px; width: {{s4}}px; height: {{s4}}px; z-index: {{z4}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src4}}"
-            style="width: {{s4}}px; height: {{s4}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s4}}px; height: {{s4}}px; border-radius: {{r4}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw5"
-          class="bead-wrap {{a5}}"
-          style="left: {{l5}}px; top: {{t5}}px; width: {{s5}}px; height: {{s5}}px; z-index: {{z5}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src5}}"
-            style="width: {{s5}}px; height: {{s5}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s5}}px; height: {{s5}}px; border-radius: {{r5}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw6"
-          class="bead-wrap {{a6}}"
-          style="left: {{l6}}px; top: {{t6}}px; width: {{s6}}px; height: {{s6}}px; z-index: {{z6}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src6}}"
-            style="width: {{s6}}px; height: {{s6}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s6}}px; height: {{s6}}px; border-radius: {{r6}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw7"
-          class="bead-wrap {{a7}}"
-          style="left: {{l7}}px; top: {{t7}}px; width: {{s7}}px; height: {{s7}}px; z-index: {{z7}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src7}}"
-            style="width: {{s7}}px; height: {{s7}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s7}}px; height: {{s7}}px; border-radius: {{r7}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw8"
-          class="bead-wrap {{a8}}"
-          style="left: {{l8}}px; top: {{t8}}px; width: {{s8}}px; height: {{s8}}px; z-index: {{z8}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src8}}"
-            style="width: {{s8}}px; height: {{s8}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s8}}px; height: {{s8}}px; border-radius: {{r8}}px;"
-          ></div>
-        </div>
-        <div
-          id="bw9"
-          class="bead-wrap {{a9}}"
-          style="left: {{l9}}px; top: {{t9}}px; width: {{s9}}px; height: {{s9}}px; z-index: {{z9}};"
-        >
-          <image
-            if="{{!e6Solid}}"
-            class="bead-img"
-            src="{{src9}}"
-            style="width: {{s9}}px; height: {{s9}}px;"
-          ></image>
-          <div
-            if="{{e6Solid}}"
-            class="bead-solid"
-            style="width: {{s9}}px; height: {{s9}}px; border-radius: {{r9}}px;"
-          ></div>
-        </div>
-      </div>
-      <!-- 2.4.5: 사각형·줄별 absolute top(겹침 금지)·z 최상 -->
       <div class="diag-layer" if="{{diagnoseLatency}}">
-        <div class="diag-box" onclick="onDiagBoxClick">
+        <div class="diag-box">
           <div class="diag-dot p1 {{diagP1On ? 'dot-on' : ''}}"></div>
           <div class="diag-dot p2 {{diagP2On ? 'dot-on' : ''}}"></div>
           <text class="diag-l0">{{diagLine0}}</text>
@@ -398,10 +26,6 @@
           <text class="diag-l4">{{diagLine4}}</text>
           <text class="diag-l5">{{diagLine5}}</text>
         </div>
-      </div>
-      <!-- E9: 긴누름 없을 때 설정 진입 -->
-      <div class="e9-settings" if="{{e9NoLongpress}}" onclick="openSettings">
-        <text class="e9-settings-text">설정</text>
       </div>
     </stack>
   </div>
@@ -415,129 +39,33 @@ import { loadState, saveState } from '../../common/persist.js'
 import { pushTimingSample, TIMING_AVG_N } from '../../common/timing.js'
 import { eventDeliveryDelay, deltaMs } from '../../common/timing-core.js'
 import {
-  CHAIN_ANIM_MS,
-  CHAIN_ANIM_END_SLACK_MS,
   SWIPE_MIN_DY,
   TAP_MAX_MOVE,
-  createVisibleBeads,
-  animClassesForVisible,
-  layoutOptsFromExps,
   classifyVerticalSwipe
 } from '../../common/ring.js'
 import {
   SPRITE_DURATION_MS,
   SPRITE_CROP,
   SPRITE_IDLE,
-  spriteImageFrames,
   spriteFramesForDir
 } from '../../common/sprite-meta.js'
 
 const LONGPRESS_MS = 560
+const ANIM_SLACK_MS = 16
 
 export default {
   private: {
     vibrateOnBead: true,
     inputMode: 'slide',
     diagnoseLatency: false,
-    singleBeadTest: false,
-    visibleBeadCount: 10,
-    renderMode: 'S',
-    isLegacy: false,
-    isSprite: true,
-    isModeS: true,
-    isModeS2: false,
-    spriteIdle: SPRITE_IDLE,
-    spritePlaying: false,
-    spriteFrames: [],
     spriteFrameSrc: SPRITE_IDLE,
-    spriteDuration: SPRITE_DURATION_MS + 'ms',
     spriteLeft: SPRITE_CROP.left,
     spriteTop: SPRITE_CROP.top,
     spriteW: SPRITE_CROP.width,
     spriteH: SPRITE_CROP.height,
-    e1Minimize: true,
-    e2NoScale: false,
-    e3SplitSrc: true,
-    e4SkipBack: false,
-    e5DirectDom: false,
-    e6Solid: false,
-    e7TouchStartRoll: false,
-    e8ClickOnly: false,
-    e9NoLongpress: false,
-    e5Status: '',
-    a0: '',
-    l0: 372,
-    t0: 177,
-    s0: 160,
-    r0: 80,
-    z0: 0,
-    src0: '/common/bead-back-160.png',
-    a1: '',
-    l1: 349,
-    t1: -70,
-    s1: 160,
-    r1: 80,
-    z1: 1,
-    src1: '/common/bead-back-160.png',
-    a2: '',
-    l2: 349,
-    t2: 424,
-    s2: 160,
-    r2: 80,
-    z2: 2,
-    src2: '/common/bead-back-160.png',
-    a3: '',
-    l3: 290,
-    t3: -222,
-    s3: 160,
-    r3: 80,
-    z3: 3,
-    src3: '/common/bead-back-160.png',
-    a4: '',
-    l4: 290,
-    t4: 576,
-    s4: 160,
-    r4: 80,
-    z4: 4,
-    src4: '/common/bead-back-160.png',
-    a5: '',
-    l5: 179,
-    t5: -261,
-    s5: 239,
-    r5: 119,
-    z5: 5,
-    src5: '/common/bead-front-255.png',
-    a6: '',
-    l6: 179,
-    t6: 537,
-    s6: 239,
-    r6: 119,
-    z6: 6,
-    src6: '/common/bead-front-255.png',
-    a7: '',
-    l7: 114,
-    t7: -115,
-    s7: 251,
-    r7: 125,
-    z7: 7,
-    src7: '/common/bead-front-255.png',
-    a8: '',
-    l8: 114,
-    t8: 379,
-    s8: 251,
-    r8: 125,
-    z8: 8,
-    src8: '/common/bead-front-255.png',
-    a9: '',
-    l9: 89,
-    t9: 130,
-    s9: 255,
-    r9: 127,
-    z9: 9,
-    src9: '/common/bead-front-255.png',
     diagP1On: false,
     diagP2On: false,
-    diagLine0: 'n=10 t0=-',
+    diagLine0: 't0=-',
     diagLine1: 'in→set:-',
     diagLine2: 'set→start:-',
     diagLine3: 'anim:-',
@@ -547,7 +75,6 @@ export default {
 
   onInit() {
     this._state = normalizeState({ todayDate: formatDate() })
-    this._homeSlots = []
     this._animTimer = null
     this._sideTimer = null
     this._lpTimer = null
@@ -565,7 +92,6 @@ export default {
     this._touchActive = false
     this._gestureFired = false
     this._longPressed = false
-    this._rollAlt = false
     this._t0 = 0
     this._t0Kind = ''
     this._t1 = 0
@@ -579,55 +105,28 @@ export default {
     this._tsClassSet = 0
     this._evtDelay = -1
     this._timingHist = []
-    this._animEndCount = 0
-    this._animEndExpected = 0
-    this._e5Works = null
-    this._listenersBound = false
-    this.hydrateGeometry()
   },
 
-  expOpts() {
-    return layoutOptsFromExps({
-      e1Minimize: this.e1Minimize !== false,
-      e2NoScale: !!this.e2NoScale,
-      e3SplitSrc: this.e3SplitSrc !== false,
-      e4SkipBack: !!this.e4SkipBack,
-      singleBead: this.visibleBeadCount <= 1 || !!this.singleBeadTest
-    })
-  },
-
-  hydrateGeometry() {
-    const count = this.visibleBeadCount || 10
-    const beads = createVisibleBeads(count, this.expOpts())
-    this._homeSlots = beads.map((b) => b.homeSlot)
-    for (let i = 0; i < 10; i++) {
-      if (i < beads.length) {
-        this['l' + i] = beads[i].left
-        this['t' + i] = beads[i].top
-        this['s' + i] = beads[i].size
-        this['r' + i] = Math.floor(beads[i].size / 2)
-        this['z' + i] = beads[i].z
-        this['src' + i] = beads[i].src
-      }
-      this['a' + i] = ''
-    }
+  onReady() {
+    this.reload()
   },
 
   onShow() {
     this.reload()
-    this.bindAnimListeners()
   },
 
   onHide() {
     this.clearAllTimers()
-    this._animating = false
   },
 
   onDestroy() {
     this.clearAllTimers()
-    if (this._saveTimer) {
-      clearTimeout(this._saveTimer)
-      this._saveTimer = null
+  },
+
+  clearLpTimer() {
+    if (this._lpTimer) {
+      clearTimeout(this._lpTimer)
+      this._lpTimer = null
     }
   },
 
@@ -648,12 +147,9 @@ export default {
       clearTimeout(this._s2Timer)
       this._s2Timer = null
     }
-  },
-
-  clearLpTimer() {
-    if (this._lpTimer) {
-      clearTimeout(this._lpTimer)
-      this._lpTimer = null
+    if (this._diagFlushTimer) {
+      clearTimeout(this._diagFlushTimer)
+      this._diagFlushTimer = null
     }
   },
 
@@ -669,107 +165,15 @@ export default {
   async reload() {
     const state = await loadState()
     this._state = state
-    this.vibrateOnBead = state.vibrateOnBead
+    this.vibrateOnBead = state.vibrateOnBead !== false
     this.inputMode = state.inputMode || 'slide'
     this.diagnoseLatency = !!state.diagnoseLatency
-    this.singleBeadTest = !!state.singleBeadTest
-    this.visibleBeadCount = state.visibleBeadCount || 10
-    this.e1Minimize = state.e1Minimize !== false
-    this.e2NoScale = !!state.e2NoScale
-    this.e3SplitSrc = state.e3SplitSrc !== false
-    this.e4SkipBack = !!state.e4SkipBack
-    this.e5DirectDom = !!state.e5DirectDom
-    this.e6Solid = !!state.e6Solid
-    this.e7TouchStartRoll = !!state.e7TouchStartRoll
-    this.e8ClickOnly = !!state.e8ClickOnly
-    this.e9NoLongpress = !!state.e9NoLongpress
-    this.applyRenderMode(state.renderMode || 'S')
-    this.hydrateGeometry()
-    this._animating = false
-    this._listenersBound = false
-    if (this.isLegacy) this.bindAnimListeners()
-  },
-
-  applyRenderMode(mode) {
-    const m = mode === 'L' || mode === 'S2' ? mode : 'S'
-    this.renderMode = m
-    this.isLegacy = m === 'L'
-    this.isSprite = m === 'S' || m === 'S2'
-    this.isModeS = m === 'S'
-    this.isModeS2 = m === 'S2'
-    this.spriteIdle = SPRITE_IDLE
     this.spriteFrameSrc = SPRITE_IDLE
-    this.spritePlaying = false
-    this.spriteFrames = spriteImageFrames(1)
     this.spriteLeft = SPRITE_CROP.left
     this.spriteTop = SPRITE_CROP.top
     this.spriteW = SPRITE_CROP.width
     this.spriteH = SPRITE_CROP.height
-    this.spriteDuration = SPRITE_DURATION_MS + 'ms'
-  },
-
-  /** animationstart/end 계측용 — $element + addEventListener */
-  bindAnimListeners() {
-    if (this._listenersBound) return
-    if (typeof this.$element !== 'function') {
-      this.e5Status = 'E5:no-$element'
-      return
-    }
-    const count = this.visibleBeadCount || 10
-    let bound = 0
-    for (let i = 0; i < count; i++) {
-      let el = null
-      try {
-        el = this.$element('bw' + i)
-      } catch (e) {
-        el = null
-      }
-      if (!el || typeof el.addEventListener !== 'function') continue
-      try {
-        el.addEventListener('animationstart', this.onAnimStart.bind(this))
-        el.addEventListener('animationend', this.onAnimEnd.bind(this))
-        bound++
-      } catch (e2) {
-        /* ignore */
-      }
-    }
-    this._listenersBound = bound > 0
-    if (!this._listenersBound) {
-      this.e5Status = this.e5Status || 'E5:no-anim-evt'
-    }
-  },
-
-  /**
-   * E5: Vela 공용 API는 class/style 직접 변경을 노출하지 않음.
-   * attr/setAttribute 있으면 시도, 없으면 false.
-   */
-  applyClassDirect(i, cls) {
-    if (typeof this.$element !== 'function') return false
-    let el = null
-    try {
-      el = this.$element('bw' + i)
-    } catch (e) {
-      return false
-    }
-    if (!el) return false
-    const full = ('bead-wrap ' + (cls || '')).trim()
-    if (typeof el.attr === 'function') {
-      try {
-        el.attr({ class: full })
-        return true
-      } catch (e2) {
-        /* fall through */
-      }
-    }
-    if (typeof el.setAttribute === 'function') {
-      try {
-        el.setAttribute('class', full)
-        return true
-      } catch (e3) {
-        /* fall through */
-      }
-    }
-    return false
+    this._animating = false
   },
 
   touchPoint(e) {
@@ -785,7 +189,7 @@ export default {
     return { x: Number(x), y: Number(y) }
   },
 
-  /** P1/P2 점만 — 텍스트 갱신 없음(핫패스) */
+  /** 진단 off면 no-op (핫패스 비용 0) */
   markP1() {
     if (!this.diagnoseLatency) return
     this.diagP1On = !this.diagP1On
@@ -797,21 +201,6 @@ export default {
     this.diagP2On = !this.diagP2On
   },
 
-  onAnimStart() {
-    if (this._t2) return
-    this._t2 = Date.now()
-  },
-
-  onAnimEnd() {
-    this._animEndCount = (this._animEndCount || 0) + 1
-    if (this._animEndExpected > 0 && this._animEndCount < this._animEndExpected) {
-      return
-    }
-    if (!this._t3) this._t3 = Date.now()
-    this.scheduleDiagFlush(true)
-  },
-
-  /** 진단 텍스트는 animationend 이후 setTimeout으로만 갱신 */
   scheduleDiagFlush(finalize) {
     if (!this.diagnoseLatency) return
     this._pendingDiag = { finalize: !!finalize }
@@ -829,13 +218,10 @@ export default {
     const t1 = this._tsClassSet || this._t1 || 0
     const t2 = this._t2 || 0
     const t3 = this._t3 || 0
-    const inSet = deltaMs(t1, t0)
-    const setStart = deltaMs(t2, t1)
-    const animLen = t2 && t3 ? deltaMs(t3, t2) : deltaMs(t3, t1)
     return {
-      inSet,
-      setStart,
-      animLen,
+      inSet: deltaMs(t1, t0),
+      setStart: deltaMs(t2, t1),
+      animLen: t2 && t3 ? deltaMs(t3, t2) : deltaMs(t3, t1),
       t0Kind: this._t0Kind || 'judge',
       evtDelay: this._evtDelay,
       startToMove: deltaMs(this._tsFirstMove, this._tsTouchStart),
@@ -844,19 +230,7 @@ export default {
       endToSet: deltaMs(t1, this._tsTouchEnd),
       judgeToHandler: deltaMs(this._tsHandler, t0),
       handlerToSet: deltaMs(t1, this._tsHandler),
-      n: this.visibleBeadCount || 10,
-      e1: this.e1Minimize !== false,
-      e2: !!this.e2NoScale,
-      e3: this.e3SplitSrc !== false,
-      e4: !!this.e4SkipBack,
-      e5: !!this.e5DirectDom,
-      e6: !!this.e6Solid,
-      e7: !!this.e7TouchStartRoll,
-      e8: !!this.e8ClickOnly,
-      e9: !!this.e9NoLongpress,
-      e5Status: this.e5Status || '',
       inputMode: this.inputMode || 'slide',
-      renderMode: this.renderMode || 'S',
       at: Date.now()
     }
   },
@@ -865,19 +239,16 @@ export default {
     if (!this.diagnoseLatency) return
     const sample = this.buildTimingSample()
     const ms = (v) => (v >= 0 ? v + 'ms' : '-')
-    this.diagLine0 =
-      'rm=' +
-      (sample.renderMode || 'S') +
-      ' t0=' +
-      sample.t0Kind +
-      (this.e5Status ? ' ' + this.e5Status : '')
+    this.diagLine0 = 't0=' + sample.t0Kind
     this.diagLine1 = 'in→set:' + ms(sample.inSet)
     this.diagLine2 = 'set→start:' + ms(sample.setStart)
     this.diagLine3 = 'anim:' + ms(sample.animLen)
-    if (sample.inputMode === 'touch' || sample.t0Kind === 'tap' || sample.t0Kind === 'e7') {
-      this.diagLine4 = 'end→set:' + ms(sample.endToSet) + ' s→e:' + ms(sample.startToEnd)
+    if (sample.inputMode === 'touch' || sample.t0Kind === 'tap') {
+      this.diagLine4 =
+        'end→set:' + ms(sample.endToSet) + ' s→e:' + ms(sample.startToEnd)
     } else {
-      this.diagLine4 = 'mv→jd:' + ms(sample.moveToJudge) + ' h→set:' + ms(sample.handlerToSet)
+      this.diagLine4 =
+        'mv→jd:' + ms(sample.moveToJudge) + ' h→set:' + ms(sample.handlerToSet)
     }
     this.diagLine5 = 'evtDelay:' + ms(sample.evtDelay)
     if (finalize && sample.inSet >= 0) {
@@ -900,32 +271,17 @@ export default {
     }
   },
 
-  resetGestureClock() {
-    this._tsTouchStart = 0
-    this._tsFirstMove = 0
-    this._tsSwipeJudge = 0
-    this._tsTouchEnd = 0
-    this._tsHandler = 0
-    this._tsClassSet = 0
-    this._evtDelay = -1
-    this._t0 = 0
-    this._t0Kind = ''
-    this._t1 = 0
-    this._t2 = 0
-    this._t3 = 0
-  },
-
   onTouchStart(e) {
-    if (this.e8ClickOnly) {
-      // E8: 롤은 click만. 터치 시작은 롱프레스/제스처 클록만.
+    const diag = this.diagnoseLatency
+    const now = diag ? Date.now() : 0
+    if (diag) {
+      const del = eventDeliveryDelay(e, now)
+      this._evtDelay = del.delay
+      this._tsTouchStart = now
+      this._tsFirstMove = 0
+      this._tsSwipeJudge = 0
+      this._tsTouchEnd = 0
     }
-    const now = Date.now()
-    const del = eventDeliveryDelay(e, now)
-    this._evtDelay = del.delay
-    this._tsTouchStart = now
-    this._tsFirstMove = 0
-    this._tsSwipeJudge = 0
-    this._tsTouchEnd = 0
     const p = this.touchPoint(e)
     if (!p) return
     this._touchActive = true
@@ -935,36 +291,23 @@ export default {
     this._touchY = p.y
     this.markP1()
     this.clearLpTimer()
-    // E7: 터치 모드에서 touchstart 즉시 +1
-    if (
-      !this.e8ClickOnly &&
-      this.e7TouchStartRoll &&
-      (this.inputMode || 'slide') === 'touch'
-    ) {
+    this._lpTimer = setTimeout(() => {
+      this._lpTimer = null
+      if (!this._touchActive) return
+      if (this._gestureFired) return
+      this._longPressed = true
       this._gestureFired = true
-      this.enqueueRoll(1, 'e7')
-    }
-    if (!this.e9NoLongpress) {
-      this._lpTimer = setTimeout(() => {
-        this._lpTimer = null
-        if (!this._touchActive) return
-        // E7: 이미 +1 했어도 설정으로 (취소 없음)
-        if (this._gestureFired && !this.e7TouchStartRoll) return
-        this._longPressed = true
-        this._gestureFired = true
-        this._touchActive = false
-        router.push({ uri: '/pages/settings' })
-      }, LONGPRESS_MS)
-    }
+      this._touchActive = false
+      router.push({ uri: '/pages/settings' })
+    }, LONGPRESS_MS)
   },
 
   trySwipe(e) {
-    if (this.e8ClickOnly) return false
     if ((this.inputMode || 'slide') === 'touch') return false
     if (!this._touchActive || this._gestureFired || this._longPressed) return false
     const p = this.touchPoint(e)
     if (!p) return false
-    if (!this._tsFirstMove) this._tsFirstMove = Date.now()
+    if (this.diagnoseLatency && !this._tsFirstMove) this._tsFirstMove = Date.now()
     const dx = p.x - this._touchX
     const dy = p.y - this._touchY
     if (Math.abs(dx) > TAP_MAX_MOVE || Math.abs(dy) > TAP_MAX_MOVE) {
@@ -972,7 +315,7 @@ export default {
     }
     const dir = classifyVerticalSwipe(dx, dy, { minDy: SWIPE_MIN_DY })
     if (!dir) return false
-    this._tsSwipeJudge = Date.now()
+    if (this.diagnoseLatency) this._tsSwipeJudge = Date.now()
     this._gestureFired = true
     this.clearLpTimer()
     this.enqueueRoll(dir, 'swipe')
@@ -980,26 +323,19 @@ export default {
   },
 
   onTouchMove(e) {
-    if (this.e8ClickOnly) return
     if (!this._touchActive) return
-    if (!this._tsFirstMove) this._tsFirstMove = Date.now()
+    if (this.diagnoseLatency && !this._tsFirstMove) this._tsFirstMove = Date.now()
     this.trySwipe(e)
   },
 
   onTouchEnd(e) {
-    this._tsTouchEnd = Date.now()
-    if (this.e8ClickOnly) {
-      this.clearLpTimer()
-      this._touchActive = false
-      return
-    }
+    if (this.diagnoseLatency) this._tsTouchEnd = Date.now()
     if (!this._touchActive) return
     this.clearLpTimer()
     const mode = this.inputMode || 'slide'
     if (mode === 'slide') {
       this.trySwipe(e)
     } else if (!this._gestureFired && !this._longPressed) {
-      // E7이 이미 굴렸으면 스킵
       const p = this.touchPoint(e)
       if (p) {
         const dx = p.x - this._touchX
@@ -1019,224 +355,65 @@ export default {
     this._gestureFired = false
   },
 
-  /** E8: 시스템 click만으로 굴림 */
-  onPageClick() {
-    if (!this.e8ClickOnly) return
-    if (this._longPressed) return
-    this._tsTouchEnd = Date.now()
-    if (!this._tsTouchStart) this._tsTouchStart = this._tsTouchEnd
-    this.enqueueRoll(1, 'click')
-  },
-
-  /** E9: 긴누름 없을 때 진단 패널 탭 → 설정 */
-  onDiagBoxClick() {
-    if (!this.e9NoLongpress) return
-    this.openSettings()
-  },
-
-  openSettings() {
-    router.push({ uri: '/pages/settings' })
-  },
-
-  /**
-   * t0 = 롤 결정 시각 (swipe 판정 / tap 확정 / e7 touchstart / click)
-   * @param {number} dir
-   * @param {string} kind
-   */
   enqueueRoll(dir, kind) {
     const d = Number(dir) < 0 ? -1 : 1
-    const now = Date.now()
-    this._t0 = now
-    this._t0Kind = kind || 'judge'
-    if (kind === 'swipe' && this._tsSwipeJudge) this._t0 = this._tsSwipeJudge
-    this._t1 = 0
-    this._t2 = 0
-    this._t3 = 0
-    this._tsClassSet = 0
-    this._animEndCount = 0
+    if (this.diagnoseLatency) {
+      const now = Date.now()
+      this._t0 = now
+      this._t0Kind = kind || 'judge'
+      if (kind === 'swipe' && this._tsSwipeJudge) this._t0 = this._tsSwipeJudge
+      this._t1 = 0
+      this._t2 = 0
+      this._t3 = 0
+      this._tsClassSet = 0
+    }
     if (!this._state) {
       this._state = normalizeState({ todayDate: formatDate() })
     }
     if (this._animating) {
       this.clearAnimTimers()
-      if (this.isSprite) this.finishSpriteRoll()
-      else {
-        this.clearAnimClasses()
-        this._animating = false
-      }
+      this.finishRoll()
     }
     this.startRoll(d)
   },
 
-  clearAnimClasses() {
-    if (this.isSprite) return
-    const count = this.visibleBeadCount || 10
-    const useE5 = !!this.e5DirectDom && this._e5Works !== false
-    for (let i = 0; i < count; i++) {
-      if (useE5) {
-        const ok = this.applyClassDirect(i, '')
-        if (!ok) {
-          this._e5Works = false
-          this.e5Status = 'E5:불가'
-          this['a' + i] = ''
-        }
-      } else {
-        this['a' + i] = ''
-      }
-    }
-  },
-
   startRoll(dir) {
-    this._tsHandler = Date.now()
+    if (this.diagnoseLatency) this._tsHandler = Date.now()
     const d = Number(dir) < 0 ? -1 : 1
     const result = applySwipeCount(this._state, d)
     this._state = result.state
     this._animating = true
-    if (this.isSprite) {
-      this.startSpriteRoll(d, result)
-      return
-    }
-    this.startLegacyRoll(d, result)
-  },
-
-  /** S / S2: 클래스 바인딩 대신 프레임 재생. t1=재생 개시 직후 */
-  startSpriteRoll(d, result) {
     this.clearAnimTimers()
-    this._animEndExpected = 1
-    this._animEndCount = 0
-    this._t2 = 0
-    this._t3 = 0
-    const frames = spriteImageFrames(d)
     const srcs = spriteFramesForDir(d)
-    if (this.isModeS) {
-      this.spriteFrames = frames
-      this.spritePlaying = true
+    this._s2List = srcs
+    this._s2Idx = 0
+    this.spriteFrameSrc = srcs[0] || SPRITE_IDLE
+    if (this.diagnoseLatency) {
       this._tsClassSet = Date.now()
       this._t1 = this._tsClassSet
       this.markP2()
-      // stop→start: woodenFish 패턴. 바인딩 반영 후 0ms
-      this._t2Timer = setTimeout(() => {
-        this._t2Timer = null
-        if (!this._t2) this._t2 = Date.now()
-        try {
-          const el = this.$element('spriteAnim')
-          if (el) {
-            if (typeof el.stop === 'function') el.stop()
-            if (typeof el.start === 'function') el.start()
-          }
-        } catch (e) {
-          // S 실패 시 S2로 폴백하지 않음 — 타이머로 종료만
-        }
-      }, 0)
-    } else {
-      // S2: src 스왑
-      this._s2List = srcs
-      this._s2Idx = 0
-      this.spriteFrameSrc = srcs[0] || SPRITE_IDLE
-      this.spritePlaying = true
-      this._tsClassSet = Date.now()
-      this._t1 = this._tsClassSet
-      this.markP2()
-      const step = Math.max(1, Math.floor(SPRITE_DURATION_MS / Math.max(1, srcs.length - 1)))
       this._t2Timer = setTimeout(() => {
         this._t2Timer = null
         if (!this._t2) this._t2 = Date.now()
       }, 0)
-      const tick = () => {
-        this._s2Timer = null
-        this._s2Idx += 1
-        if (!this._s2List || this._s2Idx >= this._s2List.length) {
-          if (!this._t3) this._t3 = Date.now()
-          this.finishSpriteRoll()
-          this.scheduleDiagFlush(true)
-          return
-        }
-        this.spriteFrameSrc = this._s2List[this._s2Idx]
-        this._s2Timer = setTimeout(tick, step)
+    }
+    const step = Math.max(
+      1,
+      Math.floor(SPRITE_DURATION_MS / Math.max(1, srcs.length - 1))
+    )
+    const tick = () => {
+      this._s2Timer = null
+      this._s2Idx += 1
+      if (!this._s2List || this._s2Idx >= this._s2List.length) {
+        if (this.diagnoseLatency && !this._t3) this._t3 = Date.now()
+        this.finishRoll()
+        this.scheduleDiagFlush(true)
+        return
       }
+      this.spriteFrameSrc = this._s2List[this._s2Idx]
       this._s2Timer = setTimeout(tick, step)
     }
-    const completedRound = !!result.completedRound
-    const state = result.state
-    this._sideTimer = setTimeout(() => {
-      this._sideTimer = null
-      this.buzz(completedRound)
-      this.queueSave(state)
-    }, 0)
-    // S: onstop 없을 때 안전망
-    if (this.isModeS) {
-      this._animTimer = setTimeout(() => {
-        if (!this._animating) return
-        if (!this._t3) this._t3 = Date.now()
-        this.finishSpriteRoll()
-        this.scheduleDiagFlush(true)
-      }, SPRITE_DURATION_MS + CHAIN_ANIM_END_SLACK_MS)
-    }
-  },
-
-  onSpriteStop() {
-    if (!this._animating && !this.spritePlaying) return
-    if (!this._t3) this._t3 = Date.now()
-    this.finishSpriteRoll()
-    this.scheduleDiagFlush(true)
-  },
-
-  finishSpriteRoll() {
-    this.clearAnimTimers()
-    this.spritePlaying = false
-    this.spriteFrameSrc = SPRITE_IDLE
-    this._animating = false
-    try {
-      const el = this.$element('spriteAnim')
-      if (el && typeof el.stop === 'function') el.stop()
-    } catch (e) {
-      /* ignore */
-    }
-  },
-
-  startLegacyRoll(d, result) {
-    this._rollAlt = !this._rollAlt
-    const count = this.visibleBeadCount || 10
-    const classes = animClassesForVisible(d, count, {
-      ...this.expOpts(),
-      alt: this._rollAlt
-    })
-    const useE5 = !!this.e5DirectDom
-    let e5Ok = 0
-    let e5Fail = 0
-    for (let i = 0; i < count; i++) {
-      const cls = classes[i] || ''
-      if (useE5) {
-        const ok = this.applyClassDirect(i, cls)
-        if (ok) e5Ok++
-        else {
-          e5Fail++
-          this['a' + i] = cls
-        }
-      } else {
-        this['a' + i] = cls
-      }
-    }
-    this._tsClassSet = Date.now()
-    this._t1 = this._tsClassSet
-    if (useE5) {
-      if (e5Ok > 0 && e5Fail === 0) {
-        this._e5Works = true
-        this.e5Status = 'E5:ok'
-      } else if (e5Ok === 0) {
-        this._e5Works = false
-        this.e5Status = 'E5:불가'
-      } else {
-        this.e5Status = 'E5:partial'
-      }
-    }
-    this._animEndExpected = classes.filter((c) => !!c).length || 1
-    this.markP2()
-    this.clearAnimTimers()
-    this._t2Timer = setTimeout(() => {
-      this._t2Timer = null
-      if (!this._t2) this._t2 = Date.now()
-    }, 0)
+    this._s2Timer = setTimeout(tick, step)
     const completedRound = !!result.completedRound
     const state = result.state
     this._sideTimer = setTimeout(() => {
@@ -1245,18 +422,16 @@ export default {
       this.queueSave(state)
     }, 0)
     this._animTimer = setTimeout(() => {
-      if (!this._t3) this._t3 = Date.now()
+      if (!this._animating) return
+      if (this.diagnoseLatency && !this._t3) this._t3 = Date.now()
       this.finishRoll()
       this.scheduleDiagFlush(true)
-    }, CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS)
+    }, SPRITE_DURATION_MS + ANIM_SLACK_MS)
   },
 
   finishRoll() {
-    if (this.isSprite) {
-      this.finishSpriteRoll()
-      return
-    }
-    this.clearAnimClasses()
+    this.clearAnimTimers()
+    this.spriteFrameSrc = SPRITE_IDLE
     this._animating = false
   },
 
@@ -1297,32 +472,6 @@ export default {
 .sprite-img {
   position: absolute;
 }
-.sprite-anim {
-  position: absolute;
-}
-.ring-mover {
-  width: 432px;
-  height: 514px;
-  position: absolute;
-  left: 0px;
-  top: 0px;
-}
-.bead-wrap {
-  position: absolute;
-  transform-origin: 0px 0px;
-}
-.bead-img {
-  position: absolute;
-  left: 0px;
-  top: 0px;
-}
-.bead-solid {
-  position: absolute;
-  left: 0px;
-  top: 0px;
-  background-color: #8b5a2b;
-}
-/* 2.4.5: 둥근 사각형 화면 · 줄별 absolute top (24px×1.4=34) · 겹침 금지 */
 .diag-layer {
   position: absolute;
   left: 0px;
@@ -1409,1622 +558,4 @@ export default {
   font-size: 24px;
   color: #ffffff;
 }
-.e9-settings {
-  position: absolute;
-  right: 16px;
-  top: 12px;
-  width: 72px;
-  height: 40px;
-  z-index: 1000;
-  background-color: #2a1e14;
-  justify-content: center;
-  align-items: center;
-}
-.e9-settings-text {
-  font-size: 22px;
-  color: #e8c48a;
-  text-align: center;
-}
-/* CHAIN_KF_BEGIN */
-.roll-next-0 {
-  animation-name: kf-roll-next-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-next-0 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(25px, -245px) scale(0.98431373); }
-}
-.roll-next-0-b {
-  animation-name: kf-roll-next-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-prev-0 {
-  animation-name: kf-roll-prev-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-prev-0 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(25px, 249px) scale(0.98431373); }
-}
-.roll-prev-0-b {
-  animation-name: kf-roll-prev-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-next-1 {
-  animation-name: kf-roll-next-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-next-1 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(65px, -146px) scale(0.95219124); }
-}
-.roll-next-1-b {
-  animation-name: kf-roll-next-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-prev-1 {
-  animation-name: kf-roll-prev-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-prev-1 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-25px, 245px) scale(1.01593625); }
-}
-.roll-prev-1-b {
-  animation-name: kf-roll-prev-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-next-2 {
-  animation-name: kf-roll-next-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-next-2 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(111px, 39px) scale(0.66945607); }
-}
-.roll-next-2-b {
-  animation-name: kf-roll-next-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-prev-2 {
-  animation-name: kf-roll-prev-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-prev-2 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-65px, 146px) scale(1.05020921); }
-}
-.roll-prev-2-b {
-  animation-name: kf-roll-prev-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-next-3 {
-  animation-name: kf-roll-next-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-next-3 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(59px, 152px) scale(1); }
-}
-.roll-next-3-b {
-  animation-name: kf-roll-next-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-prev-3 {
-  animation-name: kf-roll-prev-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-prev-3 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-111px, -39px) scale(1.49375); }
-}
-.roll-prev-3-b {
-  animation-name: kf-roll-prev-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-next-4 {
-  animation-name: kf-roll-next-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-next-4 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(23px, 247px) scale(1); }
-}
-.roll-next-4-b {
-  animation-name: kf-roll-next-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-prev-4 {
-  animation-name: kf-roll-prev-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-prev-4 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-59px, -152px) scale(1); }
-}
-.roll-prev-4-b {
-  animation-name: kf-roll-prev-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-next-5 {
-  animation-name: kf-roll-next-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-next-5 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-23px, 247px) scale(1); }
-}
-.roll-next-5-b {
-  animation-name: kf-roll-next-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-prev-5 {
-  animation-name: kf-roll-prev-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-prev-5 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-23px, -247px) scale(1); }
-}
-.roll-prev-5-b {
-  animation-name: kf-roll-prev-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-next-6 {
-  animation-name: kf-roll-next-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-next-6 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-59px, 152px) scale(1); }
-}
-.roll-next-6-b {
-  animation-name: kf-roll-next-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-prev-6 {
-  animation-name: kf-roll-prev-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-prev-6 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(23px, -247px) scale(1); }
-}
-.roll-prev-6-b {
-  animation-name: kf-roll-prev-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-next-7 {
-  animation-name: kf-roll-next-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-next-7 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-111px, -39px) scale(1.49375); }
-}
-.roll-next-7-b {
-  animation-name: kf-roll-next-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-prev-7 {
-  animation-name: kf-roll-prev-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-prev-7 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(59px, -152px) scale(1); }
-}
-.roll-prev-7-b {
-  animation-name: kf-roll-prev-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-next-8 {
-  animation-name: kf-roll-next-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-next-8 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-65px, -158px) scale(1.05020921); }
-}
-.roll-next-8-b {
-  animation-name: kf-roll-next-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-prev-8 {
-  animation-name: kf-roll-prev-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-prev-8 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(111px, 39px) scale(0.66945607); }
-}
-.roll-prev-8-b {
-  animation-name: kf-roll-prev-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-next-9 {
-  animation-name: kf-roll-next-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-next-9 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-25px, -249px) scale(1.01593625); }
-}
-.roll-next-9-b {
-  animation-name: kf-roll-next-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll-prev-9 {
-  animation-name: kf-roll-prev-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll-prev-9 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(65px, 158px) scale(0.95219124); }
-}
-.roll-prev-9-b {
-  animation-name: kf-roll-prev-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-next-0 {
-  animation-name: kf-roll0-next-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-next-0 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(25px, -245px) scale(0.98431373); }
-}
-.roll0-next-0-b {
-  animation-name: kf-roll0-next-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-prev-0 {
-  animation-name: kf-roll0-prev-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-prev-0 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(25px, 249px) scale(0.98431373); }
-}
-.roll0-prev-0-b {
-  animation-name: kf-roll0-prev-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-next-1 {
-  animation-name: kf-roll0-next-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-next-1 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(65px, -146px) scale(0.95219124); }
-}
-.roll0-next-1-b {
-  animation-name: kf-roll0-next-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-prev-1 {
-  animation-name: kf-roll0-prev-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-prev-1 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-25px, 245px) scale(1.01593625); }
-}
-.roll0-prev-1-b {
-  animation-name: kf-roll0-prev-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-next-2 {
-  animation-name: kf-roll0-next-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-next-2 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(79px, 7px) scale(0.93723849); }
-}
-.roll0-next-2-b {
-  animation-name: kf-roll0-next-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-prev-2 {
-  animation-name: kf-roll0-prev-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-prev-2 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-65px, 146px) scale(1.05020921); }
-}
-.roll0-prev-2-b {
-  animation-name: kf-roll0-prev-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-next-3 {
-  animation-name: kf-roll0-next-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-next-3 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(66px, 159px) scale(0.9375); }
-}
-.roll0-next-3-b {
-  animation-name: kf-roll0-next-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-prev-3 {
-  animation-name: kf-roll0-prev-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-prev-3 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-79px, -7px) scale(1.06696429); }
-}
-.roll0-prev-3-b {
-  animation-name: kf-roll0-prev-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-next-4 {
-  animation-name: kf-roll0-next-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-next-4 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(27px, 251px) scale(0.96666667); }
-}
-.roll0-next-4-b {
-  animation-name: kf-roll0-next-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-prev-4 {
-  animation-name: kf-roll0-prev-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-prev-4 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-66px, -159px) scale(1.06666667); }
-}
-.roll0-prev-4-b {
-  animation-name: kf-roll0-prev-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-next-5 {
-  animation-name: kf-roll0-next-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-next-5 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-27px, 243px) scale(1.03448276); }
-}
-.roll0-next-5-b {
-  animation-name: kf-roll0-next-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-prev-5 {
-  animation-name: kf-roll0-prev-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-prev-5 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-27px, -251px) scale(1.03448276); }
-}
-.roll0-prev-5-b {
-  animation-name: kf-roll0-prev-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-next-6 {
-  animation-name: kf-roll0-next-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-next-6 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-66px, 145px) scale(1.06666667); }
-}
-.roll0-next-6-b {
-  animation-name: kf-roll0-next-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-prev-6 {
-  animation-name: kf-roll0-prev-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-prev-6 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(27px, -243px) scale(0.96666667); }
-}
-.roll0-prev-6-b {
-  animation-name: kf-roll0-prev-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-next-7 {
-  animation-name: kf-roll0-next-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-next-7 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-79px, -7px) scale(1.06696429); }
-}
-.roll0-next-7-b {
-  animation-name: kf-roll0-next-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-prev-7 {
-  animation-name: kf-roll0-prev-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-prev-7 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(66px, -145px) scale(0.9375); }
-}
-.roll0-prev-7-b {
-  animation-name: kf-roll0-prev-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-next-8 {
-  animation-name: kf-roll0-next-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-next-8 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-65px, -158px) scale(1.05020921); }
-}
-.roll0-next-8-b {
-  animation-name: kf-roll0-next-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-prev-8 {
-  animation-name: kf-roll0-prev-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-prev-8 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(79px, 7px) scale(0.93723849); }
-}
-.roll0-prev-8-b {
-  animation-name: kf-roll0-prev-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-next-9 {
-  animation-name: kf-roll0-next-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-next-9 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(-25px, -249px) scale(1.01593625); }
-}
-.roll0-next-9-b {
-  animation-name: kf-roll0-next-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.roll0-prev-9 {
-  animation-name: kf-roll0-prev-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-roll0-prev-9 {
-  0% { transform: translate(0px, 0px) scale(1); }
-  100% { transform: translate(65px, 158px) scale(0.95219124); }
-}
-.roll0-prev-9-b {
-  animation-name: kf-roll0-prev-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-next-0 {
-  animation-name: kf-rollt-next-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-next-0 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(23px, -247px); }
-}
-.rollt-next-0-b {
-  animation-name: kf-rollt-next-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-prev-0 {
-  animation-name: kf-rollt-prev-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-prev-0 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(23px, 247px); }
-}
-.rollt-prev-0-b {
-  animation-name: kf-rollt-prev-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-next-1 {
-  animation-name: kf-rollt-next-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-next-1 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(59px, -152px); }
-}
-.rollt-next-1-b {
-  animation-name: kf-rollt-next-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-prev-1 {
-  animation-name: kf-rollt-prev-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-prev-1 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-23px, 247px); }
-}
-.rollt-prev-1-b {
-  animation-name: kf-rollt-prev-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-next-2 {
-  animation-name: kf-rollt-next-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-next-2 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(71.5px, -0.5px); }
-}
-.rollt-next-2-b {
-  animation-name: kf-rollt-next-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-prev-2 {
-  animation-name: kf-rollt-prev-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-prev-2 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-59px, 152px); }
-}
-.rollt-prev-2-b {
-  animation-name: kf-rollt-prev-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-next-3 {
-  animation-name: kf-rollt-next-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-next-3 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(59px, 152px); }
-}
-.rollt-next-3-b {
-  animation-name: kf-rollt-next-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-prev-3 {
-  animation-name: kf-rollt-prev-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-prev-3 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-71.5px, 0.5px); }
-}
-.rollt-prev-3-b {
-  animation-name: kf-rollt-prev-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-next-4 {
-  animation-name: kf-rollt-next-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-next-4 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(23px, 247px); }
-}
-.rollt-next-4-b {
-  animation-name: kf-rollt-next-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-prev-4 {
-  animation-name: kf-rollt-prev-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-prev-4 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-59px, -152px); }
-}
-.rollt-prev-4-b {
-  animation-name: kf-rollt-prev-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-next-5 {
-  animation-name: kf-rollt-next-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-next-5 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-23px, 247px); }
-}
-.rollt-next-5-b {
-  animation-name: kf-rollt-next-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-prev-5 {
-  animation-name: kf-rollt-prev-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-prev-5 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-23px, -247px); }
-}
-.rollt-prev-5-b {
-  animation-name: kf-rollt-prev-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-next-6 {
-  animation-name: kf-rollt-next-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-next-6 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-59px, 152px); }
-}
-.rollt-next-6-b {
-  animation-name: kf-rollt-next-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-prev-6 {
-  animation-name: kf-rollt-prev-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-prev-6 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(23px, -247px); }
-}
-.rollt-prev-6-b {
-  animation-name: kf-rollt-prev-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-next-7 {
-  animation-name: kf-rollt-next-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-next-7 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-71.5px, 0.5px); }
-}
-.rollt-next-7-b {
-  animation-name: kf-rollt-next-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-prev-7 {
-  animation-name: kf-rollt-prev-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-prev-7 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(59px, -152px); }
-}
-.rollt-prev-7-b {
-  animation-name: kf-rollt-prev-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-next-8 {
-  animation-name: kf-rollt-next-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-next-8 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-59px, -152px); }
-}
-.rollt-next-8-b {
-  animation-name: kf-rollt-next-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-prev-8 {
-  animation-name: kf-rollt-prev-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-prev-8 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(71.5px, -0.5px); }
-}
-.rollt-prev-8-b {
-  animation-name: kf-rollt-prev-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-next-9 {
-  animation-name: kf-rollt-next-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-next-9 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-23px, -247px); }
-}
-.rollt-next-9-b {
-  animation-name: kf-rollt-next-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt-prev-9 {
-  animation-name: kf-rollt-prev-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt-prev-9 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(59px, 152px); }
-}
-.rollt-prev-9-b {
-  animation-name: kf-rollt-prev-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-next-0 {
-  animation-name: kf-rollt0-next-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-next-0 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(23px, -247px); }
-}
-.rollt0-next-0-b {
-  animation-name: kf-rollt0-next-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-prev-0 {
-  animation-name: kf-rollt0-prev-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-prev-0 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(23px, 247px); }
-}
-.rollt0-prev-0-b {
-  animation-name: kf-rollt0-prev-0;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-next-1 {
-  animation-name: kf-rollt0-next-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-next-1 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(59px, -152px); }
-}
-.rollt0-next-1-b {
-  animation-name: kf-rollt0-next-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-prev-1 {
-  animation-name: kf-rollt0-prev-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-prev-1 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-23px, 247px); }
-}
-.rollt0-prev-1-b {
-  animation-name: kf-rollt0-prev-1;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-next-2 {
-  animation-name: kf-rollt0-next-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-next-2 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(71.5px, -0.5px); }
-}
-.rollt0-next-2-b {
-  animation-name: kf-rollt0-next-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-prev-2 {
-  animation-name: kf-rollt0-prev-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-prev-2 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-59px, 152px); }
-}
-.rollt0-prev-2-b {
-  animation-name: kf-rollt0-prev-2;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-next-3 {
-  animation-name: kf-rollt0-next-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-next-3 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(59px, 152px); }
-}
-.rollt0-next-3-b {
-  animation-name: kf-rollt0-next-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-prev-3 {
-  animation-name: kf-rollt0-prev-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-prev-3 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-71.5px, 0.5px); }
-}
-.rollt0-prev-3-b {
-  animation-name: kf-rollt0-prev-3;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-next-4 {
-  animation-name: kf-rollt0-next-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-next-4 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(23px, 247px); }
-}
-.rollt0-next-4-b {
-  animation-name: kf-rollt0-next-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-prev-4 {
-  animation-name: kf-rollt0-prev-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-prev-4 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-59px, -152px); }
-}
-.rollt0-prev-4-b {
-  animation-name: kf-rollt0-prev-4;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-next-5 {
-  animation-name: kf-rollt0-next-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-next-5 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-23px, 247px); }
-}
-.rollt0-next-5-b {
-  animation-name: kf-rollt0-next-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-prev-5 {
-  animation-name: kf-rollt0-prev-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-prev-5 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-23px, -247px); }
-}
-.rollt0-prev-5-b {
-  animation-name: kf-rollt0-prev-5;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-next-6 {
-  animation-name: kf-rollt0-next-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-next-6 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-59px, 152px); }
-}
-.rollt0-next-6-b {
-  animation-name: kf-rollt0-next-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-prev-6 {
-  animation-name: kf-rollt0-prev-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-prev-6 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(23px, -247px); }
-}
-.rollt0-prev-6-b {
-  animation-name: kf-rollt0-prev-6;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-next-7 {
-  animation-name: kf-rollt0-next-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-next-7 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-71.5px, 0.5px); }
-}
-.rollt0-next-7-b {
-  animation-name: kf-rollt0-next-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-prev-7 {
-  animation-name: kf-rollt0-prev-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-prev-7 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(59px, -152px); }
-}
-.rollt0-prev-7-b {
-  animation-name: kf-rollt0-prev-7;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-next-8 {
-  animation-name: kf-rollt0-next-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-next-8 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-59px, -152px); }
-}
-.rollt0-next-8-b {
-  animation-name: kf-rollt0-next-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-prev-8 {
-  animation-name: kf-rollt0-prev-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-prev-8 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(71.5px, -0.5px); }
-}
-.rollt0-prev-8-b {
-  animation-name: kf-rollt0-prev-8;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-next-9 {
-  animation-name: kf-rollt0-next-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-next-9 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(-23px, -247px); }
-}
-.rollt0-next-9-b {
-  animation-name: kf-rollt0-next-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-.rollt0-prev-9 {
-  animation-name: kf-rollt0-prev-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes kf-rollt0-prev-9 {
-  0% { transform: translate(0px, 0px); }
-  100% { transform: translate(59px, 152px); }
-}
-.rollt0-prev-9-b {
-  animation-name: kf-rollt0-prev-9;
-  animation-duration: 150ms;
-  animation-timing-function: linear;
-  animation-delay: 0ms;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-/* CHAIN_KF_END */
 </style>

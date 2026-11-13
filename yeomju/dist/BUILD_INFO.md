@@ -1,25 +1,41 @@
-# 빌드 정보 — 2.5.0 (스프라이트 렌더 모드 S/S2)
+# 빌드 정보 — 2.5.1 (S2 고정 · 고품질 프레임 · 뒷줄 밀도)
 
 ## 산출물 (사실)
 
-- `yeomju/dist/com.yeomju.mala.debug.2.5.0.rpk`
-- 크기: 270339 bytes
-- SHA256: `be2f01d69fc985a86e8c69e85e940bbb895d84d66336e41d65628ec963d10c27`
-- versionName 2.5.0 / versionCode 23
-- 단위 테스트: 39 passed
-- 스프라이트 프레임 합계: 166620 bytes (PNG8 · 크롭 347×514)
-  - idle 28000 · next-1/2 35331/34129 · prev-1/2 33866/35294
-- 프리뷰: `docs/preview-2.5.0-sprite-idle.png`, `-mid.png`, `-compare.png`
+- `yeomju/dist/com.yeomju.mala.debug.2.5.1.rpk`
+- 크기: 883126 bytes
+- SHA256: `e8f130f31fa4a6fbade613ac8fa81c9a9630444468325c9704254902e43aa50e`
+- versionName 2.5.1 / versionCode 24
+- 단위 테스트: 31 passed
 
-## 2.5.0 변경
+## 스프라이트 프레임 (PNG32 · LANCZOS)
 
-1. 기본 렌더 **S**: 빌드타임 합성 PNG8 프레임 + `image-animator` 1개 (정지 시 image 1장)
-2. **S2**: 단일 image src 프레임 스왑 (animator 대체)
-3. **L**: 기존 노드 CSS 키프레임 (설정>진단에서 전환)
-4. 방향별 4프레임/150ms · 첫·끝=idle(픽셀 동일)
-5. 진단 타이밍(end→set 등) 유지 · 비교용 `rm=` 표시
-6. Vela `image-animator` onstop 미지원 → duration 타이머로 종료
+| 파일 | bytes |
+|------|------:|
+| idle.png | 163646 |
+| next-1.png | 167769 |
+| next-2.png | 166424 |
+| prev-1.png | 165985 |
+| prev-2.png | 167373 |
+| **합계** | **831197** |
+
+- 원본: `scripts/assets/bead-new-src.png` (2048×2048 RGBA, rpk 미포함)
+- 크롭: 347×514
+- 기하: slotCount=11 · backCount=6 · 앞줄 focus gap≈0.981 유지
+
+## 2.5.1 변경
+
+1. 렌더 **S2만** (image-animator/S, 노드/L, E1–E9, 표시수 제거)
+2. 설정: 입력 방식 + 타이밍 표시 on/off(기본 off, off 시 계측 비용 0)
+3. 고품질 단일 원본 LANCZOS → 풀컬러 PNG 프레임
+4. 뒷줄 구슬 밀도↑ (간격비≈0.981), 첫·끝=idle 픽셀 동일
+5. 미사용 bead-front/back/wood 런타임 자산 삭제
+
+## 크기 대안 (제안만 · 미적용)
+
+- PNG8/적응형 팔레트: 이전 2.5.0 ~167KB 합계 수준까지 축소 가능하나 열화 있음
+- WebP/압축 레벨·크롭 강화: 플랫폼 지원·품질 확인 후
 
 ## 미확인
 
-- 실기기에서 end→set/체감 변화 (**단정하지 않음**)
+- 실기기 체감 (**단정하지 않음**)

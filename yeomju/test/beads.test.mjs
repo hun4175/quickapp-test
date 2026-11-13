@@ -16,23 +16,7 @@ import {
   setVibrateOnBead,
   setInputMode,
   setDiagnoseLatency,
-  setSingleBeadTest,
-  setE1Minimize,
-  setE2NoScale,
-  setE3SplitSrc,
-  setE4SkipBack,
-  setE5DirectDom,
-  setE6Solid,
-  setE7TouchStartRoll,
-  setE8ClickOnly,
-  setE9NoLongpress,
-  setRenderMode,
-  setVisibleBeadCount,
-  EXP_DEFAULTS,
-  VISIBLE_BEAD_COUNTS,
-  RENDER_MODES,
   migrateAnimModeForStability,
-  UNSAFE_ANIM_MODES,
   resetSession,
   resetAll,
   progressRatio,
@@ -48,15 +32,19 @@ describe('BEAD_OPTIONS', () => {
 })
 
 describe('normalizeState', () => {
-  it('잘못된 입력은 기본값으로', () => {
-    const s = normalizeState(null)
+  it('잘못된 입력은 기본값으로 · 모르는 키 무시', () => {
+    const s = normalizeState({
+      e1Minimize: true,
+      renderMode: 'L',
+      visibleBeadCount: 3,
+      foo: 1
+    })
     assert.equal(s.bead, 0)
-    assert.equal(s.rounds, 0)
     assert.equal(s.beadsPerRound, 108)
-    assert.equal(s.vibrateOnBead, true)
     assert.equal(s.inputMode, 'slide')
-    assert.equal(s.animMode, undefined)
-    assert.equal(s.debugLatency, undefined)
+    assert.equal(s.diagnoseLatency, false)
+    assert.equal(s.e1Minimize, undefined)
+    assert.equal(s.renderMode, undefined)
   })
 
   it('허용되지 않은 알 개수는 108로', () => {
@@ -85,7 +73,6 @@ describe('ensureToday', () => {
     )
     assert.equal(rolled, true)
     assert.equal(state.todayTotal, 0)
-    assert.equal(state.bead, 3)
     assert.equal(state.todayDate, '2026-11-13')
   })
 })
@@ -96,98 +83,71 @@ describe('advance / retreat / swipe', () => {
   })
 
   it('advanceBead 한 바퀴', () => {
-    let s = normalizeState({ bead: 107, beadsPerRound: 108, todayDate: formatDate() })
-    const r = advanceBead(s)
-    assert.equal(r.completedRound, true)
+    let s = normalizeState({ beadsPerRound: 27 })
+    let r = advanceBead(s)
+    assert.equal(r.state.bead, 1)
+    assert.equal(r.completedRound, false)
+    for (let i = 1; i < 27; i++) r = advanceBead(r.state)
     assert.equal(r.state.bead, 0)
     assert.equal(r.state.rounds, 1)
+    assert.equal(r.completedRound, true)
   })
 
   it('plus_both: 위·아래 모두 +1', () => {
-    const base = normalizeState({ bead: 0, todayDate: formatDate() })
-    assert.equal(applySwipeCount(base, 1).state.bead, 1)
-    assert.equal(applySwipeCount(base, -1).state.bead, 1)
+    const a = applySwipeCount({ bead: 0, beadsPerRound: 108 }, 1)
+    const b = applySwipeCount({ bead: 0, beadsPerRound: 108 }, -1)
+    assert.equal(a.state.bead, 1)
+    assert.equal(b.state.bead, 1)
   })
 
   it('retreatBead', () => {
-    const s = normalizeState({ bead: 2, todayTotal: 2, todayDate: formatDate() })
-    const r = retreatBead(s)
-    assert.equal(r.state.bead, 1)
-    assert.equal(r.retreated, true)
+    const s = retreatBead({ bead: 2, beadsPerRound: 108, todayTotal: 2 })
+    assert.equal(s.state.bead, 1)
+    assert.equal(s.state.todayTotal, 1)
   })
 })
 
 describe('설정·초기화', () => {
   it('setBeadsPerRound', () => {
-    const s = setBeadsPerRound({ bead: 30, beadsPerRound: 108 }, 27)
-    assert.equal(s.beadsPerRound, 27)
-    assert.equal(s.bead, 3)
+    assert.equal(setBeadsPerRound({}, 54).beadsPerRound, 54)
   })
 
   it('setVibrateOnBead', () => {
     assert.equal(setVibrateOnBead({}, false).vibrateOnBead, false)
   })
 
-  it('2.5.0 schema≥9 마이그레이션 · renderMode 기본 S', () => {
-    assert.deepEqual([...UNSAFE_ANIM_MODES], ['D', 'E'])
+  it('2.5.1 schema≥10 마이그레이션', () => {
     const m = migrateAnimModeForStability({
       animMode: 'E',
-      debugLatency: true,
+      e7TouchStartRoll: true,
+      renderMode: 'L',
       stateSchema: 1
     })
     assert.equal(m.migrated, true)
-    assert.equal(m.state.stateSchema, 9)
+    assert.equal(m.state.stateSchema, 10)
     assert.equal(m.state.inputMode, 'slide')
-    assert.equal(m.state.renderMode, 'S')
-    assert.equal(m.state.visibleBeadCount, 10)
-    assert.equal(m.state.e7TouchStartRoll, false)
-    const from8 = migrateAnimModeForStability({
+    assert.equal(m.state.diagnoseLatency, false)
+    assert.equal(m.state.renderMode, undefined)
+    const from9 = migrateAnimModeForStability({
       inputMode: 'touch',
-      stateSchema: 8,
-      visibleBeadCount: 6,
-      e8ClickOnly: true
+      diagnoseLatency: true,
+      stateSchema: 9
     })
-    assert.equal(from8.migrated, true)
-    assert.equal(from8.state.stateSchema, 9)
-    assert.equal(from8.state.renderMode, 'S')
-    assert.equal(from8.state.e8ClickOnly, true)
+    assert.equal(from9.migrated, true)
+    assert.equal(from9.state.stateSchema, 10)
+    assert.equal(from9.state.inputMode, 'touch')
+    assert.equal(from9.state.diagnoseLatency, true)
     const stable = migrateAnimModeForStability({
       inputMode: 'touch',
-      stateSchema: 9,
-      renderMode: 'L',
-      visibleBeadCount: 6
+      stateSchema: 10
     })
     assert.equal(stable.migrated, false)
-    assert.equal(stable.state.renderMode, 'L')
   })
 
-  it('inputMode · 진단 · 표시수 · E1–E9 · renderMode', () => {
+  it('inputMode · 진단 토글', () => {
     assert.deepEqual([...INPUT_MODES], ['slide', 'touch'])
-    assert.deepEqual([...VISIBLE_BEAD_COUNTS], [1, 3, 6, 10])
-    assert.deepEqual([...RENDER_MODES], ['S', 'S2', 'L'])
-    assert.equal(EXP_DEFAULTS.e1Minimize, true)
-    assert.equal(EXP_DEFAULTS.e5DirectDom, false)
-    assert.equal(EXP_DEFAULTS.e6Solid, false)
-    assert.equal(EXP_DEFAULTS.e7TouchStartRoll, false)
-    assert.equal(EXP_DEFAULTS.e8ClickOnly, false)
-    assert.equal(EXP_DEFAULTS.e9NoLongpress, false)
     assert.equal(setInputMode({}, 'touch').inputMode, 'touch')
     assert.equal(setDiagnoseLatency({}, true).diagnoseLatency, true)
-    assert.equal(setVisibleBeadCount({}, 3).visibleBeadCount, 3)
-    assert.equal(setVisibleBeadCount({}, 1).singleBeadTest, true)
-    assert.equal(setSingleBeadTest({}, true).visibleBeadCount, 1)
-    assert.equal(setE1Minimize({}, false).e1Minimize, false)
-    assert.equal(setE2NoScale({}, true).e2NoScale, true)
-    assert.equal(setE3SplitSrc({}, false).e3SplitSrc, false)
-    assert.equal(setE4SkipBack({}, true).e4SkipBack, true)
-    assert.equal(setE5DirectDom({}, true).e5DirectDom, true)
-    assert.equal(setE6Solid({}, true).e6Solid, true)
-    assert.equal(setE7TouchStartRoll({}, true).e7TouchStartRoll, true)
-    assert.equal(setE8ClickOnly({}, true).e8ClickOnly, true)
-    assert.equal(setE9NoLongpress({}, true).e9NoLongpress, true)
-    assert.equal(setRenderMode({}, 'L').renderMode, 'L')
-    assert.equal(setRenderMode({}, 'S2').renderMode, 'S2')
-    assert.equal(setRenderMode({}, 'nope').renderMode, 'S')
   })
 
   it('resetSession 은 오늘 합계 유지', () => {
@@ -215,15 +175,8 @@ describe('설정·초기화', () => {
 
 describe('serialize', () => {
   it('roundtrip', () => {
-    const s = normalizeState({
-      bead: 3,
-      inputMode: 'touch',
-      todayDate: '2026-11-13'
-    })
-    const again = deserializeState(serializeState(s))
-    assert.equal(again.bead, 3)
-    assert.equal(again.inputMode, 'touch')
-    assert.equal(again.animMode, undefined)
+    const s = normalizeState({ bead: 3, todayDate: formatDate() })
+    assert.deepEqual(deserializeState(serializeState(s)), normalizeState(s))
   })
 
   it('progressRatio', () => {
