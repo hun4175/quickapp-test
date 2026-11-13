@@ -1,0 +1,178 @@
+<template>
+  <div class="page" onswipe="onSwipe">
+    <div class="header">
+      <div class="back" onclick="goBack">
+        <text class="back-text">‹ 뒤로</text>
+      </div>
+      <text class="title">최근 측정</text>
+    </div>
+
+    <text class="label">평균 ({{avgCount}}회)</text>
+    <text class="line">{{avgLine}}</text>
+
+    <text class="label">최근 5회 in→set / set→start / anim</text>
+    <text class="hint">뒤에 n·E토글 (1–6 켜진 것만)</text>
+    <text class="line" if="{{has1}}">{{line1}}</text>
+    <text class="line" if="{{has2}}">{{line2}}</text>
+    <text class="line" if="{{has3}}">{{line3}}</text>
+    <text class="line" if="{{has4}}">{{line4}}</text>
+    <text class="line" if="{{has5}}">{{line5}}</text>
+    <text class="empty" if="{{!has1}}">아직 측정 없음 · 진단 켜고 굴리기</text>
+
+    <text class="label">현재 설정 스냅샷</text>
+    <text class="line">{{flagsLine}}</text>
+
+    <text class="meta">v2.4.4 · 로컬 저장</text>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import { loadState } from '../../common/persist.js'
+import { loadTimingSamples } from '../../common/timing.js'
+import { timingAverages, formatSampleLine } from '../../common/timing-core.js'
+
+export default {
+  private: {
+    avgCount: 0,
+    avgLine: 'in→set:- set→start:- anim:-',
+    line1: '',
+    line2: '',
+    line3: '',
+    line4: '',
+    line5: '',
+    has1: false,
+    has2: false,
+    has3: false,
+    has4: false,
+    has5: false,
+    flagsLine: 'n=10'
+  },
+
+  onShow() {
+    this.reload()
+  },
+
+  onBackPress() {
+    router.back()
+    return true
+  },
+
+  onSwipe(e) {
+    if (e && e.direction === 'right') router.back()
+  },
+
+  async reload() {
+    const samples = await loadTimingSamples()
+    const avg = timingAverages(samples)
+    this.avgCount = avg.count
+    this.avgLine =
+      'in→set:' +
+      (avg.inSet >= 0 ? avg.inSet + 'ms' : '-') +
+      ' set→start:' +
+      (avg.setStart >= 0 ? avg.setStart + 'ms' : '-') +
+      ' anim:' +
+      (avg.animLen >= 0 ? avg.animLen + 'ms' : '-')
+
+    const lines = samples.map((s, i) => formatSampleLine(s, i))
+    this.line1 = lines[0] || ''
+    this.line2 = lines[1] || ''
+    this.line3 = lines[2] || ''
+    this.line4 = lines[3] || ''
+    this.line5 = lines[4] || ''
+    this.has1 = !!lines[0]
+    this.has2 = !!lines[1]
+    this.has3 = !!lines[2]
+    this.has4 = !!lines[3]
+    this.has5 = !!lines[4]
+
+    const st = await loadState()
+    const flags =
+      'n=' +
+      (st.visibleBeadCount || 10) +
+      ' E1:' +
+      (st.e1Minimize !== false ? 'on' : 'off') +
+      ' E2:' +
+      (st.e2NoScale ? 'on' : 'off') +
+      ' E3:' +
+      (st.e3SplitSrc !== false ? 'on' : 'off') +
+      ' E4:' +
+      (st.e4SkipBack ? 'on' : 'off') +
+      ' E5:' +
+      (st.e5DirectDom ? 'on' : 'off') +
+      ' E6:' +
+      (st.e6Solid ? 'on' : 'off')
+    this.flagsLine = flags
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  background-color: #140e0a;
+  padding-bottom: 24px;
+}
+.header {
+  width: 100%;
+  height: 72px;
+  margin-top: 12px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+.back {
+  position: absolute;
+  left: 12px;
+  height: 48px;
+  padding-left: 8px;
+  padding-right: 8px;
+  justify-content: center;
+}
+.back-text {
+  font-size: 24px;
+  color: #b89462;
+}
+.title {
+  font-size: 28px;
+  color: #e8c48a;
+  font-weight: bold;
+}
+.label {
+  width: 90%;
+  margin-top: 16px;
+  margin-bottom: 6px;
+  font-size: 20px;
+  color: #9a7b55;
+}
+.hint {
+  width: 90%;
+  margin-bottom: 8px;
+  font-size: 16px;
+  color: #6e563c;
+}
+.line {
+  width: 92%;
+  margin-top: 4px;
+  font-size: 22px;
+  color: #f3e2c4;
+}
+.empty {
+  width: 90%;
+  margin-top: 12px;
+  font-size: 20px;
+  color: #6e563c;
+}
+.meta {
+  margin-top: 24px;
+  font-size: 18px;
+  color: #6e563c;
+}
+</style>

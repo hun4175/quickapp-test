@@ -45,13 +45,18 @@
     </div>
 
     <text class="label">진단</text>
-    <text class="hint">타이밍 in→set / set→start / anim · 중앙 표시</text>
+    <text class="hint">타이밍 · 하단 불투명 패널 · 최근 측정 별도 화면</text>
     <div class="row">
       <div class="chip {{diagnoseLatency ? 'chip-on' : ''}}" onclick="setDiagOn">
         <text class="chip-text">켜기</text>
       </div>
       <div class="chip {{!diagnoseLatency ? 'chip-on' : ''}}" onclick="setDiagOff">
         <text class="chip-text">끄기</text>
+      </div>
+    </div>
+    <div class="col">
+      <div class="chip-wide" onclick="openDiagLog">
+        <text class="chip-text">최근 측정값 보기</text>
       </div>
     </div>
 
@@ -148,7 +153,7 @@
       </div>
     </div>
 
-    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.4.3</text>
+    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.4.4</text>
   </div>
 </template>
 
@@ -342,6 +347,10 @@ export default {
   async setE6Off() {
     if (!this._state) await this.reload()
     await this.persist(setE6Solid(this._state, false))
+  },
+
+  openDiagLog() {
+    router.push({ uri: '/pages/diag' })
   },
 
   confirmSession() {

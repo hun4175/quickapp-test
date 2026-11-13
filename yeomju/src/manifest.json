@@ -1,8 +1,8 @@
 {
   "package": "com.yeomju.mala",
   "name": "염주굴리기",
-  "versionName": "2.4.3",
-  "versionCode": 20,
+  "versionName": "2.4.4",
+  "versionCode": 21,
   "minPlatformVersion": 1000,
   "icon": "/common/logo.png",
   "deviceTypeList": [
@@ -28,6 +28,9 @@
       },
       "pages/confirm": {
         "component": "confirm"
+      },
+      "pages/diag": {
+        "component": "diag"
       }
     }
   }

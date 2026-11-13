@@ -1,50 +1,20 @@
-# 빌드 정보 — 2.4.3 (표시 노드·타이밍·E5/E6 진단)
+# 빌드 정보 — 2.4.4 (진단 패널 가독성)
 
 ## 산출물 (사실)
 
-- `yeomju/dist/com.yeomju.mala.debug.2.4.3.rpk`
-- 크기: 85262 bytes
-- SHA256: `4fc88740d6884ed1390c5c50648822afd7a9bf1c4964dcc8e87dc337a7d5fcb8`
-- versionName 2.4.3 / versionCode 20
-- 단위 테스트: 33 passed
+- `yeomju/dist/com.yeomju.mala.debug.2.4.4.rpk`
+- 크기: 94689 bytes
+- SHA256: `b072a7418a79c83ade9c8005d5e10460076cb2a736658164e0f7dd8243d02e0f`
+- versionName 2.4.4 / versionCode 21
+- 단위 테스트: 35 passed
+- 미리보기: `docs/preview-2.4.4-diag.png` (원형 마스크 · 박스 네 모서리 원 안)
 
-## 실기기 피드백(2.4.2) → 가설
+## 2.4.4 변경
 
-- E1–E4 전부 켜도 지연이 크게 개선되지 않음
-- 단일 구슬은 확실히 빠름
-- **가설:** 애니 노드 수보다 **화면 image 노드 수**(정적 포함) 또는 **a0–a9 바인딩 diff** 비용 (단정 아님)
-
-## 표시 구슬 수 (정적 템플릿 분기)
-
-| 수 | 의미 | 렌더 노드 |
-|----|------|----------|
-| 1 | 포커스만 | 1 |
-| 3 | 앞열 화면 내 | home 0,1,9 |
-| 6 | 화면 내(버퍼 없음) | 0,1,4,5,6,9 |
-| 10 | 전체(기본) | 10 |
-
-`if`로 개수별 `ring-mover` 분기 — 선택되지 않은 분기의 노드는 DOM에 없음.
-
-## 타이밍 계측 (진단 켜기)
-
-- t0: 스와이프 판정/탭 확정(`enqueueRoll`)
-- t1: 클래스 set 직후
-- t2: `animationstart` 또는 `setTimeout(0)` 폴백
-- t3: `animationend` 또는 150ms+slack 타이머
-- 중앙 안전영역: `in→set` / `set→start` / `anim` + 최근 5회 평균
-
-## E5 / E6
-
-| 토글 | 기본 | 내용 |
-|------|------|------|
-| E5 `$element` 클래스 | 끔 | `attr`/`setAttribute` 시도. **Vela 공용 API는 class 직접 변경 미노출** → 실기기에서 `E5:불가`면 바인딩 폴백 |
-| E6 단색 원 | 끔 | `image` 대신 `div`+`border-radius`+갈색 배경 (디코드 분리) |
-
-## 기존 토글 기본값 (유지)
-
-E1 on · E2 off · E3 on · E4 off · 표시수 10
+1. 진단 로그: DOM 최후 + z-index 999 · 하단 y330–400 불투명 `#120e0a` 박스 · 흰 글씨 28px
+2. 설정 → **최근 측정값 보기** (`pages/diag`): 최근 5회 in→set/set→start/anim + 평균 + n·E토글
+3. 2.4.3 기능·형상 유지
 
 ## 미확인
 
-- 실기기에서 1/3/6/10·E6에 따른 체감 (**단정하지 않음**)
-- E5 API 실제 가용 여부 (문서상 불가에 가까움)
+- 실기기에서 패널 가독성 (**단정하지 않음**)
