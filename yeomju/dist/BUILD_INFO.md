@@ -1,54 +1,40 @@
-# 빌드 정보 — 2.0.0
+# 빌드 정보 — 2.0.1 (안정화)
 
 ## 산출물 (사실)
 
-- `yeomju/dist/com.yeomju.mala.debug.2.0.0.rpk`
-- 크기: 168794 bytes
-- SHA256: `fcb5838df6133ac693b9d56a63025db879c362e48b79815e7fb2170b609ca688`
-- versionName 2.0.0 / versionCode 11
-- 단위 테스트: 31 passed
+- `yeomju/dist/com.yeomju.mala.debug.2.0.1.rpk`
+- 크기: 60459 bytes
+- SHA256: `b7b2868f3aecd3490fb928c11b52299ee03ba02d2601547bdc6bebeca4bc73ba`
+- versionName 2.0.1 / versionCode 12
+- 단위 테스트: 32 passed
 
-## rpk 내부 (unzip)
+## rpk 내부
 
 | 경로 | bytes |
 |------|------|
-| pages/index/index.js | 118156 |
-| common/bead-wood-v2.png | 91537 |
-| pages/settings/settings.js | 68409 |
-| common/logo.png | 43511 |
-| pages/confirm/confirm.js | 33181 |
+| pages/index/index.js | 126917 |
+| pages/settings/settings.js | 70481 |
+| pages/confirm/confirm.js | 35237 |
+| common/bead-wood-v3.png | 16864 |
+| common/logo.png | 8697 |
 | app.js | 4386 |
-| META-INF/CERT | 3773 |
-| manifest.json | 901 |
 
-참조: `BEAD_SRC=/common/bead-wood-v2.png`. 구 `bead-wood.png` 없음.
+참조: `BEAD_SRC=/common/bead-wood-v3.png`. v2 없음.
 
-## 구슬 이미지 미변경 버그 (1.9.0)
+## 크래시 원인 후보 (코드 근거) — 해결 단정 안 함
 
-- **원인 근거**: 1.9.0 rpk에 이미 새 `common/bead-wood.png`(91537B, 소스와 동일 sha) 포함. 템플릿 `$item.src`만 사용, base64/스프라이트 없음.
-- **추정**: 워치가 동일 경로 이미지 캐시.
-- **조치**: `bead-wood-v2.png`로 파일명·참조 전부 갱신, 구 파일 제거.
+1. **Mode E 레인 컨테이너**: `.lane` 432×514, `translateY` ±209(앞)/±150(뒤). 구슬은 슬롯상 top≈-145~455·size≤228로 **컨테이너 밖으로 넘침**. overflow 자식을 포함한 레이어가 애니 시 GPU 비트맵으로 확대되면 메모리 폭증 가능.
+2. **스냅·레인 재분배**: `applyBeads` → `splitChainLanes`로 front/back 배열을 매번 새로 만들어 두 `for` 리스트 재바인딩.
+3. **Mode D 타이머**: `setTimeout` 체인이었음(setInterval 아님). `onHide` 없음 → 페이지 이탈 후에도 틱 가능. 2.0.1에서 `onHide`/`clearAnimTimers`·틱 가드·중복 타이머 clear 추가.
+4. **큐**: pending+animQueue 상한 없음 → 연속 입력 폭주 가능. 2.0.1에서 `MAX_PENDING=2`.
 
-## Mode E (기본)
+## 2.0.1 조치
 
-- 앞열·뒤열 컨테이너 2노드 `@keyframes translateY` (앞 ±209, 뒤 반대×0.72 ±150)
-- 클래스만 토글 → 종료 시 스냅·레인 재분배
-
-## Mode D 개선
-
-- `Date.now` 경과 진행률 → 190ms에 종료
-- 레인 transform만, 16ms 틱
-- 디버그: 프레임 수 + 완료 ms
-
-## 용량
-
-- `ring-kf.js`는 index 번들 제외
-- A 비교용 키프레임은 index 유지 → index.js 118156 B
-
-## 미리보기
-
-- `yeomju/docs/preview-2.0.0.png` (v2 구슬)
+- **기본 모드 A**, 템플릿은 A/B/C에서 **플랫 리스트**(1.8 구조). 레인은 D/E만.
+- 저장 키 `yeomju.state.v2`. `stateSchema<2` 시 E/D→A 마이그레이션 후 저장.
+- D/E 설정 표기: 실험 / 실험(위험).
+- 구슬 `bead-wood-v3.png` 16864B, logo 팔레트 8697B.
 
 ## 미확인
 
-- 실기기 캐시 해소·Mode E/D 체감 (**단정하지 않음**)
+- 실기기 크래시 해소 여부 (**단정하지 않음**)

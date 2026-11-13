@@ -46,10 +46,10 @@
         <text class="chip-text">C 통 컨테이너</text>
       </div>
       <div class="chip-wide {{animMode === 'D' ? 'chip-on' : ''}}" onclick="pickModeD">
-        <text class="chip-text">D JS 레인</text>
+        <text class="chip-text">D JS 레인(실험)</text>
       </div>
       <div class="chip-wide {{animMode === 'E' ? 'chip-on' : ''}}" onclick="pickModeE">
-        <text class="chip-text">E 앞·뒤 레인</text>
+        <text class="chip-text">E 앞·뒤 레인(위험)</text>
       </div>
     </div>
 
@@ -74,7 +74,7 @@
       </div>
     </div>
 
-    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.0.0</text>
+    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.0.1</text>
   </div>
 </template>
 
@@ -94,7 +94,7 @@ export default {
     beadsPerRound: 108,
     vibrateOnBead: true,
     todayTotal: 0,
-    animMode: 'E',
+    animMode: 'A',
     debugLatency: false,
     animHint: ANIM_MODE_HINTS.A
   },
@@ -124,9 +124,9 @@ export default {
     this.beadsPerRound = state.beadsPerRound
     this.vibrateOnBead = state.vibrateOnBead
     this.todayTotal = state.todayTotal
-    this.animMode = state.animMode || 'E'
+    this.animMode = state.animMode || 'A'
     this.debugLatency = !!state.debugLatency
-    this.animHint = ANIM_MODE_HINTS[this.animMode] || ANIM_MODE_HINTS.E
+    this.animHint = ANIM_MODE_HINTS[this.animMode] || ANIM_MODE_HINTS.A
   },
 
   async persist(next) {

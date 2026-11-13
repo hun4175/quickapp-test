@@ -1,7 +1,7 @@
 <template>
   <!--
-    2.0.0: Mode E 기본(앞·뒤 레인 2노드). bead-wood-v2.png.
-    A/B/C/D 비교용 유지. D=경과시간·레인 transform.
+    2.0.1 안정화: 기본 Mode A(플랫 리스트=1.8 구조).
+    D/E는 실험(위험). 레인 템플릿은 useLanes 일 때만.
   -->
   <div
     class="page"
@@ -12,7 +12,20 @@
     onlongpress="onLongPress"
   >
     <stack class="stage">
-      <div class="ring-mover {{moverClass}}">
+      <div class="ring-mover {{moverClass}}" if="{{!useLanes}}">
+        <div
+          class="bead-wrap {{$item.animClass}}"
+          for="{{chainBeads}}"
+          style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px;"
+        >
+          <image
+            class="bead-img"
+            src="{{$item.src}}"
+            style="width: {{$item.size}}px; height: {{$item.size}}px;"
+          ></image>
+        </div>
+      </div>
+      <div class="ring-mover" if="{{useLanes}}">
         <div class="lane {{backLaneClass}}" style="{{backLaneStyle}}">
           <div
             class="bead-wrap {{$item.animClass}}"
@@ -75,6 +88,8 @@ import {
   tyStyle
 } from '../../common/ring.js'
 
+const MAX_PENDING = 2
+
 export default {
   private: {
     bead: 0,
@@ -82,7 +97,8 @@ export default {
     beadsPerRound: 108,
     todayTotal: 0,
     vibrateOnBead: true,
-    animMode: 'E',
+    animMode: 'A',
+    useLanes: false,
     debugLatency: false,
     chainBeads: [],
     frontBeads: [],
@@ -121,10 +137,22 @@ export default {
   },
 
   applyBeads(beads) {
-    this.chainBeads = beads
-    const lanes = splitChainLanes(beads)
-    this.frontBeads = lanes.frontBeads
-    this.backBeads = lanes.backBeads
+    const list = beads.map((b) => ({ ...b, src: BEAD_SRC }))
+    this.chainBeads = list
+    if (this.useLanes) {
+      const lanes = splitChainLanes(list)
+      this.frontBeads = lanes.frontBeads
+      this.backBeads = lanes.backBeads
+    } else {
+      this.frontBeads = []
+      this.backBeads = []
+    }
+  },
+
+  setModeFlags(mode) {
+    const m = mode || 'A'
+    this.animMode = m
+    this.useLanes = m === 'D' || m === 'E'
   },
 
   clearLaneMotion() {
@@ -137,6 +165,12 @@ export default {
 
   onShow() {
     this.reload()
+  },
+
+  onHide() {
+    this.clearAnimTimers()
+    this._animating = false
+    this.clearLaneMotion()
   },
 
   onDestroy() {
@@ -174,7 +208,7 @@ export default {
     this.beadsPerRound = state.beadsPerRound
     this.todayTotal = state.todayTotal
     this.vibrateOnBead = state.vibrateOnBead
-    this.animMode = state.animMode || 'E'
+    this.setModeFlags(state.animMode || 'A')
     this.debugLatency = !!state.debugLatency
     if (snapVisual) {
       this.displayPhase = phaseFromBead(state.bead, VIRTUAL_BEADS)
@@ -241,6 +275,9 @@ export default {
 
   enqueueSwipe(dir) {
     const d = Number(dir) < 0 ? -1 : 1
+    if (this._pendingDirs.length + this._animQueue.length >= MAX_PENDING) {
+      return
+    }
     this._pendingDirs.push(d)
     if (!this._state) {
       this.reload().then(() => this.drainSwipes())
@@ -265,6 +302,7 @@ export default {
   advanceOnce(dir) {
     const result = applySwipeCount(this._state, dir)
     this.applyState(result.state, false)
+    if (this._animQueue.length >= MAX_PENDING) return
     this._animQueue.push({
       dir,
       completedRound: !!result.completedRound,
@@ -306,12 +344,12 @@ export default {
   ensureChainAnim() {
     if (this._animating) return
     if (!this._animQueue.length) return
-    const mode = this.animMode || 'E'
-    if (mode === 'A') return this.runModeA()
+    const mode = this.animMode || 'A'
     if (mode === 'B') return this.runModeB()
     if (mode === 'C') return this.runModeC()
     if (mode === 'D') return this.runModeD()
-    return this.runModeE()
+    if (mode === 'E') return this.runModeE()
+    return this.runModeA()
   },
 
   runModeA() {
@@ -322,7 +360,6 @@ export default {
     this.applyBeads(
       this.chainBeads.map((b) => ({
         ...b,
-        src: BEAD_SRC,
         animClass: rollClassForSlot(b.slot, dir)
       }))
     )
@@ -363,7 +400,6 @@ export default {
     this._animating = true
     this.clearLaneMotion()
     this.markAnimStart()
-    this._jsFrames = 0
     this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)
     this.applyBeads(advanceChainBeads(this.chainBeads, dir))
     this.buzz(item.completedRound)
@@ -377,11 +413,8 @@ export default {
     const item = this._animQueue.shift()
     const dir = item.dir
     this._animating = true
-    this.frontLaneClass = ''
-    this.backLaneClass = ''
-    this.frontLaneStyle = ''
-    this.backLaneStyle = ''
-    this.applyBeads(this.chainBeads.map((b) => ({ ...b, src: BEAD_SRC, animClass: '' })))
+    this.clearLaneMotion()
+    this.applyBeads(this.chainBeads.map((b) => ({ ...b, animClass: '' })))
     this.moverClass = Number(dir) < 0 ? 'mover-down' : 'mover-up'
     this.markAnimStart()
     this.buzz(item.completedRound)
@@ -397,15 +430,15 @@ export default {
     }, CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS)
   },
 
-  /** D: Date.now 경과시간 진행률, 앞·뒤 레인 transform만, 16ms */
   runModeD() {
     const item = this._animQueue.shift()
     const dir = item.dir
     this._animating = true
+    this.clearAnimTimers()
     this.moverClass = ''
     this.frontLaneClass = ''
     this.backLaneClass = ''
-    this.applyBeads(this.chainBeads.map((b) => ({ ...b, src: BEAD_SRC, animClass: '' })))
+    this.applyBeads(this.chainBeads.map((b) => ({ ...b, animClass: '' })))
     this._jsDir = dir
     this._jsStart = Date.now()
     this._jsFrames = 0
@@ -416,14 +449,14 @@ export default {
   },
 
   tickModeD() {
+    if (!this._animating) return
     this._jsFrames += 1
     const elapsed = Date.now() - this._jsStart
     const t = Math.min(1, elapsed / CHAIN_ANIM_MS)
-    const fy = Math.round(frontLaneShiftY(this._jsDir) * t)
-    const by = Math.round(backLaneShiftY(this._jsDir) * t)
-    this.frontLaneStyle = tyStyle(fy)
-    this.backLaneStyle = tyStyle(by)
+    this.frontLaneStyle = tyStyle(Math.round(frontLaneShiftY(this._jsDir) * t))
+    this.backLaneStyle = tyStyle(Math.round(backLaneShiftY(this._jsDir) * t))
     if (t >= 1) {
+      this.clearAnimTimers()
       this.markAnimEnd()
       this.displayPhase = stepPhase(this.displayPhase, this._jsDir, VIRTUAL_BEADS)
       this.frontLaneStyle = ''
@@ -433,25 +466,27 @@ export default {
       this.ensureChainAnim()
       return
     }
-    this.clearAnimTimers()
+    if (this._jsTimer) {
+      clearTimeout(this._jsTimer)
+      this._jsTimer = null
+    }
     this._jsTimer = setTimeout(() => this.tickModeD(), JS_FRAME_MS)
   },
 
-  /** E: 클래스만 토글(노드 2개). 종료 시 슬롯 스냅·레인 재분배 */
   runModeE() {
     const item = this._animQueue.shift()
     const dir = item.dir
     this._animating = true
+    this.clearAnimTimers()
     this.moverClass = ''
     this.frontLaneStyle = ''
     this.backLaneStyle = ''
-    this.applyBeads(this.chainBeads.map((b) => ({ ...b, src: BEAD_SRC, animClass: '' })))
+    this.applyBeads(this.chainBeads.map((b) => ({ ...b, animClass: '' })))
     this.frontLaneClass = laneClassForDir('front', dir)
     this.backLaneClass = laneClassForDir('back', dir)
     this.markAnimStart()
     this.buzz(item.completedRound)
     this.queueSave(item.state)
-    this.clearAnimTimers()
     this._animTimer = setTimeout(() => {
       this.markAnimEnd()
       this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)

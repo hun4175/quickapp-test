@@ -49,8 +49,8 @@ describe('phase', () => {
 })
 
 describe('2.0.0 assets / timing', () => {
-  it('bead-wood-v2 경로', () => {
-    assert.equal(BEAD_SRC, '/common/bead-wood-v2.png')
+  it('bead-wood-v3 경로', () => {
+    assert.equal(BEAD_SRC, '/common/bead-wood-v3.png')
     assert.ok(createChainBeads().every((b) => b.src === BEAD_SRC))
   })
   it('duration·slack·JS 16ms', () => {

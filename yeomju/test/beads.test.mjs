@@ -16,6 +16,8 @@ import {
   setVibrateOnBead,
   setAnimMode,
   setDebugLatency,
+  migrateAnimModeForStability,
+  UNSAFE_ANIM_MODES,
   resetSession,
   resetAll,
   progressRatio,
@@ -37,7 +39,7 @@ describe('normalizeState', () => {
     assert.equal(s.rounds, 0)
     assert.equal(s.beadsPerRound, 108)
     assert.equal(s.vibrateOnBead, true)
-    assert.equal(s.animMode, 'E')
+    assert.equal(s.animMode, 'A')
     assert.equal(s.debugLatency, false)
   })
 
@@ -169,11 +171,23 @@ describe('설정·초기화', () => {
     assert.equal(setVibrateOnBead({}, false).vibrateOnBead, false)
   })
 
+
+  it('2.0.1 E/D→A 마이그레이션', () => {
+    assert.deepEqual([...UNSAFE_ANIM_MODES], ['D', 'E'])
+    const m = migrateAnimModeForStability({ animMode: 'E', stateSchema: 1 })
+    assert.equal(m.migrated, true)
+    assert.equal(m.state.animMode, 'A')
+    assert.equal(m.state.stateSchema, 2)
+    const keep = migrateAnimModeForStability({ animMode: 'E', stateSchema: 2 })
+    assert.equal(keep.migrated, false)
+    assert.equal(keep.state.animMode, 'E')
+  })
+
   it('animMode A~E · debugLatency', () => {
     assert.deepEqual([...ANIM_MODES], ['A', 'B', 'C', 'D', 'E'])
     assert.equal(setAnimMode({}, 'C').animMode, 'C')
     assert.equal(setAnimMode({}, 'E').animMode, 'E')
-    assert.equal(setAnimMode({}, 'Z').animMode, 'E')
+    assert.equal(setAnimMode({}, 'Z').animMode, 'A')
     assert.equal(setDebugLatency({}, true).debugLatency, true)
   })
 

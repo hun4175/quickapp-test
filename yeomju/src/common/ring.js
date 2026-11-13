@@ -17,8 +17,8 @@ export const CHAIN_ANIM_END_SLACK_MS = 16
 export const SWIPE_MIN_DY = 22
 export const SWIPE_VERTICAL_RATIO = 1.2
 
-/** 워치 경로 캐시 회피: 파일명 변경 (1.9.0 bead-wood.png → v2) */
-export const BEAD_SRC = '/common/bead-wood-v2.png'
+/** 워치 경로 캐시 회피: v3 팔레트 PNG (2.0.1) */
+export const BEAD_SRC = '/common/bead-wood-v3.png'
 
 /** Mode D: 경과시간 기반, 컨테이너 transform만 */
 export const JS_FRAME_MS = 16

@@ -6,23 +6,25 @@
 /** 한 바퀴 알 개수 선택지 (염주/묵주 관례) */
 export const BEAD_OPTIONS = [108, 54, 27, 21]
 
-/** 진단용 애니 모드: E 기본(앞·뒤 레인 2노드) */
+/** 애니 모드. 2.0.1 기본 A. D/E는 실험(위험) */
 export const ANIM_MODES = Object.freeze(['A', 'B', 'C', 'D', 'E'])
+/** 2.0.0에서 크래시 보고된 모드 — 저장값 마이그레이션 대상 */
+export const UNSAFE_ANIM_MODES = Object.freeze(['D', 'E'])
 
 export const ANIM_MODE_LABELS = Object.freeze({
   A: 'A 구슬별 키프레임',
   B: 'B 애니 없음',
   C: 'C 통 컨테이너',
-  D: 'D JS 레인',
-  E: 'E 앞·뒤 레인'
+  D: 'D JS 레인(실험)',
+  E: 'E 앞·뒤 레인(위험)'
 })
 
 export const ANIM_MODE_HINTS = Object.freeze({
-  A: '구슬마다 CSS 키프레임(다중 노드)',
+  A: '1.8 구조+1.9 수정(기본·안정)',
   B: '즉시 스냅 — 입력 지연만',
   C: '전체 1노드 translateY',
-  D: 'JS·시간축으로 앞·뒤 레인 transform',
-  E: '앞열·뒤열 컨테이너 2개 키프레임(기본)'
+  D: '실험: JS 레인 transform',
+  E: '실험(위험): 앞·뒤 레인 키프레임'
 })
 
 export const DEFAULT_STATE = Object.freeze({
@@ -32,8 +34,9 @@ export const DEFAULT_STATE = Object.freeze({
   vibrateOnBead: true,
   todayDate: '',
   todayTotal: 0,
-  animMode: 'E',
-  debugLatency: false
+  animMode: 'A',
+  debugLatency: false,
+  stateSchema: 2
 })
 
 /**
@@ -67,6 +70,8 @@ export const normalizeState = (raw) => {
   const animMode = ANIM_MODES.includes(String(src.animMode))
     ? String(src.animMode)
     : DEFAULT_STATE.animMode
+  const schemaRaw = Math.floor(Number(src.stateSchema) || 0)
+  const stateSchema = schemaRaw > 0 ? schemaRaw : 1
 
   return {
     bead: beadNum % beadsPerRound,
@@ -76,8 +81,28 @@ export const normalizeState = (raw) => {
     todayDate: typeof src.todayDate === 'string' ? src.todayDate : '',
     todayTotal,
     animMode,
-    debugLatency: src.debugLatency === true
+    debugLatency: src.debugLatency === true,
+    stateSchema
   }
+}
+
+/**
+ * 2.0.1 최초(stateSchema < 2): E/D 저장값을 A로 내리고 schema=2.
+ * 이후 사용자가 실험 모드를 고르면 유지.
+ * @param {object} state
+ * @returns {{ state: object, migrated: boolean }}
+ */
+export const migrateAnimModeForStability = (state) => {
+  const s = normalizeState(state)
+  if (s.stateSchema >= 2) {
+    return { state: s, migrated: false }
+  }
+  const next = {
+    ...s,
+    stateSchema: 2,
+    animMode: UNSAFE_ANIM_MODES.includes(s.animMode) ? 'A' : s.animMode
+  }
+  return { state: next, migrated: true }
 }
 
 /**
