@@ -37,16 +37,19 @@
     <text class="hint">{{animHint}}</text>
     <div class="col">
       <div class="chip-wide {{animMode === 'A' ? 'chip-on' : ''}}" onclick="pickModeA">
-        <text class="chip-text">A 키프레임(수정)</text>
+        <text class="chip-text">A 구슬별 키프레임</text>
       </div>
       <div class="chip-wide {{animMode === 'B' ? 'chip-on' : ''}}" onclick="pickModeB">
         <text class="chip-text">B 애니 없음</text>
       </div>
       <div class="chip-wide {{animMode === 'C' ? 'chip-on' : ''}}" onclick="pickModeC">
-        <text class="chip-text">C 컨테이너 이동</text>
+        <text class="chip-text">C 통 컨테이너</text>
       </div>
       <div class="chip-wide {{animMode === 'D' ? 'chip-on' : ''}}" onclick="pickModeD">
-        <text class="chip-text">D JS 프레임</text>
+        <text class="chip-text">D JS 레인</text>
+      </div>
+      <div class="chip-wide {{animMode === 'E' ? 'chip-on' : ''}}" onclick="pickModeE">
+        <text class="chip-text">E 앞·뒤 레인</text>
       </div>
     </div>
 
@@ -71,7 +74,7 @@
       </div>
     </div>
 
-    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v1.9.0</text>
+    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.0.0</text>
   </div>
 </template>
 
@@ -91,7 +94,7 @@ export default {
     beadsPerRound: 108,
     vibrateOnBead: true,
     todayTotal: 0,
-    animMode: 'A',
+    animMode: 'E',
     debugLatency: false,
     animHint: ANIM_MODE_HINTS.A
   },
@@ -121,9 +124,9 @@ export default {
     this.beadsPerRound = state.beadsPerRound
     this.vibrateOnBead = state.vibrateOnBead
     this.todayTotal = state.todayTotal
-    this.animMode = state.animMode || 'A'
+    this.animMode = state.animMode || 'E'
     this.debugLatency = !!state.debugLatency
-    this.animHint = ANIM_MODE_HINTS[this.animMode] || ANIM_MODE_HINTS.A
+    this.animHint = ANIM_MODE_HINTS[this.animMode] || ANIM_MODE_HINTS.E
   },
 
   async persist(next) {
@@ -175,6 +178,9 @@ export default {
   },
   pickModeD() {
     this.pickMode('D')
+  },
+  pickModeE() {
+    this.pickMode('E')
   },
 
   async setDebugOn() {

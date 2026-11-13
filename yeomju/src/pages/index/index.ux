@@ -1,7 +1,7 @@
 <template>
   <!--
-    1.9.0 진단: 애니 모드 A/B/C/D, 지연 디버그.
-    Mode A: 스냅+다음 클래스 동일 틱, 종료=duration+slack.
+    2.0.0: Mode E 기본(앞·뒤 레인 2노드). bead-wood-v2.png.
+    A/B/C/D 비교용 유지. D=경과시간·레인 transform.
   -->
   <div
     class="page"
@@ -13,21 +13,37 @@
   >
     <stack class="stage">
       <div class="ring-mover {{moverClass}}">
-        <div
-          class="bead-wrap {{$item.animClass}}"
-          for="{{chainBeads}}"
-          style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px;"
-        >
-          <image
-            class="bead-img"
-            src="{{$item.src}}"
-            style="width: {{$item.size}}px; height: {{$item.size}}px;"
-          ></image>
+        <div class="lane {{backLaneClass}}" style="{{backLaneStyle}}">
+          <div
+            class="bead-wrap {{$item.animClass}}"
+            for="{{backBeads}}"
+            style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px;"
+          >
+            <image
+              class="bead-img"
+              src="{{$item.src}}"
+              style="width: {{$item.size}}px; height: {{$item.size}}px;"
+            ></image>
+          </div>
+        </div>
+        <div class="lane {{frontLaneClass}}" style="{{frontLaneStyle}}">
+          <div
+            class="bead-wrap {{$item.animClass}}"
+            for="{{frontBeads}}"
+            style="left: {{$item.left}}px; top: {{$item.top}}px; width: {{$item.size}}px; height: {{$item.size}}px;"
+          >
+            <image
+              class="bead-img"
+              src="{{$item.src}}"
+              style="width: {{$item.size}}px; height: {{$item.size}}px;"
+            ></image>
+          </div>
         </div>
       </div>
       <div class="debug-hud" if="{{debugLatency}}">
         <text class="debug-text">터치→시작 {{debugTouchMs}}ms</text>
-        <text class="debug-text">애니 {{debugAnimMs}}ms</text>
+        <text class="debug-text">완료 {{debugAnimMs}}ms</text>
+        <text class="debug-text">프레임 {{debugFrames}}</text>
       </div>
     </stack>
   </div>
@@ -44,7 +60,7 @@ import {
   CHAIN_ANIM_END_SLACK_MS,
   SWIPE_MIN_DY,
   JS_FRAME_MS,
-  JS_FRAME_BEAD_COUNT,
+  BEAD_SRC,
   phaseFromBead,
   stepPhase,
   createChainBeads,
@@ -52,7 +68,11 @@ import {
   advanceChainBeadsWithAnim,
   rollClassForSlot,
   classifyVerticalSwipe,
-  sampleChainBeadsAtTime
+  splitChainLanes,
+  laneClassForDir,
+  frontLaneShiftY,
+  backLaneShiftY,
+  tyStyle
 } from '../../common/ring.js'
 
 export default {
@@ -62,13 +82,20 @@ export default {
     beadsPerRound: 108,
     todayTotal: 0,
     vibrateOnBead: true,
-    animMode: 'A',
+    animMode: 'E',
     debugLatency: false,
     chainBeads: [],
+    frontBeads: [],
+    backBeads: [],
     displayPhase: 0,
     moverClass: '',
+    frontLaneClass: '',
+    backLaneClass: '',
+    frontLaneStyle: '',
+    backLaneStyle: '',
     debugTouchMs: '-',
-    debugAnimMs: '-'
+    debugAnimMs: '-',
+    debugFrames: '-'
   },
 
   onInit() {
@@ -87,11 +114,25 @@ export default {
     this._saveTimer = null
     this._gestureAt = 0
     this._animStartAt = 0
-    this._jsFrame = 0
     this._jsFrames = 0
     this._jsDir = 1
-    this._jsBaseBeads = null
-    this.chainBeads = createChainBeads()
+    this._jsStart = 0
+    this.applyBeads(createChainBeads())
+  },
+
+  applyBeads(beads) {
+    this.chainBeads = beads
+    const lanes = splitChainLanes(beads)
+    this.frontBeads = lanes.frontBeads
+    this.backBeads = lanes.backBeads
+  },
+
+  clearLaneMotion() {
+    this.frontLaneClass = ''
+    this.backLaneClass = ''
+    this.frontLaneStyle = ''
+    this.backLaneStyle = ''
+    this.moverClass = ''
   },
 
   onShow() {
@@ -133,12 +174,12 @@ export default {
     this.beadsPerRound = state.beadsPerRound
     this.todayTotal = state.todayTotal
     this.vibrateOnBead = state.vibrateOnBead
-    this.animMode = state.animMode || 'A'
+    this.animMode = state.animMode || 'E'
     this.debugLatency = !!state.debugLatency
     if (snapVisual) {
       this.displayPhase = phaseFromBead(state.bead, VIRTUAL_BEADS)
-      this.moverClass = ''
-      this.chainBeads = createChainBeads()
+      this.clearLaneMotion()
+      this.applyBeads(createChainBeads())
     }
   },
 
@@ -213,14 +254,11 @@ export default {
     this._draining = true
     try {
       while (this._pendingDirs.length > 0 && this._state) {
-        const dir = this._pendingDirs.shift()
-        this.advanceOnce(dir)
+        this.advanceOnce(this._pendingDirs.shift())
       }
     } finally {
       this._draining = false
-      if (this._pendingDirs.length > 0 && this._state) {
-        this.drainSwipes()
-      }
+      if (this._pendingDirs.length > 0 && this._state) this.drainSwipes()
     }
   },
 
@@ -246,16 +284,13 @@ export default {
   },
 
   buzz(completedRound) {
-    if (this.vibrateOnBead) {
-      vibrator.vibrate({ mode: 'short' })
-    }
-    if (completedRound) {
-      vibrator.vibrate({ mode: 'long' })
-    }
+    if (this.vibrateOnBead) vibrator.vibrate({ mode: 'short' })
+    if (completedRound) vibrator.vibrate({ mode: 'long' })
   },
 
   markAnimStart() {
     this._animStartAt = Date.now()
+    this._jsFrames = 0
     if (this.debugLatency && this._gestureAt) {
       this.debugTouchMs = String(this._animStartAt - this._gestureAt)
     }
@@ -264,48 +299,36 @@ export default {
   markAnimEnd() {
     if (this.debugLatency && this._animStartAt) {
       this.debugAnimMs = String(Date.now() - this._animStartAt)
+      this.debugFrames = String(this._jsFrames)
     }
   },
 
-  /**
-   * Mode A 수정:
-   * - 종료: duration+slack (setTimeout 조기 스냅 방지)
-   * - 다음 큐 있으면 스냅+다음 클래스를 한 바인딩에 (클리어→재적용 원점 복귀 방지)
-   * - fill-mode forwards 유지, 클래스 일괄 map
-   */
   ensureChainAnim() {
     if (this._animating) return
     if (!this._animQueue.length) return
-
-    const mode = this.animMode || 'A'
-    if (mode === 'B') {
-      this.runModeB()
-      return
-    }
-    if (mode === 'C') {
-      this.runModeC()
-      return
-    }
-    if (mode === 'D') {
-      this.runModeD()
-      return
-    }
-    this.runModeA()
+    const mode = this.animMode || 'E'
+    if (mode === 'A') return this.runModeA()
+    if (mode === 'B') return this.runModeB()
+    if (mode === 'C') return this.runModeC()
+    if (mode === 'D') return this.runModeD()
+    return this.runModeE()
   },
 
   runModeA() {
     const item = this._animQueue.shift()
     const dir = item.dir
     this._animating = true
-    this.moverClass = ''
-    this.chainBeads = this.chainBeads.map((b) => ({
-      ...b,
-      animClass: rollClassForSlot(b.slot, dir)
-    }))
+    this.clearLaneMotion()
+    this.applyBeads(
+      this.chainBeads.map((b) => ({
+        ...b,
+        src: BEAD_SRC,
+        animClass: rollClassForSlot(b.slot, dir)
+      }))
+    )
     this.markAnimStart()
     this.buzz(item.completedRound)
     this.queueSave(item.state)
-
     this.clearAnimTimers()
     this._animTimer = setTimeout(() => {
       this.finishModeA(dir)
@@ -317,10 +340,9 @@ export default {
     this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)
     const nextItem = this._animQueue.length ? this._animQueue[0] : null
     if (nextItem) {
-      // 스냅 + 다음 굴림 클래스를 동일 할당 — 중간 원점 프레임 제거
       const nextDir = nextItem.dir
       this._animQueue.shift()
-      this.chainBeads = advanceChainBeadsWithAnim(this.chainBeads, dir, nextDir)
+      this.applyBeads(advanceChainBeadsWithAnim(this.chainBeads, dir, nextDir))
       this.markAnimStart()
       this.buzz(nextItem.completedRound)
       this.queueSave(nextItem.state)
@@ -330,7 +352,7 @@ export default {
       }, CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS)
       return
     }
-    this.chainBeads = advanceChainBeads(this.chainBeads, dir)
+    this.applyBeads(advanceChainBeads(this.chainBeads, dir))
     this._animating = false
     this.ensureChainAnim()
   },
@@ -339,10 +361,11 @@ export default {
     const item = this._animQueue.shift()
     const dir = item.dir
     this._animating = true
-    this.moverClass = ''
+    this.clearLaneMotion()
     this.markAnimStart()
+    this._jsFrames = 0
     this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)
-    this.chainBeads = advanceChainBeads(this.chainBeads, dir)
+    this.applyBeads(advanceChainBeads(this.chainBeads, dir))
     this.buzz(item.completedRound)
     this.queueSave(item.state)
     this.markAnimEnd()
@@ -354,7 +377,11 @@ export default {
     const item = this._animQueue.shift()
     const dir = item.dir
     this._animating = true
-    this.chainBeads = this.chainBeads.map((b) => ({ ...b, animClass: '' }))
+    this.frontLaneClass = ''
+    this.backLaneClass = ''
+    this.frontLaneStyle = ''
+    this.backLaneStyle = ''
+    this.applyBeads(this.chainBeads.map((b) => ({ ...b, src: BEAD_SRC, animClass: '' })))
     this.moverClass = Number(dir) < 0 ? 'mover-down' : 'mover-up'
     this.markAnimStart()
     this.buzz(item.completedRound)
@@ -364,21 +391,24 @@ export default {
       this.markAnimEnd()
       this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)
       this.moverClass = ''
-      this.chainBeads = advanceChainBeads(this.chainBeads, dir)
+      this.applyBeads(advanceChainBeads(this.chainBeads, dir))
       this._animating = false
       this.ensureChainAnim()
     }, CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS)
   },
 
+  /** D: Date.now 경과시간 진행률, 앞·뒤 레인 transform만, 16ms */
   runModeD() {
     const item = this._animQueue.shift()
     const dir = item.dir
     this._animating = true
     this.moverClass = ''
+    this.frontLaneClass = ''
+    this.backLaneClass = ''
+    this.applyBeads(this.chainBeads.map((b) => ({ ...b, src: BEAD_SRC, animClass: '' })))
     this._jsDir = dir
-    this._jsBaseBeads = this.chainBeads.map((b) => ({ ...b, animClass: '' }))
-    this._jsFrames = Math.max(2, Math.round(CHAIN_ANIM_MS / JS_FRAME_MS))
-    this._jsFrame = 0
+    this._jsStart = Date.now()
+    this._jsFrames = 0
     this.markAnimStart()
     this.buzz(item.completedRound)
     this.queueSave(item.state)
@@ -386,22 +416,51 @@ export default {
   },
 
   tickModeD() {
-    this._jsFrame += 1
-    const t = Math.min(1, this._jsFrame / this._jsFrames)
-    this.chainBeads = sampleChainBeadsAtTime(this._jsBaseBeads, this._jsDir, t, {
-      frameBeadCount: JS_FRAME_BEAD_COUNT
-    })
+    this._jsFrames += 1
+    const elapsed = Date.now() - this._jsStart
+    const t = Math.min(1, elapsed / CHAIN_ANIM_MS)
+    const fy = Math.round(frontLaneShiftY(this._jsDir) * t)
+    const by = Math.round(backLaneShiftY(this._jsDir) * t)
+    this.frontLaneStyle = tyStyle(fy)
+    this.backLaneStyle = tyStyle(by)
     if (t >= 1) {
       this.markAnimEnd()
       this.displayPhase = stepPhase(this.displayPhase, this._jsDir, VIRTUAL_BEADS)
-      this.chainBeads = advanceChainBeads(this._jsBaseBeads, this._jsDir)
-      this._jsBaseBeads = null
+      this.frontLaneStyle = ''
+      this.backLaneStyle = ''
+      this.applyBeads(advanceChainBeads(this.chainBeads, this._jsDir))
       this._animating = false
       this.ensureChainAnim()
       return
     }
     this.clearAnimTimers()
     this._jsTimer = setTimeout(() => this.tickModeD(), JS_FRAME_MS)
+  },
+
+  /** E: 클래스만 토글(노드 2개). 종료 시 슬롯 스냅·레인 재분배 */
+  runModeE() {
+    const item = this._animQueue.shift()
+    const dir = item.dir
+    this._animating = true
+    this.moverClass = ''
+    this.frontLaneStyle = ''
+    this.backLaneStyle = ''
+    this.applyBeads(this.chainBeads.map((b) => ({ ...b, src: BEAD_SRC, animClass: '' })))
+    this.frontLaneClass = laneClassForDir('front', dir)
+    this.backLaneClass = laneClassForDir('back', dir)
+    this.markAnimStart()
+    this.buzz(item.completedRound)
+    this.queueSave(item.state)
+    this.clearAnimTimers()
+    this._animTimer = setTimeout(() => {
+      this.markAnimEnd()
+      this.displayPhase = stepPhase(this.displayPhase, dir, VIRTUAL_BEADS)
+      this.frontLaneClass = ''
+      this.backLaneClass = ''
+      this.applyBeads(advanceChainBeads(this.chainBeads, dir))
+      this._animating = false
+      this.ensureChainAnim()
+    }, CHAIN_ANIM_MS + CHAIN_ANIM_END_SLACK_MS)
   }
 }
 </script>
@@ -412,12 +471,10 @@ export default {
   height: 100%;
   background-color: #0c0a08;
 }
-
 .stage {
   width: 432px;
   height: 514px;
 }
-
 .ring-mover {
   width: 432px;
   height: 514px;
@@ -425,31 +482,33 @@ export default {
   left: 0px;
   top: 0px;
 }
-
+.lane {
+  width: 432px;
+  height: 514px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
 .bead-wrap {
   position: absolute;
   transform-origin: center center;
 }
-
 .bead-img {
   position: absolute;
   left: 0px;
   top: 0px;
 }
-
 .debug-hud {
   position: absolute;
   left: 8px;
   top: 8px;
-  width: 200px;
+  width: 220px;
   flex-direction: column;
 }
-
 .debug-text {
-  font-size: 16px;
+  font-size: 15px;
   color: #c4a574;
 }
-
 .mover-up {
   animation-name: kf-mover-up;
   animation-duration: 190ms;
@@ -474,7 +533,54 @@ export default {
   0% { transform: translateY(0px); }
   100% { transform: translateY(209px); }
 }
-
+.lane-front-up {
+  animation-name: kf-front-up;
+  animation-duration: 190ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes kf-front-up {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(-209px); }
+}
+.lane-front-down {
+  animation-name: kf-front-down;
+  animation-duration: 190ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes kf-front-down {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(209px); }
+}
+.lane-back-up {
+  animation-name: kf-back-up;
+  animation-duration: 190ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes kf-back-up {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(150px); }
+}
+.lane-back-down {
+  animation-name: kf-back-down;
+  animation-duration: 190ms;
+  animation-timing-function: linear;
+  animation-delay: 0ms;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+@keyframes kf-back-down {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(-150px); }
+}
 /* CHAIN_KF_BEGIN */
 .roll-next-0 {
   animation-name: kf-next-0;
@@ -716,7 +822,5 @@ export default {
   75% { transform: translate(82px, 88px) scale(0.925); }
   100% { transform: translate(83px, 88px) scale(0.923); }
 }
-
 /* CHAIN_KF_END */
-
 </style>

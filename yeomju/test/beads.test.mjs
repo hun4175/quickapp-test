@@ -37,7 +37,7 @@ describe('normalizeState', () => {
     assert.equal(s.rounds, 0)
     assert.equal(s.beadsPerRound, 108)
     assert.equal(s.vibrateOnBead, true)
-    assert.equal(s.animMode, 'A')
+    assert.equal(s.animMode, 'E')
     assert.equal(s.debugLatency, false)
   })
 
@@ -169,10 +169,11 @@ describe('설정·초기화', () => {
     assert.equal(setVibrateOnBead({}, false).vibrateOnBead, false)
   })
 
-  it('animMode A~D · debugLatency', () => {
-    assert.deepEqual([...ANIM_MODES], ['A', 'B', 'C', 'D'])
+  it('animMode A~E · debugLatency', () => {
+    assert.deepEqual([...ANIM_MODES], ['A', 'B', 'C', 'D', 'E'])
     assert.equal(setAnimMode({}, 'C').animMode, 'C')
-    assert.equal(setAnimMode({}, 'Z').animMode, 'A')
+    assert.equal(setAnimMode({}, 'E').animMode, 'E')
+    assert.equal(setAnimMode({}, 'Z').animMode, 'E')
     assert.equal(setDebugLatency({}, true).debugLatency, true)
   })
 

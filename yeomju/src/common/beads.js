@@ -6,21 +6,23 @@
 /** 한 바퀴 알 개수 선택지 (염주/묵주 관례) */
 export const BEAD_OPTIONS = [108, 54, 27, 21]
 
-/** 진단용 애니 모드: A 키프레임 / B 즉시스냅 / C 컨테이너 / D JS프레임 */
-export const ANIM_MODES = Object.freeze(['A', 'B', 'C', 'D'])
+/** 진단용 애니 모드: E 기본(앞·뒤 레인 2노드) */
+export const ANIM_MODES = Object.freeze(['A', 'B', 'C', 'D', 'E'])
 
 export const ANIM_MODE_LABELS = Object.freeze({
-  A: 'A 키프레임(수정)',
+  A: 'A 구슬별 키프레임',
   B: 'B 애니 없음',
-  C: 'C 컨테이너 이동',
-  D: 'D JS 프레임'
+  C: 'C 통 컨테이너',
+  D: 'D JS 레인',
+  E: 'E 앞·뒤 레인'
 })
 
 export const ANIM_MODE_HINTS = Object.freeze({
-  A: '구슬별 CSS 키프레임(버그 수정본)',
-  B: '즉시 다음 슬롯 — 입력 지연만 체감',
-  C: '통째 translateY 한 번 — 다중 노드 비용 비교',
-  D: 'JS가 소수 프레임으로 위치 갱신'
+  A: '구슬마다 CSS 키프레임(다중 노드)',
+  B: '즉시 스냅 — 입력 지연만',
+  C: '전체 1노드 translateY',
+  D: 'JS·시간축으로 앞·뒤 레인 transform',
+  E: '앞열·뒤열 컨테이너 2개 키프레임(기본)'
 })
 
 export const DEFAULT_STATE = Object.freeze({
@@ -30,7 +32,7 @@ export const DEFAULT_STATE = Object.freeze({
   vibrateOnBead: true,
   todayDate: '',
   todayTotal: 0,
-  animMode: 'A',
+  animMode: 'E',
   debugLatency: false
 })
 
@@ -62,7 +64,9 @@ export const normalizeState = (raw) => {
   const rounds = Math.max(0, Math.floor(Number(src.rounds) || 0))
   const todayTotal = Math.max(0, Math.floor(Number(src.todayTotal) || 0))
 
-  const animMode = ANIM_MODES.includes(src.animMode) ? src.animMode : DEFAULT_STATE.animMode
+  const animMode = ANIM_MODES.includes(String(src.animMode))
+    ? String(src.animMode)
+    : DEFAULT_STATE.animMode
 
   return {
     bead: beadNum % beadsPerRound,
@@ -226,7 +230,7 @@ export const setVibrateOnBead = (state, enabled) => {
  */
 export const setAnimMode = (state, mode) => {
   const s = normalizeState(state)
-  const animMode = ANIM_MODES.includes(mode) ? mode : 'A'
+  const animMode = ANIM_MODES.includes(mode) ? mode : DEFAULT_STATE.animMode
   return { ...s, animMode }
 }
 
