@@ -1,5 +1,6 @@
 /**
- * 키프레임 CSS·프리뷰·테스트 전용 (index 런타임 번들에서 제외).
+ * 키프레임 CSS·프리뷰·테스트 전용 (index 런타임 번들 제외).
+ * 2.1.0: 0%/100% + linear only.
  */
 import {
   CHAIN_ANIM_MS,
@@ -12,10 +13,8 @@ import {
   SLOT_COUNT
 } from './ring.js'
 
-export const SHARED_KEYFRAME_PCTS = Object.freeze([0, 0.25, 0.5, 0.75, 1])
+export const SHARED_KEYFRAME_PCTS = Object.freeze([0, 1])
 export { pathProgressAtTime, easeOutCubic }
-
-const KEYS = SHARED_KEYFRAME_PCTS
 
 const kfLine = (pct, tr) =>
   `  ${pct}% { transform: translate(${tr.tx}px, ${tr.ty}px) scale(${tr.scale}); }`
@@ -35,13 +34,10 @@ export const buildChainKeyframeCss = (opts = {}) => {
   animation-iteration-count: 1;
   animation-fill-mode: forwards;
 }`)
-    const body = KEYS.map((k) => {
-      const u = pathProgressAtTime(k)
-      const tr = transformAtProgress(from, to, u, opts)
-      return kfLine(Math.round(k * 100), tr)
-    }).join('\n')
+    const end = transformAtProgress(from, to, 1, opts)
     lines.push(`@keyframes kf-${name} {
-${body}
+  0% { transform: translate(0px, 0px) scale(1); }
+${kfLine(100, end)}
 }`)
   }
   for (let i = 0; i < n; i++) {
@@ -58,21 +54,17 @@ export const pathProgressesAtTime = (t) => {
 
 export const snapMatchesEndKeyframe = (fromSlot, toSlot, tol = 1) => {
   const tr = transformAtProgress(fromSlot, toSlot, 1)
-  const visCx = fromSlot.cx + tr.tx
-  const visCy = fromSlot.cy + tr.ty
-  const visSize = fromSlot.size * tr.scale
   return (
-    Math.abs(visCx - toSlot.cx) <= tol &&
-    Math.abs(visCy - toSlot.cy) <= tol &&
-    Math.abs(visSize - toSlot.size) <= tol
+    Math.abs(fromSlot.cx + tr.tx - toSlot.cx) <= tol &&
+    Math.abs(fromSlot.cy + tr.ty - toSlot.cy) <= tol &&
+    Math.abs(fromSlot.size * tr.scale - toSlot.size) <= tol
   )
 }
 
 export const layoutRing = (opts = {}) => {
   const slots = layoutChainSlots(opts)
   const raw = Math.max(0, Math.min(1, Number(opts.shiftProgress) || 0))
-  const bakeEase = opts.bakeEase !== false
-  const p = raw === 0 || raw === 1 ? raw : bakeEase ? easeOutCubic(raw) : raw
+  const p = raw
   const dir = opts.chainDir != null ? (Number(opts.chainDir) >= 0 ? 1 : -1) : 1
   let items = slots.map((s) => ({
     key: s.index,
@@ -80,13 +72,11 @@ export const layoutRing = (opts = {}) => {
     top: s.top,
     size: s.size,
     depth: s.depth,
-    opacity: 1,
     z: s.z,
     focused: s.index === 0,
     src: BEAD_SRC,
     cx: s.cx,
-    cy: s.cy,
-    angle: s.angle
+    cy: s.cy
   }))
   if (p > 0) {
     items = items.map((b) => {

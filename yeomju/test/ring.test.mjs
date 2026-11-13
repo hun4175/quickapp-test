@@ -1,40 +1,36 @@
 /**
- * 염주 고리 2.0.0 — 레인 헬퍼·v2 이미지·키프레임
+ * 염주 고리 2.1.0 — 6구슬 플랫 · 0/100 linear
  */
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   VIRTUAL_BEADS,
   SLOT_COUNT,
+  VISIBLE_BEADS,
+  FRONT_COUNT,
+  BACK_COUNT,
   DEFAULT_RING,
   CHAIN_ANIM_MS,
-  CHAIN_ANIM_END_SLACK_MS,
   BEAD_SRC,
-  JS_FRAME_MS,
   phaseFromBead,
   nextPhase,
   stepPhase,
   classifyVerticalSwipe,
   SWIPE_MIN_DY,
   layoutChainSlots,
+  visibleSlotIndices,
   createChainBeads,
   advanceChainBeads,
   advanceChainBeadsWithAnim,
+  withRollClasses,
   rollClassForSlot,
   transformAtProgress,
   pathProgressAtTime,
-  easeOutCubic,
-  focusDeltaYOnAdvance,
-  frontLaneShiftY,
-  backLaneShiftY,
-  splitChainLanes,
-  laneClassForDir,
-  tyStyle
+  focusDeltaYOnAdvance
 } from '../src/common/ring.js'
 import {
   SHARED_KEYFRAME_PCTS,
   buildChainKeyframeCss,
-  pathProgressesAtTime,
   snapMatchesEndKeyframe,
   layoutRing,
   focusCenterNear
@@ -48,74 +44,82 @@ describe('phase', () => {
   })
 })
 
-describe('2.0.0 assets / timing', () => {
-  it('bead-wood-v3 경로', () => {
+describe('2.1.0 render / timing', () => {
+  it('6구슬 = 앞3+뒤3', () => {
+    assert.equal(FRONT_COUNT, 3)
+    assert.equal(BACK_COUNT, 3)
+    assert.equal(VISIBLE_BEADS, 6)
+    assert.equal(visibleSlotIndices().length, 6)
+    assert.equal(createChainBeads().length, 6)
+  })
+  it('duration ~150ms', () => {
+    assert.ok(CHAIN_ANIM_MS >= 140 && CHAIN_ANIM_MS <= 160)
+  })
+  it('bead-wood-v3', () => {
     assert.equal(BEAD_SRC, '/common/bead-wood-v3.png')
-    assert.ok(createChainBeads().every((b) => b.src === BEAD_SRC))
   })
-  it('duration·slack·JS 16ms', () => {
-    assert.ok(CHAIN_ANIM_MS >= 180 && CHAIN_ANIM_MS <= 200)
-    assert.ok(CHAIN_ANIM_END_SLACK_MS >= 8)
-    assert.equal(JS_FRAME_MS, 16)
-  })
-  it('SWIPE_MIN_DY', () => {
+  it('SWIPE', () => {
     assert.equal(classifyVerticalSwipe(0, -SWIPE_MIN_DY), 1)
+    assert.equal(classifyVerticalSwipe(0, SWIPE_MIN_DY), -1)
   })
 })
 
-describe('레인 Mode E/D', () => {
-  it('앞열 이동 = focusDelta, 뒤열 반대·축소', () => {
-    assert.equal(frontLaneShiftY(1), focusDeltaYOnAdvance())
-    assert.ok(frontLaneShiftY(1) < 0)
-    assert.ok(backLaneShiftY(1) > 0)
-    assert.ok(Math.abs(backLaneShiftY(1)) < Math.abs(frontLaneShiftY(1)))
+describe('안정 id · 클래스 토글', () => {
+  it('withRollClasses는 id/src/slot 유지', () => {
+    const a = createChainBeads()
+    const b = withRollClasses(a, 1)
+    assert.equal(b.length, a.length)
+    for (let i = 0; i < a.length; i++) {
+      assert.equal(b[i].id, a[i].id)
+      assert.equal(b[i].src, a[i].src)
+      assert.equal(b[i].slot, a[i].slot)
+      assert.equal(b[i].left, a[i].left)
+    }
   })
-  it('splitChainLanes 앞·뒤 분리', () => {
-    const { frontBeads, backBeads } = splitChainLanes(createChainBeads())
-    assert.ok(frontBeads.length >= 2)
-    assert.ok(backBeads.length >= 2)
-    assert.ok(frontBeads.every((b) => b.depth >= 0.55))
-    assert.ok(backBeads.every((b) => b.depth < 0.55))
+  it('advance 후 id·길이 유지, src 유지', () => {
+    const a = createChainBeads()
+    const ids = a.map((x) => x.id).join(',')
+    const b = advanceChainBeads(a, 1)
+    assert.equal(b.length, 6)
+    assert.equal(b.map((x) => x.id).join(','), ids)
+    assert.ok(b.every((x) => x.src === BEAD_SRC))
+    assert.ok(b.every((x) => x.animClass === ''))
   })
-  it('laneClassForDir', () => {
-    assert.equal(laneClassForDir('front', 1), 'lane-front-up')
-    assert.equal(laneClassForDir('back', 1), 'lane-back-up')
-    assert.equal(tyStyle(0), '')
-    assert.ok(tyStyle(-10).includes('-10px'))
+  it('advanceWithAnim', () => {
+    const a = createChainBeads()
+    const b = advanceChainBeadsWithAnim(a, 1, 1)
+    assert.equal(b[0].id, a[0].id)
+    assert.ok(typeof b[0].animClass === 'string')
   })
 })
 
-describe('키프레임(A 비교용)', () => {
-  it('SHARED + 동일 진행률', () => {
-    assert.deepEqual([...SHARED_KEYFRAME_PCTS], [0, 0.25, 0.5, 0.75, 1])
-    assert.equal(pathProgressAtTime(0.5), easeOutCubic(0.5))
-    const p = pathProgressesAtTime(0.5)
-    assert.ok(p.every((x) => x === pathProgressAtTime(0.5)))
+describe('키프레임 0/100 linear', () => {
+  it('SHARED = 0,1', () => {
+    assert.deepEqual([...SHARED_KEYFRAME_PCTS], [0, 1])
+    assert.equal(pathProgressAtTime(0.5), 0.5)
   })
-  it('CSS linear·스냅', () => {
+  it('CSS: 150ms linear, 25% 없음', () => {
     const css = buildChainKeyframeCss()
+    assert.ok(css.includes('animation-duration: 150ms'))
     assert.ok(css.includes('linear'))
     assert.ok(!css.includes('ease-out'))
+    assert.ok(!css.includes('25%'))
+    assert.ok(!css.includes('50%'))
+    assert.ok(!css.includes('75%'))
     const slots = layoutChainSlots()
     assert.ok(snapMatchesEndKeyframe(slots[0], slots[1]))
   })
 })
 
-describe('chain beads', () => {
-  it('advance / withAnim', () => {
-    const a = createChainBeads()
-    const b = advanceChainBeads(a, 1)
-    assert.equal(b.find((x) => x.id === 'b0').slot, 1)
-    assert.equal(rollClassForSlot(0, 1), 'roll-next-0')
-    const c = advanceChainBeadsWithAnim(a, 1, 1)
-    assert.equal(c.find((x) => x.id === 'b0').animClass, 'roll-next-1')
-  })
-  it('layoutRing 포커스', () => {
+describe('layout', () => {
+  it('포커스·rollClass', () => {
     const items = layoutRing({})
     assert.equal(focusCenterNear(items, 216, 257, 4), true)
+    assert.equal(rollClassForSlot(0, 1), 'roll-next-0')
     assert.equal(VIRTUAL_BEADS, 12)
     assert.equal(SLOT_COUNT, 8)
-    assert.equal(DEFAULT_RING.maxSize, 228)
+    assert.ok(focusDeltaYOnAdvance() < 0)
     assert.ok(transformAtProgress)
+    assert.equal(DEFAULT_RING.maxSize, 228)
   })
 })

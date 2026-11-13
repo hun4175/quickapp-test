@@ -1,29 +1,24 @@
 /**
- * 염주 고리 — 2.0.0 런타임 (Mode E 기본: 앞/뒤 레인 컨테이너 2개).
- * 키프레임 CSS 생성·프리뷰 전용 코드는 ring-kf.js.
+ * 염주 고리 — 2.1.0 플랫 리스트 only (레인/D/E 제거).
+ * 렌더 6구슬(앞3+뒤3), keyframe 0/100 linear ~150ms.
  */
 
 export const VIRTUAL_BEADS = 12
 export const SLOT_COUNT = 8
 export const FRONT_COUNT = 3
 export const BACK_COUNT = 3
-export const VISIBLE_BEADS = SLOT_COUNT
+export const VISIBLE_BEADS = FRONT_COUNT + BACK_COUNT
 export const FRONT_DEPTH_MIN = 0.55
 
 export const CHAIN_DIR = 1
-export const CHAIN_ANIM_MS = 190
+/** 반응성: ~150ms */
+export const CHAIN_ANIM_MS = 150
 export const CHAIN_ANIM_END_SLACK_MS = 16
 
 export const SWIPE_MIN_DY = 22
 export const SWIPE_VERTICAL_RATIO = 1.2
 
-/** 워치 경로 캐시 회피: v3 팔레트 PNG (2.0.1) */
 export const BEAD_SRC = '/common/bead-wood-v3.png'
-
-/** Mode D: 경과시간 기반, 컨테이너 transform만 */
-export const JS_FRAME_MS = 16
-/** 뒤열 이동량 = 앞열 반대 방향 × 비율 (덩어리감 완화) */
-export const BACK_SHIFT_SCALE = 0.72
 
 export const DEFAULT_RING = Object.freeze({
   screenW: 432,
@@ -84,11 +79,12 @@ export const easeOutCubic = (t) => {
   return 1 - Math.pow(1 - x, 3)
 }
 
+/** 2.1.0: 위치 베이크 없이 시간=경로 (CSS linear 0/100) */
 export const pathProgressAtTime = (t) => {
   const x = Math.max(0, Math.min(1, Number(t) || 0))
   if (x <= 0) return 0
   if (x >= 1) return 1
-  return easeOutCubic(x)
+  return x
 }
 
 export const slotGeomAtAngle = (angle, opts = {}) => {
@@ -121,6 +117,22 @@ export const layoutChainSlots = (opts = {}) => {
     slots.push({ index: i, ...g, src: BEAD_SRC })
   }
   return slots
+}
+
+/** 앞 3 + 뒤 3 슬롯 인덱스 (고정 기하) */
+export const visibleSlotIndices = (opts = {}) => {
+  const slots = layoutChainSlots(ringOpts(opts))
+  const front = slots
+    .filter((s) => s.depth >= FRONT_DEPTH_MIN)
+    .sort((a, b) => b.depth - a.depth || a.index - b.index)
+    .slice(0, FRONT_COUNT)
+  const back = slots
+    .filter((s) => s.depth < FRONT_DEPTH_MIN)
+    .sort((a, b) => b.depth - a.depth || a.index - b.index)
+    .slice(0, BACK_COUNT)
+  return [...front, ...back]
+    .map((s) => s.index)
+    .sort((a, b) => a - b)
 }
 
 export const angledPair = (fromSlot, toSlot) => {
@@ -176,115 +188,87 @@ export const rollClassForSlot = (slotIndex, dir, opts = {}) => {
   return d < 0 ? 'roll-prev-' + i : 'roll-next-' + i
 }
 
+const beadFromSlot = (id, s, animClass = '') => ({
+  id,
+  slot: s.index,
+  left: s.left,
+  top: s.top,
+  size: s.size,
+  depth: s.depth,
+  z: s.z,
+  src: BEAD_SRC,
+  animClass
+})
+
+/**
+ * 안정 id b0..b5, 앞3+뒤3 슬롯에 배치. 배열 순서는 id 고정.
+ */
 export const createChainBeads = (opts = {}) => {
   const slots = layoutChainSlots(ringOpts(opts))
-  return slots
-    .map((s) => ({
-      id: 'b' + s.index,
-      slot: s.index,
-      left: s.left,
-      top: s.top,
-      size: s.size,
-      depth: s.depth,
-      src: BEAD_SRC,
-      animClass: ''
-    }))
-    .sort((a, b) => a.depth - b.depth || a.slot - b.slot)
+  const vis = visibleSlotIndices(opts)
+  return vis.map((slotIdx, i) => beadFromSlot('b' + i, slots[slotIdx]))
 }
 
+/**
+ * 슬롯만 +dir. 화면 밖이 된 노드는 빈 visible 슬롯으로 재배치(텔레포트).
+ * id·배열 길이·순서·src 유지.
+ */
 export const advanceChainBeads = (beads, dir, opts = {}) => {
   const slots = layoutChainSlots(ringOpts(opts))
   const n = slots.length
   const d = Number(dir) < 0 ? -1 : 1
+  const visSet = new Set(visibleSlotIndices(opts))
   const next = beads.map((b) => {
     const slot = (b.slot + d + n) % n
-    const s = slots[slot]
+    return { ...b, slot, animClass: '' }
+  })
+  const occupied = new Set(next.map((b) => b.slot))
+  const empty = [...visSet].filter((s) => !occupied.has(s))
+  let ei = 0
+  for (let i = 0; i < next.length; i++) {
+    if (!visSet.has(next[i].slot) && ei < empty.length) {
+      next[i] = { ...next[i], slot: empty[ei++] }
+    }
+  }
+  return next.map((b) => {
+    const s = slots[b.slot]
     return {
       id: b.id,
-      slot,
+      slot: b.slot,
       left: s.left,
       top: s.top,
       size: s.size,
       depth: s.depth,
-      src: BEAD_SRC,
+      z: s.z,
+      src: b.src || BEAD_SRC,
       animClass: ''
     }
   })
-  next.sort((a, b) => a.depth - b.depth || a.slot - b.slot)
-  return next
 }
 
+/** 스냅 + 다음 굴림 클래스를 한 할당(원점 프레임 방지). id/src 유지 */
 export const advanceChainBeadsWithAnim = (beads, dir, nextDir, opts = {}) => {
-  const slots = layoutChainSlots(ringOpts(opts))
-  const n = slots.length
-  const d = Number(dir) < 0 ? -1 : 1
-  const next = beads.map((b) => {
-    const slot = (b.slot + d + n) % n
-    const s = slots[slot]
-    const animClass =
-      nextDir == null || nextDir === 0 ? '' : rollClassForSlot(slot, nextDir, opts)
-    return {
-      id: b.id,
-      slot,
-      left: s.left,
-      top: s.top,
-      size: s.size,
-      depth: s.depth,
-      src: BEAD_SRC,
-      animClass
-    }
-  })
-  next.sort((a, b) => a.depth - b.depth || a.slot - b.slot)
-  return next
+  const snapped = advanceChainBeads(beads, dir, opts)
+  if (nextDir == null || nextDir === 0) return snapped
+  return snapped.map((b) => ({
+    ...b,
+    animClass: rollClassForSlot(b.slot, nextDir, opts)
+  }))
 }
+
+/** 애니 시작: animClass만 변경 (src·id·슬롯 기하 유지) */
+export const withRollClasses = (beads, dir, opts = {}) =>
+  beads.map((b) => ({
+    ...b,
+    animClass: rollClassForSlot(b.slot, dir, opts)
+  }))
 
 export const focusDeltaYOnAdvance = (opts = {}) => {
   const slots = layoutChainSlots(ringOpts(opts))
   return slots[1].top - slots[0].top
 }
 
-/** Mode C 전체 컨테이너 / Mode E 앞열 이동량 (dir=1 → 음수=위) */
-export const frontLaneShiftY = (dir, opts = {}) => {
+export const containerShiftY = (dir, opts = {}) => {
   const step = focusDeltaYOnAdvance(opts)
   return Number(dir) < 0 ? -step : step
 }
-
-/** Mode E 뒤열: 반대 방향·축소 */
-export const backLaneShiftY = (dir, opts = {}) => {
-  const scale = opts.backScale != null ? opts.backScale : BACK_SHIFT_SCALE
-  return Math.round(-frontLaneShiftY(dir, opts) * scale)
-}
-
-export const containerShiftY = (dir, opts = {}) => frontLaneShiftY(dir, opts)
-
-export const splitChainLanes = (beads) => {
-  const frontBeads = []
-  const backBeads = []
-  for (let i = 0; i < beads.length; i++) {
-    const b = beads[i]
-    const row = {
-      id: b.id,
-      slot: b.slot,
-      left: b.left,
-      top: b.top,
-      size: b.size,
-      depth: b.depth,
-      src: BEAD_SRC,
-      animClass: b.animClass || ''
-    }
-    if (b.depth >= FRONT_DEPTH_MIN) frontBeads.push(row)
-    else backBeads.push(row)
-  }
-  frontBeads.sort((a, b) => a.depth - b.depth || a.slot - b.slot)
-  backBeads.sort((a, b) => a.depth - b.depth || a.slot - b.slot)
-  return { frontBeads, backBeads }
-}
-
-export const laneClassForDir = (lane, dir) => {
-  const up = Number(dir) >= 0
-  if (lane === 'front') return up ? 'lane-front-up' : 'lane-front-down'
-  return up ? 'lane-back-up' : 'lane-back-down'
-}
-
-export const tyStyle = (y) =>
-  y === 0 ? '' : 'transform:translateY(' + y + 'px);'

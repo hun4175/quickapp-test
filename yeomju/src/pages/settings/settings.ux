@@ -45,12 +45,6 @@
       <div class="chip-wide {{animMode === 'C' ? 'chip-on' : ''}}" onclick="pickModeC">
         <text class="chip-text">C 통 컨테이너</text>
       </div>
-      <div class="chip-wide {{animMode === 'D' ? 'chip-on' : ''}}" onclick="pickModeD">
-        <text class="chip-text">D JS 레인(실험)</text>
-      </div>
-      <div class="chip-wide {{animMode === 'E' ? 'chip-on' : ''}}" onclick="pickModeE">
-        <text class="chip-text">E 앞·뒤 레인(위험)</text>
-      </div>
     </div>
 
     <text class="label">지연 디버그</text>
@@ -74,7 +68,7 @@
       </div>
     </div>
 
-    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.0.1</text>
+    <text class="meta">오늘 {{todayTotal}} · 저장 로컬만 · v2.1.0</text>
   </div>
 </template>
 
@@ -175,12 +169,6 @@ export default {
   },
   pickModeC() {
     this.pickMode('C')
-  },
-  pickModeD() {
-    this.pickMode('D')
-  },
-  pickModeE() {
-    this.pickMode('E')
   },
 
   async setDebugOn() {

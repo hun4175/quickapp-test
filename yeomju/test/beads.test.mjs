@@ -172,21 +172,21 @@ describe('설정·초기화', () => {
   })
 
 
-  it('2.0.1 E/D→A 마이그레이션', () => {
+  it('2.1.0 D/E→A 마이그레이션', () => {
     assert.deepEqual([...UNSAFE_ANIM_MODES], ['D', 'E'])
     const m = migrateAnimModeForStability({ animMode: 'E', stateSchema: 1 })
     assert.equal(m.migrated, true)
     assert.equal(m.state.animMode, 'A')
-    assert.equal(m.state.stateSchema, 2)
-    const keep = migrateAnimModeForStability({ animMode: 'E', stateSchema: 2 })
-    assert.equal(keep.migrated, false)
-    assert.equal(keep.state.animMode, 'E')
+    assert.equal(m.state.stateSchema, 3)
+    const stable = migrateAnimModeForStability({ animMode: 'A', stateSchema: 3 })
+    assert.equal(stable.migrated, false)
+    assert.equal(stable.state.animMode, 'A')
   })
 
-  it('animMode A~E · debugLatency', () => {
-    assert.deepEqual([...ANIM_MODES], ['A', 'B', 'C', 'D', 'E'])
+  it('animMode A~C · debugLatency', () => {
+    assert.deepEqual([...ANIM_MODES], ['A', 'B', 'C'])
     assert.equal(setAnimMode({}, 'C').animMode, 'C')
-    assert.equal(setAnimMode({}, 'E').animMode, 'E')
+    assert.equal(setAnimMode({}, 'E').animMode, 'A')
     assert.equal(setAnimMode({}, 'Z').animMode, 'A')
     assert.equal(setDebugLatency({}, true).debugLatency, true)
   })

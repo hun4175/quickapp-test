@@ -6,25 +6,21 @@
 /** 한 바퀴 알 개수 선택지 (염주/묵주 관례) */
 export const BEAD_OPTIONS = [108, 54, 27, 21]
 
-/** 애니 모드. 2.0.1 기본 A. D/E는 실험(위험) */
-export const ANIM_MODES = Object.freeze(['A', 'B', 'C', 'D', 'E'])
-/** 2.0.0에서 크래시 보고된 모드 — 저장값 마이그레이션 대상 */
+/** 2.1.0: A/B/C만. D/E는 제거(저장값→A 마이그레이션) */
+export const ANIM_MODES = Object.freeze(['A', 'B', 'C'])
+/** 구버전 저장값 정리용 */
 export const UNSAFE_ANIM_MODES = Object.freeze(['D', 'E'])
 
 export const ANIM_MODE_LABELS = Object.freeze({
   A: 'A 구슬별 키프레임',
   B: 'B 애니 없음',
-  C: 'C 통 컨테이너',
-  D: 'D JS 레인(실험)',
-  E: 'E 앞·뒤 레인(위험)'
+  C: 'C 통 컨테이너'
 })
 
 export const ANIM_MODE_HINTS = Object.freeze({
-  A: '1.8 구조+1.9 수정(기본·안정)',
+  A: '플랫 6구슬·0/100 keyframe(기본)',
   B: '즉시 스냅 — 입력 지연만',
-  C: '전체 1노드 translateY',
-  D: '실험: JS 레인 transform',
-  E: '실험(위험): 앞·뒤 레인 키프레임'
+  C: '전체 1노드 translateY'
 })
 
 export const DEFAULT_STATE = Object.freeze({
@@ -36,7 +32,7 @@ export const DEFAULT_STATE = Object.freeze({
   todayTotal: 0,
   animMode: 'A',
   debugLatency: false,
-  stateSchema: 2
+  stateSchema: 3
 })
 
 /**
@@ -87,22 +83,25 @@ export const normalizeState = (raw) => {
 }
 
 /**
- * 2.0.1 최초(stateSchema < 2): E/D 저장값을 A로 내리고 schema=2.
- * 이후 사용자가 실험 모드를 고르면 유지.
+ * 2.1.0: D/E(또는 미지원 모드)→A, stateSchema≥3.
  * @param {object} state
  * @returns {{ state: object, migrated: boolean }}
  */
 export const migrateAnimModeForStability = (state) => {
   const s = normalizeState(state)
-  if (s.stateSchema >= 2) {
+  const unsupported =
+    UNSAFE_ANIM_MODES.includes(s.animMode) || !ANIM_MODES.includes(s.animMode)
+  if (s.stateSchema >= 3 && !unsupported) {
     return { state: s, migrated: false }
   }
-  const next = {
-    ...s,
-    stateSchema: 2,
-    animMode: UNSAFE_ANIM_MODES.includes(s.animMode) ? 'A' : s.animMode
+  return {
+    state: {
+      ...s,
+      stateSchema: 3,
+      animMode: unsupported ? 'A' : s.animMode
+    },
+    migrated: true
   }
-  return { state: next, migrated: true }
 }
 
 /**
