@@ -25,6 +25,7 @@
 | 폴더 | 소개 |
 | --- | --- |
 | [`yeomju/`](yeomju/) | 염주 굴리기 — 구슬을 굴리며 횟수·목표를 세는 카운터. 문서: [`yeomju/README.md`](yeomju/README.md) |
+| [`minidrum/`](minidrum/) | 미니드럼 — 킥·스네어·하이햇·크래시 4패드를 터치해 연주하는 드럼 앱. 문서: [`minidrum/README.md`](minidrum/README.md) |
 
 ## 면책
 

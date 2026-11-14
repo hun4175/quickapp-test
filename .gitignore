@@ -16,3 +16,9 @@ yeomju/node_modules/
 yeomju/dist/*
 !yeomju/dist/*.rpk
 !yeomju/dist/BUILD_INFO.md
+minidrum/build/
+minidrum/node_modules/
+minidrum/dist/*
+!minidrum/dist/*.rpk
+!minidrum/dist/BUILD_INFO.md
+.temp_minidrum/

@@ -1,0 +1,13 @@
+<script>
+/**
+ * 미니드럼 앱 전역 생명주기. 네트워크 feature 없음.
+ */
+export default {
+  onCreate() {
+    console.log('미니드럼 앱 생성')
+  },
+  onDestroy() {
+    console.log('미니드럼 앱 종료')
+  }
+}
+</script>

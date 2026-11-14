@@ -1,0 +1,287 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <text class="lat">{{latText}}</text>
+      <text class="vib {{vibOn ? 'vib-on' : ''}}" onclick="toggleVib">{{vibOn ? '진동 켬' : '진동 끔'}}</text>
+    </div>
+    <div class="row row-t">
+      <div class="pad pad-l" style="background-color: {{bg0}};" ontouchstart="hit0">
+        <text class="pad-label">킥</text>
+      </div>
+      <div class="pad pad-r" style="background-color: {{bg1}};" ontouchstart="hit1">
+        <text class="pad-label">스네어</text>
+      </div>
+    </div>
+    <div class="row row-b">
+      <div class="pad pad-l" style="background-color: {{bg2}};" ontouchstart="hit2">
+        <text class="pad-label">하이햇</text>
+      </div>
+      <div class="pad pad-r" style="background-color: {{bg3}};" ontouchstart="hit3">
+        <text class="pad-label">크래시</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+/**
+ * 미니드럼 (REDMI Watch 6 글로벌 · 432x514).
+ * 문서에 있는 API만 사용: system.audio / system.vibrator. 출처 URL은 common/drum.js 상단 주석.
+ *
+ * 지연 최소화
+ *  1) 패드는 click 대신 touchstart 로 즉시 반응 (click 은 손을 뗀 뒤 판정될 것으로 추정)
+ *  2) 단일 플레이어: 같은 소리 연타 → src 재지정 없이 currentTime=0 + play(),
+ *     다른 소리 → src 교체 + play(). stop() 은 호출하지 않음 (soundtest 실측: stop→src→play WAV ~554ms)
+ *  3) 첫 화면 표시 때 4개 소리를 muted 로 한 번씩 재생해 디코더/파일 캐시 예열 (효과는 미확인)
+ *  4) 시각 피드백은 배경색만 즉시 바꿨다가 FLASH_MS 뒤 복귀 (애니메이션·touchend 처리 없음)
+ */
+import audio from '@system.audio'
+import vibrator from '@system.vibrator'
+import {
+  PADS,
+  FLASH_MS,
+  PRELOAD_TIMEOUT_MS,
+  planPlay,
+  preloadOrder,
+  latencyMs,
+  pushSample,
+  formatLatency
+} from '../../common/drum.js'
+
+export default {
+  private: {
+    bg0: PADS[0].color,
+    bg1: PADS[1].color,
+    bg2: PADS[2].color,
+    bg3: PADS[3].color,
+    latText: '준비 중…',
+    vibOn: false
+  },
+
+  onInit() {
+    this._src = ''
+    this._t0 = 0
+    this._samples = []
+    this._flashTimers = [0, 0, 0, 0]
+    this._preloading = false
+    this._preloaded = false
+    this._preloadQueue = []
+    this._preloadTimer = 0
+    const self = this
+    audio.onplay = function () {
+      self.onAudioPlay()
+    }
+    audio.onended = function () {
+      self.onAudioEnded()
+    }
+    audio.onerror = function () {
+      self.latText = '재생 오류'
+      if (self._preloading) self.preloadNext()
+    }
+  },
+
+  onShow() {
+    if (!this._preloaded) this.startPreload()
+  },
+
+  onHide() {
+    this.stopPreload()
+    try {
+      audio.stop()
+    } catch (e) {}
+    this._src = ''
+  },
+
+  onDestroy() {
+    this.stopPreload()
+    for (let i = 0; i < 4; i++) clearTimeout(this._flashTimers[i])
+    try {
+      audio.stop()
+      audio.onplay = null
+      audio.onended = null
+      audio.onerror = null
+    } catch (e) {}
+  },
+
+  /* ---------- 프리로드 (muted 재생으로 캐시 예열) ---------- */
+
+  startPreload() {
+    this._preloading = true
+    this._preloadQueue = preloadOrder(PADS)
+    try {
+      audio.autoplay = false
+      audio.muted = true
+    } catch (e) {}
+    this.preloadNext()
+  },
+
+  preloadNext() {
+    clearTimeout(this._preloadTimer)
+    if (!this._preloading) return
+    const src = this._preloadQueue.shift()
+    if (!src) return this.finishPreload()
+    try {
+      audio.src = src
+      this._src = src
+      audio.play()
+    } catch (e) {}
+    this._preloadTimer = setTimeout(() => this.preloadNext(), PRELOAD_TIMEOUT_MS)
+  },
+
+  finishPreload() {
+    this.stopPreload()
+    this._preloaded = true
+    if (!this._samples.length) this.latText = '-- ms'
+  },
+
+  stopPreload() {
+    clearTimeout(this._preloadTimer)
+    this._preloadTimer = 0
+    if (this._preloading) {
+      this._preloading = false
+      this._preloadQueue = []
+    }
+    try {
+      audio.muted = false
+    } catch (e) {}
+  },
+
+  /* ---------- 오디오 이벤트 ---------- */
+
+  onAudioPlay() {
+    if (this._preloading || !this._t0) return
+    const ms = latencyMs(this._t0, Date.now())
+    this._t0 = 0
+    this._samples = pushSample(this._samples, ms)
+    this.latText = formatLatency(this._samples)
+  },
+
+  onAudioEnded() {
+    if (this._preloading) this.preloadNext()
+  },
+
+  /* ---------- 패드 ---------- */
+
+  hit0() {
+    this.hit(0)
+  },
+  hit1() {
+    this.hit(1)
+  },
+  hit2() {
+    this.hit(2)
+  },
+  hit3() {
+    this.hit(3)
+  },
+  hit(i) {
+    const t0 = Date.now()
+    const pad = PADS[i]
+    if (this._preloading) {
+      this.stopPreload()
+      this._preloaded = true
+    }
+    this._t0 = t0
+    try {
+      if (planPlay(this._src, pad.src) === 'rewind') {
+        audio.currentTime = 0
+      } else {
+        audio.src = pad.src
+        this._src = pad.src
+      }
+      audio.play()
+    } catch (e) {
+      this.latText = '예외 ' + ((e && e.message) || e)
+    }
+    this.flash(i)
+    if (this.vibOn) {
+      try {
+        vibrator.vibrate({ mode: 'short' })
+      } catch (e) {}
+    }
+  },
+
+  flash(i) {
+    this['bg' + i] = PADS[i].hit
+    clearTimeout(this._flashTimers[i])
+    this._flashTimers[i] = setTimeout(() => this.release(i), FLASH_MS)
+  },
+
+  release(i) {
+    clearTimeout(this._flashTimers[i])
+    this['bg' + i] = PADS[i].color
+  },
+
+  toggleVib() {
+    this.vibOn = !this.vibOn
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  background-color: #000000;
+  padding-left: 18px;
+  padding-right: 18px;
+  padding-top: 10px;
+  padding-bottom: 18px;
+}
+.header {
+  width: 100%;
+  height: 50px;
+  flex-shrink: 0;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 46px;
+  padding-right: 46px;
+}
+.lat {
+  font-size: 24px;
+  color: #8fa3b8;
+  lines: 1;
+}
+.vib {
+  font-size: 22px;
+  color: #8fa3b8;
+  padding: 4px 12px;
+  border-radius: 16px;
+  background-color: #1e2630;
+}
+.vib-on {
+  color: #000000;
+  background-color: #7ee08a;
+}
+.row {
+  width: 100%;
+  flex: 1;
+  flex-direction: row;
+}
+.row-t {
+  margin-bottom: 6px;
+}
+.row-b {
+  margin-top: 6px;
+}
+.pad {
+  flex: 1;
+  height: 100%;
+  border-radius: 40px;
+  justify-content: center;
+  align-items: center;
+}
+.pad-l {
+  margin-right: 6px;
+}
+.pad-r {
+  margin-left: 6px;
+}
+.pad-label {
+  font-size: 40px;
+  color: #ffffff;
+  font-weight: bold;
+}
+</style>

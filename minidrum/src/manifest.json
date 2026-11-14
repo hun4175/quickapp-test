@@ -1,0 +1,27 @@
+{
+  "package": "com.hun4175.minidrum",
+  "name": "미니드럼",
+  "versionName": "0.1.0",
+  "versionCode": 1,
+  "minPlatformVersion": 1000,
+  "icon": "/common/logo.png",
+  "deviceTypeList": [
+    "watch"
+  ],
+  "features": [
+    { "name": "system.audio" },
+    { "name": "system.vibrator" }
+  ],
+  "config": {
+    "logLevel": "log",
+    "designWidth": "device-width"
+  },
+  "router": {
+    "entry": "pages/index",
+    "pages": {
+      "pages/index": {
+        "component": "index"
+      }
+    }
+  }
+}
