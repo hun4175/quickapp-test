@@ -25,6 +25,7 @@
 | 폴더 | 소개 |
 | --- | --- |
 | [`yeomju/`](yeomju/) | 염주 굴리기 — 구슬을 굴리며 횟수·목표를 세는 카운터. 문서: [`yeomju/README.md`](yeomju/README.md) |
+| [`soundtest/`](soundtest/) | 소리 테스트 — 터치 시 오디오 재생 가능 여부·포맷·지연을 실기기에서 확인하는 테스트 앱. 문서: [`soundtest/README.md`](soundtest/README.md) |
 
 ## 면책
 

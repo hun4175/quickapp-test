@@ -1,0 +1,502 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <text class="title">소리 테스트</text>
+      <text class="vol">볼륨 {{volText}}</text>
+    </div>
+
+    <div class="scroll">
+      <div class="btn btn-snd" ontouchstart="onBtnTouch" onclick="tap_wavClickReuse">
+        <text class="btn-text">WAV 클릭 · 재사용</text>
+      </div>
+      <div class="btn btn-snd" ontouchstart="onBtnTouch" onclick="tap_wavClickFresh">
+        <text class="btn-text">WAV 클릭 · 매번</text>
+      </div>
+      <div class="btn btn-snd" ontouchstart="onBtnTouch" onclick="tap_mp3ClickReuse">
+        <text class="btn-text">MP3 클릭 · 재사용</text>
+      </div>
+      <div class="btn btn-snd" ontouchstart="onBtnTouch" onclick="tap_mp3ClickFresh">
+        <text class="btn-text">MP3 클릭 · 매번</text>
+      </div>
+      <div class="btn btn-snd" ontouchstart="onBtnTouch" onclick="tap_wavBeep">
+        <text class="btn-text">WAV 비프 1초 16k</text>
+      </div>
+      <div class="btn btn-snd" ontouchstart="onBtnTouch" onclick="tap_wav44Beep">
+        <text class="btn-text">WAV 비프 1초 44.1k</text>
+      </div>
+      <div class="btn btn-snd" ontouchstart="onBtnTouch" onclick="tap_mp3Beep">
+        <text class="btn-text">MP3 비프 1초</text>
+      </div>
+      <div class="btn btn-snd" ontouchstart="onBtnTouch" onclick="tap_opusBeep">
+        <text class="btn-text">OPUS 비프 1초</text>
+      </div>
+      <div class="btn btn-snd" ontouchstart="onBtnTouch" onclick="tap_autoBeep">
+        <text class="btn-text">autoplay WAV 비프</text>
+      </div>
+      <div class="btn btn-snd" ontouchstart="onBtnTouch" onclick="tap_copyBeep">
+        <text class="btn-text">복사본 WAV 비프</text>
+      </div>
+      <div class="btn btn-aux" ontouchstart="onBtnTouch" onclick="tap_stop">
+        <text class="btn-text">■ 정지 stop()</text>
+      </div>
+      <div class="btn btn-aux" ontouchstart="onBtnTouch" onclick="tap_state">
+        <text class="btn-text">상태 getPlayState</text>
+      </div>
+      <div class="btn btn-aux" ontouchstart="onBtnTouch" onclick="tap_vol">
+        <text class="btn-text">볼륨 조회</text>
+      </div>
+      <div class="btn btn-aux" ontouchstart="onBtnTouch" onclick="tap_volUp">
+        <text class="btn-text">볼륨 +10%</text>
+      </div>
+      <div class="btn btn-aux" ontouchstart="onBtnTouch" onclick="tap_volDown">
+        <text class="btn-text">볼륨 -10%</text>
+      </div>
+      <div class="btn btn-aux" ontouchstart="onBtnTouch" onclick="tap_vib">
+        <text class="btn-text">진동 short (비교)</text>
+      </div>
+      <div class="btn btn-aux" ontouchstart="onBtnTouch" onclick="tap_probe">
+        <text class="btn-text">파일 포함 확인</text>
+      </div>
+      <text class="foot">아래 결과를 스크린샷으로 보내줘</text>
+    </div>
+
+    <div class="status">
+      <text class="status-title">{{statusTitle}}</text>
+      <text class="log-line">{{log0}}</text>
+      <text class="log-line">{{log1}}</text>
+      <text class="log-line">{{log2}}</text>
+      <text class="log-line">{{log3}}</text>
+      <text class="log-line">{{log4}}</text>
+      <text class="log-line">{{log5}}</text>
+    </div>
+  </div>
+</template>
+
+<script>
+/**
+ * 소리 테스트 (REDMI Watch 6 실기기 확인용).
+ * 문서에 있는 API만 사용: system.audio / system.volume / system.vibrator / system.file
+ * 출처 URL은 common/catalog.js 상단 주석 참고.
+ */
+import audio from '@system.audio'
+import volume from '@system.volume'
+import vibrator from '@system.vibrator'
+import file from '@system.file'
+import {
+  TESTS,
+  SOUNDS,
+  COPY_DST,
+  AUDIO_EVENTS,
+  MAX_LOG_LINES,
+  elapsedMs,
+  formatEvent,
+  pushLog,
+  describe,
+  clampVolume,
+  volumePercent
+} from '../../common/catalog.js'
+
+export default {
+  private: {
+    volText: '?',
+    statusTitle: '버튼을 눌러 시작',
+    log0: '',
+    log1: '',
+    log2: '',
+    log3: '',
+    log4: '',
+    log5: '',
+    lines: [],
+    t0: 0,
+    touchTs: 0
+  },
+
+  onInit() {
+    const self = this
+    AUDIO_EVENTS.forEach(function (name) {
+      try {
+        audio['on' + name] = function (a, b) {
+          self.onAudioEvent(name, a, b)
+        }
+      } catch (e) {
+        self.log('on' + name + ' 등록 예외 ' + e.message)
+      }
+    })
+    try {
+      volume.onMediaValueChanged = function (res) {
+        self.volText = volumePercent(res && res.value)
+        self.log(formatEvent('볼륨변경', elapsedMs(self.t0, Date.now()), volumePercent(res && res.value)))
+      }
+    } catch (e) {
+      this.log('onMediaValueChanged 예외 ' + e.message)
+    }
+  },
+
+  onShow() {
+    this.refreshVolume(false)
+  },
+
+  onHide() {
+    try {
+      audio.stop()
+    } catch (e) {}
+  },
+
+  onDestroy() {
+    try {
+      audio.stop()
+      AUDIO_EVENTS.forEach(function (name) {
+        audio['on' + name] = null
+      })
+      volume.onMediaValueChanged = null
+    } catch (e) {}
+  },
+
+  /* ---------- 로그 ---------- */
+
+  log(line) {
+    this.lines = pushLog(this.lines, line, MAX_LOG_LINES)
+    for (let i = 0; i < MAX_LOG_LINES; i++) {
+      this['log' + i] = this.lines[i] || ''
+    }
+  },
+
+  ms() {
+    return elapsedMs(this.t0, Date.now())
+  },
+
+  onAudioEvent(name, a, b) {
+    this.log(formatEvent(name, this.ms(), describe(a, b)))
+  },
+
+  /* ---------- 버튼 ---------- */
+
+  onBtnTouch() {
+    this.touchTs = Date.now()
+  },
+
+  tap_wavClickReuse() {
+    this.run('wavClickReuse')
+  },
+  tap_wavClickFresh() {
+    this.run('wavClickFresh')
+  },
+  tap_mp3ClickReuse() {
+    this.run('mp3ClickReuse')
+  },
+  tap_mp3ClickFresh() {
+    this.run('mp3ClickFresh')
+  },
+  tap_wavBeep() {
+    this.run('wavBeep')
+  },
+  tap_wav44Beep() {
+    this.run('wav44Beep')
+  },
+  tap_mp3Beep() {
+    this.run('mp3Beep')
+  },
+  tap_opusBeep() {
+    this.run('opusBeep')
+  },
+  tap_autoBeep() {
+    this.run('autoBeep')
+  },
+  tap_copyBeep() {
+    this.run('copyBeep')
+  },
+  tap_stop() {
+    this.run('stop')
+  },
+  tap_state() {
+    this.run('state')
+  },
+  tap_vol() {
+    this.run('vol')
+  },
+  tap_volUp() {
+    this.run('volUp')
+  },
+  tap_volDown() {
+    this.run('volDown')
+  },
+  tap_vib() {
+    this.run('vib')
+  },
+  tap_probe() {
+    this.run('probe')
+  },
+
+  run(id) {
+    let test = null
+    for (let i = 0; i < TESTS.length; i++) {
+      if (TESTS[i].id === id) test = TESTS[i]
+    }
+    if (!test) return
+    const now = Date.now()
+    this.t0 = this.touchTs > 0 && now - this.touchTs < 3000 ? this.touchTs : now
+    this.touchTs = 0
+    this.lines = []
+    this.statusTitle = test.label
+    this.log(formatEvent('click', this.ms(), '(터치 기준)'))
+    try {
+      switch (test.kind) {
+        case 'reuse':
+          return this.playReuse(test.src)
+        case 'fresh':
+          return this.playFresh(test.src)
+        case 'auto':
+          return this.playAuto(test.src)
+        case 'copy':
+          return this.playCopy(test.src)
+        case 'stop':
+          audio.stop()
+          return this.log(formatEvent('stop() 호출', this.ms()))
+        case 'state':
+          return this.readState()
+        case 'vol':
+          return this.refreshVolume(true)
+        case 'volUp':
+          return this.stepVolume(0.1)
+        case 'volDown':
+          return this.stepVolume(-0.1)
+        case 'vib':
+          vibrator.vibrate({ mode: 'short' })
+          return this.log(formatEvent('vibrate(short) 호출', this.ms()))
+        case 'probe':
+          return this.probeFiles()
+      }
+    } catch (e) {
+      this.log(formatEvent('예외', this.ms(), (e && e.message) || String(e)))
+    }
+  },
+
+  /** 같은 src면 다시 지정하지 않고 처음으로 되감아 play()만 */
+  playReuse(src) {
+    audio.autoplay = false
+    if (audio.src !== src) {
+      audio.src = src
+      this.log(formatEvent('src 지정(첫 로드)', this.ms()))
+    } else {
+      try {
+        audio.currentTime = 0
+      } catch (e) {
+        this.log('currentTime=0 예외 ' + e.message)
+      }
+    }
+    audio.play()
+    this.log(formatEvent('play() 호출', this.ms()))
+  },
+
+  /** stop → src 재지정 → play */
+  playFresh(src) {
+    audio.stop()
+    audio.autoplay = false
+    audio.src = src
+    audio.play()
+    this.log(formatEvent('stop→src→play() 호출', this.ms()))
+  },
+
+  /** autoplay=true 후 src 지정 (play() 호출 없음) */
+  playAuto(src) {
+    audio.stop()
+    audio.autoplay = true
+    audio.src = src
+    this.log(formatEvent('autoplay+src 지정', this.ms()))
+  },
+
+  /** 패키지 리소스를 internal://files 로 복사한 뒤 재생 */
+  playCopy(src) {
+    const self = this
+    file.copy({
+      srcUri: src,
+      dstUri: COPY_DST,
+      success: function (uri) {
+        self.log(formatEvent('copy 성공', self.ms(), describe(uri)))
+        try {
+          self.playFresh(COPY_DST)
+        } catch (e) {
+          self.log(formatEvent('예외', self.ms(), e.message))
+        }
+      },
+      fail: function (data, code) {
+        self.log(formatEvent('copy 실패', self.ms(), describe(data, code)))
+      }
+    })
+  },
+
+  readState() {
+    const self = this
+    audio.getPlayState({
+      success: function (d) {
+        self.log(formatEvent('state', self.ms(), d.state))
+        self.log('src ' + (d.src || '(없음)'))
+        self.log('t=' + d.currentTime + ' dur=' + d.duration)
+        self.log('vol=' + d.volume + ' muted=' + d.muted)
+      },
+      fail: function (data, code) {
+        self.log(formatEvent('state 실패', self.ms(), describe(data, code)))
+      }
+    })
+  },
+
+  refreshVolume(withLog) {
+    const self = this
+    try {
+      volume.getMediaValue({
+        success: function (d) {
+          self.volText = volumePercent(d.value)
+          if (withLog) self.log(formatEvent('볼륨', self.ms(), String(d.value)))
+        },
+        fail: function (data, code) {
+          self.volText = '실패'
+          if (withLog) self.log(formatEvent('볼륨 실패', self.ms(), describe(data, code)))
+        }
+      })
+    } catch (e) {
+      this.volText = '예외'
+      if (withLog) this.log('getMediaValue 예외 ' + e.message)
+    }
+  },
+
+  stepVolume(delta) {
+    const self = this
+    volume.getMediaValue({
+      success: function (d) {
+        const next = clampVolume(Number(d.value) + delta)
+        volume.setMediaValue({
+          value: next,
+          success: function () {
+            self.volText = volumePercent(next)
+            self.log(formatEvent('볼륨 설정', self.ms(), d.value + '→' + next))
+          },
+          fail: function (data, code) {
+            self.log(formatEvent('설정 실패', self.ms(), describe(data, code)))
+          }
+        })
+      },
+      fail: function (data, code) {
+        self.log(formatEvent('조회 실패', self.ms(), describe(data, code)))
+      }
+    })
+  },
+
+  /** 리소스 경로로 앞 4바이트를 읽어 패키지 포함 여부 확인 */
+  probeFiles() {
+    const self = this
+    Object.keys(SOUNDS).forEach(function (key) {
+      const uri = SOUNDS[key]
+      const name = uri.slice(uri.lastIndexOf('/') + 1)
+      file.readArrayBuffer({
+        uri: uri,
+        position: 0,
+        length: 4,
+        success: function (d) {
+          let head = ''
+          const buf = d && d.buffer
+          if (buf) {
+            for (let i = 0; i < buf.length && i < 4; i++) {
+              const c = buf[i]
+              head += c >= 32 && c < 127 ? String.fromCharCode(c) : '.'
+            }
+          }
+          self.log(name + ' OK ' + head)
+        },
+        fail: function (data, code) {
+          self.log(name + ' 실패 ' + describe(data, code))
+        }
+      })
+    })
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  background-color: #0b1220;
+  padding-left: 34px;
+  padding-right: 34px;
+  padding-top: 26px;
+  padding-bottom: 14px;
+}
+.header {
+  width: 100%;
+  height: 56px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.title {
+  font-size: 32px;
+  color: #9fd0ff;
+  font-weight: bold;
+}
+.vol {
+  font-size: 28px;
+  color: #ffd27a;
+}
+.scroll {
+  width: 100%;
+  flex: 1;
+  flex-direction: column;
+  overflow: scroll;
+  padding-bottom: 12px;
+}
+.btn {
+  width: 100%;
+  height: 84px;
+  margin-top: 10px;
+  border-radius: 20px;
+  padding-left: 22px;
+  padding-right: 16px;
+  justify-content: flex-start;
+  align-items: center;
+  flex-shrink: 0;
+}
+.btn-snd {
+  background-color: #1d4f8c;
+}
+.btn-aux {
+  background-color: #34404f;
+}
+.btn-text {
+  font-size: 30px;
+  color: #ffffff;
+}
+.foot {
+  margin-top: 16px;
+  font-size: 24px;
+  color: #7c8aa0;
+  text-align: center;
+  width: 100%;
+}
+.status {
+  width: 100%;
+  height: 238px;
+  flex-shrink: 0;
+  flex-direction: column;
+  margin-top: 8px;
+  padding: 10px 16px;
+  border-radius: 20px;
+  background-color: #000000;
+  border-width: 2px;
+  border-color: #3a8bd6;
+}
+.status-title {
+  font-size: 28px;
+  color: #ffd27a;
+  font-weight: bold;
+  height: 36px;
+}
+.log-line {
+  font-size: 25px;
+  color: #e8f2ff;
+  height: 32px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+</style>

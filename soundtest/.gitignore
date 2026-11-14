@@ -1,0 +1,15 @@
+node_modules/
+.nyc_output/
+coverage/
+sign/
+build/
+.husky/
+.vscode/
+*.log
+.DS_Store
+
+# aiot 빌드 중간물. 완성된 .rpk 는 dist/ 에 커밋한다.
+dist/*
+!dist/*.rpk
+!dist/BUILD_INFO.md
+

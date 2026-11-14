@@ -16,3 +16,9 @@ yeomju/node_modules/
 yeomju/dist/*
 !yeomju/dist/*.rpk
 !yeomju/dist/BUILD_INFO.md
+soundtest/build/
+soundtest/node_modules/
+soundtest/dist/*
+!soundtest/dist/*.rpk
+!soundtest/dist/BUILD_INFO.md
+.temp_soundtest/
