@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   PADS,
   planPlay,
-  preloadOrder,
+  formatVol,
   latencyMs,
   pushSample,
   stats,
@@ -34,13 +34,12 @@ describe('단일 플레이어 전략', () => {
     assert.equal(planPlay('', k), 'switch')
     assert.equal(planPlay(undefined, k), 'switch')
   })
-  it('프리로드는 4개 모두, 킥이 마지막(첫 킥은 되감기)', () => {
-    const order = preloadOrder()
-    assert.equal(order.length, 4)
-    assert.deepEqual([...order].sort(), PADS.map((p) => p.src).sort())
-    assert.equal(order[order.length - 1], PADS[0].src)
-    assert.equal(planPlay(order[order.length - 1], PADS[0].src), 'rewind')
-    assert.deepEqual(preloadOrder([]), [])
+  it('formatVol: 읽은 값 표시', () => {
+    assert.equal(formatVol(0), 'vol 0')
+    assert.equal(formatVol(0.8), 'vol 0.8')
+    assert.equal(formatVol(0.333), 'vol 0.33')
+    assert.equal(formatVol(undefined), 'vol ?')
+    assert.equal(formatVol('x'), 'vol ?')
   })
 })
 

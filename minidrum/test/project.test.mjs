@@ -32,8 +32,8 @@ function readWav(p) {
 describe('프로젝트 구성', () => {
   it('manifest: 패키지명·버전·feature', () => {
     assert.equal(manifest.package, 'com.hun4175.minidrum')
-    assert.equal(manifest.versionName, '0.1.0')
-    assert.equal(manifest.versionCode, 1)
+    assert.equal(manifest.versionName, '0.1.1')
+    assert.equal(manifest.versionCode, 2)
     assert.deepEqual(manifest.features.map((f) => f.name).sort(), ['system.audio', 'system.vibrator'])
   })
   it('index.ux: 4개 패드가 touchstart 로 hitN 호출, click 미사용', () => {
@@ -45,6 +45,25 @@ describe('프로젝트 구성', () => {
     })
     assert.ok(!/class="pad[^"]*"[^>]*onclick=/.test(ux), '패드에 onclick 없음')
     assert.ok(!/@keyframes|animation-name/.test(ux), '애니메이션 없음')
+  })
+  it('볼륨 보호: muted·volume 쓰기, system.volume, 예열 없음 (0.1.0 실기기 버그 회귀 방지)', () => {
+    const drum = readFileSync(path.join(SRC, 'common/drum.js'), 'utf8')
+    const app = readFileSync(path.join(SRC, 'app.ux'), 'utf8')
+    for (const [name, code] of [['index.ux', ux], ['drum.js', drum], ['app.ux', app]]) {
+      // 주석 제거 후 검사
+      const c = code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+      assert.ok(!/\.muted\s*=(?!=)/.test(c), name + ': muted 쓰기')
+      assert.ok(!/\.volume\s*=(?!=)/.test(c), name + ': volume 쓰기')
+      assert.ok(!/\bmuted\b/.test(c), name + ': muted 참조')
+      assert.ok(!/system\.volume|setMediaValue|getMediaValue/.test(c), name + ': system.volume')
+      assert.ok(!/preload/i.test(c), name + ': 예열 코드')
+    }
+    assert.ok(!manifest.features.some((f) => f.name === 'system.volume'))
+    // volume 은 getPlayState 결과를 읽기만
+    assert.ok(/getPlayState\(/.test(ux))
+    const reads = ux.replace(/\/\*[\s\S]*?\*\//g, '').match(/\bvolume\b/g) || []
+    assert.equal(reads.length, 1, 'volume 은 d.volume 읽기 1곳만')
+    assert.ok(ux.includes('formatVol(d && d.volume)'))
   })
   it('index.ux: import 한 모듈은 manifest 에 선언됨', () => {
     for (const m of ux.matchAll(/from '@(system\.\w+)'/g)) {
@@ -75,6 +94,9 @@ describe('프로젝트 구성', () => {
       assert.ok(list.includes('manifest.json'), r)
       const mf = JSON.parse(execFileSync('unzip', ['-p', rp, 'manifest.json'], { encoding: 'utf8' }))
       assert.equal(mf.package, 'com.hun4175.minidrum')
+      assert.equal(mf.versionName, manifest.versionName, r + ' 버전')
+      const js = execFileSync('unzip', ['-p', rp, 'pages/index/index.js'], { encoding: 'utf8', maxBuffer: 1 << 22 })
+      assert.ok(!/\.muted\s*=(?!=)|\.volume\s*=(?!=)/.test(js), r + ' 빌드 결과에 muted/volume 쓰기')
       for (const p of PADS) {
         const inner = p.src.slice(1)
         assert.ok(list.includes(inner), r + ' ' + inner)

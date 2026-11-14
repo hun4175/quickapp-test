@@ -7,6 +7,9 @@
  *  - 이벤트: https://iot.mi.com/vela/quickapp/zh/components/general/events.html
  *            (touchstart = "手指刚触摸组件时触发". click 은 손을 뗀 뒤 판정될 것으로 추정)
  *  - vibrator: https://iot.mi.com/vela/quickapp/zh/features/system/vibrator.html
+ *
+ * 주의(실기기 사실, 0.1.0): 시작 시 audio.muted=true 예열 후 시스템 미디어 볼륨이 0이 됐다.
+ * 그래서 0.1.1부터 muted·volume 쓰기, system.volume 사용을 하지 않는다.
  */
 
 export const SOUND_DIR = '/common/sounds/'
@@ -22,9 +25,6 @@ export const PADS = [
 /** 눌림 색 유지 시간(ms). 빠른 탭도 보이도록 touchend 와 무관하게 이 시간 뒤 복귀 */
 export const FLASH_MS = 110
 
-/** 프리로드 1개당 최대 대기(ms). ended 가 안 오면 다음으로 넘어감 */
-export const PRELOAD_TIMEOUT_MS = 1200
-
 /** 지연 통계에 쓰는 최근 샘플 수 */
 export const STATS_WINDOW = 10
 
@@ -39,13 +39,6 @@ export const MAX_VALID_LATENCY_MS = 3000
  */
 export function planPlay(currentSrc, src) {
   return currentSrc && currentSrc === src ? 'rewind' : 'switch'
-}
-
-/** 프리로드 순서: 마지막에 킥을 두어 프리로드 직후 첫 킥은 되감기로 재생되게 함 */
-export function preloadOrder(pads = PADS) {
-  const srcs = pads.map((p) => p.src)
-  const first = srcs[0]
-  return srcs.slice(1).concat(first ? [first] : [])
 }
 
 /** 터치 시각 → play 이벤트 시각 지연. 유효하지 않으면 null */
@@ -87,4 +80,11 @@ export function formatLatency(samples) {
 export function padIndexOf(id) {
   for (let i = 0; i < PADS.length; i++) if (PADS[i].id === id) return i
   return -1
+}
+
+/** getPlayState 의 volume(0~1)을 "vol 0.8" 형태로. 읽기 표시 전용 */
+export function formatVol(v) {
+  const n = Number(v)
+  if (v === null || v === undefined || v === '' || !isFinite(n)) return 'vol ?'
+  return 'vol ' + Math.round(n * 100) / 100
 }
