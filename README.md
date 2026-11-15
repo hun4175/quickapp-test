@@ -25,6 +25,7 @@
 | 폴더 | 소개 |
 | --- | --- |
 | [`yeomju/`](yeomju/) | 염주 굴리기 — 구슬을 굴리며 횟수·목표를 세는 카운터. 문서: [`yeomju/README.md`](yeomju/README.md) |
+| [`pomodoro/`](pomodoro/) | 뽀모도로 — 집중·휴식 타이머(기본 25/5분). 문서: [`pomodoro/README.md`](pomodoro/README.md) |
 
 ## 면책
 

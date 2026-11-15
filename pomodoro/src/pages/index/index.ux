@@ -1,0 +1,350 @@
+<template>
+  <div
+    class="page"
+    style="background-color: {{backColor}};"
+    ontouchstart="onTouchStart"
+    ontouchmove="onTouchMove"
+    ontouchend="onTouchEnd"
+    ontouchcancel="onTouchCancel"
+  >
+    <div class="sand" style="height: {{fillHeight}}px; background-color: {{fillColor}};"></div>
+    <image class="arrow arrow-up" if="{{idle}}" src="/common/arrow-up.png" style="opacity: {{upOpacity}};"></image>
+    <text class="time">{{timeText}}</text>
+    <image class="arrow arrow-down" if="{{idle}}" src="/common/arrow-down.png" style="opacity: {{downOpacity}};"></image>
+    <div class="pause" if="{{paused}}">
+      <div class="bar"></div>
+      <div class="bar bar-r"></div>
+    </div>
+  </div>
+</template>
+
+<script>
+/**
+ * 뽀모도로 (REDMI Watch 6 글로벌 · 432x514).
+ * 화면 하나, 설정 화면 없음. 탭=시작/일시정지, 길게 누르면 즉시 리셋.
+ * 대기 중에만 위/아래 스와이프로 집중 시간(5~60분, 5분 단위)을 바꾼다.
+ * 소리·audio·muted·볼륨 API는 쓰지 않는다.
+ */
+import vibrator from '@system.vibrator'
+import { loadState, saveState } from '../../common/persist.js'
+import {
+  TICK_MS,
+  LONGPRESS_MS,
+  VIBRATE_OFFSETS_MS,
+  TAP_MAX_MOVE,
+  initialState,
+  isIdle,
+  advance,
+  toggle,
+  reset,
+  adjustFocus,
+  classifySwipe,
+  viewModel
+} from '../../common/timer.js'
+
+export default {
+  private: {
+    timeText: '25:00',
+    fillHeight: 514,
+    fillColor: '#8A3A3A',
+    backColor: '#2A6B4A',
+    paused: false,
+    idle: true,
+    upOpacity: 1,
+    downOpacity: 1
+  },
+
+  onInit() {
+    this._state = initialState()
+    this._tickTimer = null
+    this._lpTimer = null
+    this._vibTimers = []
+    this._saveChain = Promise.resolve()
+    this._touchActive = false
+    this._longPressed = false
+    this._touchX = 0
+    this._touchY = 0
+    this.applyView()
+  },
+
+  onShow() {
+    this.reload(true)
+  },
+
+  onHide() {
+    this.stopTick()
+    this.clearLpTimer()
+    this.clearVibrateTimers()
+    this.queueSave()
+    this.setKeepScreen(false)
+  },
+
+  onDestroy() {
+    this.stopTick()
+    this.clearLpTimer()
+    this.clearVibrateTimers()
+    this.setKeepScreen(false)
+  },
+
+  onBackPress() {
+    return false
+  },
+
+  applyView() {
+    const v = viewModel(this._state)
+    this.timeText = v.timeText
+    this.fillHeight = v.fillHeight
+    this.fillColor = v.fillColor
+    this.backColor = v.backColor
+    this.paused = v.paused
+    this.idle = v.idle
+    this.upOpacity = v.upOpacity
+    this.downOpacity = v.downOpacity
+  },
+
+  async reload(startIfRunning) {
+    const loaded = await loadState()
+    const now = Date.now()
+    const result = advance(loaded, now)
+    this._state = result.state
+    this.applyView()
+    if (result.crossed > 0) this.pulseVibrate()
+    this.queueSave()
+    if (startIfRunning && this._state.running) {
+      this.startTick()
+      this.setKeepScreen(true)
+    } else {
+      this.stopTick()
+      this.setKeepScreen(false)
+    }
+  },
+
+  queueSave() {
+    const state = this._state
+    this._saveChain = this._saveChain.then(function () {
+      return saveState(state)
+    })
+  },
+
+  startTick() {
+    this.stopTick()
+    const self = this
+    this._tickTimer = setInterval(function () {
+      self.onTick()
+    }, TICK_MS)
+  },
+
+  stopTick() {
+    if (this._tickTimer) {
+      clearInterval(this._tickTimer)
+      this._tickTimer = null
+    }
+  },
+
+  onTick() {
+    const result = advance(this._state, Date.now())
+    this._state = result.state
+    this.applyView()
+    if (result.crossed > 0) {
+      this.pulseVibrate()
+      this.queueSave()
+    }
+  },
+
+  setKeepScreen(on) {
+    // import 시점 실패를 피하려고 호출할 때만 require 한다. API가 없어도 앱은 죽지 않는다.
+    try {
+      const brightness = require('@system.brightness')
+      if (!brightness || typeof brightness.setKeepScreenOn !== 'function') return
+      brightness.setKeepScreenOn({
+        keepScreenOn: !!on,
+        fail: function () {}
+      })
+    } catch (e) {}
+  },
+
+  pulseVibrate() {
+    this.clearVibrateTimers()
+    const self = this
+    for (let i = 0; i < VIBRATE_OFFSETS_MS.length; i++) {
+      const delay = VIBRATE_OFFSETS_MS[i]
+      const timer = setTimeout(function () {
+        self.safeVibrate()
+      }, delay)
+      this._vibTimers.push(timer)
+    }
+  },
+
+  safeVibrate() {
+    try {
+      vibrator.vibrate({ mode: 'long' })
+    } catch (e) {}
+  },
+
+  clearVibrateTimers() {
+    if (this._vibTimers && this._vibTimers.length) {
+      for (let i = 0; i < this._vibTimers.length; i++) {
+        clearTimeout(this._vibTimers[i])
+      }
+    }
+    this._vibTimers = []
+  },
+
+  clearLpTimer() {
+    if (this._lpTimer) {
+      clearTimeout(this._lpTimer)
+      this._lpTimer = null
+    }
+  },
+
+  touchPoint(e) {
+    const list =
+      (e && e.changedTouches && e.changedTouches.length && e.changedTouches) ||
+      (e && e.touches && e.touches.length && e.touches) ||
+      null
+    if (!list || !list[0]) return null
+    const t = list[0]
+    const x = t.clientX != null ? t.clientX : t.pageX
+    const y = t.clientY != null ? t.clientY : t.pageY
+    if (x == null || y == null) return null
+    return { x: Number(x), y: Number(y) }
+  },
+
+  onTouchStart(e) {
+    const p = this.touchPoint(e)
+    this._touchActive = true
+    this._longPressed = false
+    this._touchX = p ? p.x : 0
+    this._touchY = p ? p.y : 0
+    this.clearLpTimer()
+    const self = this
+    this._lpTimer = setTimeout(function () {
+      self._lpTimer = null
+      if (!self._touchActive) return
+      self._longPressed = true
+      self._touchActive = false
+      self.onReset()
+    }, LONGPRESS_MS)
+  },
+
+  onTouchMove(e) {
+    if (!this._touchActive || this._longPressed) return
+    const p = this.touchPoint(e)
+    if (!p) return
+    const dx = p.x - this._touchX
+    const dy = p.y - this._touchY
+    if (dx * dx + dy * dy > TAP_MAX_MOVE * TAP_MAX_MOVE) {
+      this.clearLpTimer()
+    }
+  },
+
+  onTouchEnd(e) {
+    this.clearLpTimer()
+    if (!this._touchActive) return
+    this._touchActive = false
+    if (this._longPressed) return
+    const p = this.touchPoint(e)
+    const dx = p ? p.x - this._touchX : 0
+    const dy = p ? p.y - this._touchY : 0
+    const swipe = classifySwipe(dx, dy)
+    if (swipe) {
+      if (isIdle(this._state)) {
+        this._state = adjustFocus(this._state, swipe)
+        this.applyView()
+        this.queueSave()
+      }
+      return
+    }
+    if (dx * dx + dy * dy > TAP_MAX_MOVE * TAP_MAX_MOVE) return
+    this.onToggle()
+  },
+
+  onTouchCancel() {
+    this.clearLpTimer()
+    this._touchActive = false
+  },
+
+  onToggle() {
+    const next = toggle(this._state, Date.now())
+    this._state = next
+    this.applyView()
+    this.queueSave()
+    if (next.running) {
+      this.startTick()
+      this.setKeepScreen(true)
+    } else {
+      this.stopTick()
+      this.setKeepScreen(false)
+    }
+  },
+
+  onReset() {
+    this.stopTick()
+    this._state = reset(this._state)
+    this.applyView()
+    this.queueSave()
+    this.setKeepScreen(false)
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  background-color: #2a6b4a;
+}
+.sand {
+  position: absolute;
+  left: 0px;
+  bottom: 0px;
+  width: 432px;
+  height: 514px;
+  background-color: #ff4b4b;
+}
+.arrow-up {
+  position: absolute;
+  left: 192px;
+  top: 168px;
+  width: 48px;
+  height: 32px;
+}
+.arrow-down {
+  position: absolute;
+  left: 192px;
+  top: 310px;
+  width: 48px;
+  height: 32px;
+}
+.time {
+  position: absolute;
+  left: 36px;
+  top: 213px;
+  width: 360px;
+  height: 88px;
+  font-size: 80px;
+  font-weight: bold;
+  text-align: center;
+  color: #ffffff;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.pause {
+  position: absolute;
+  left: 186px;
+  top: 318px;
+  width: 60px;
+  height: 36px;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+.bar {
+  width: 10px;
+  height: 32px;
+  border-radius: 3px;
+  background-color: #ffffff;
+}
+.bar-r {
+  margin-left: 12px;
+}
+</style>
