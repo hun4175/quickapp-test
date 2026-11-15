@@ -284,8 +284,8 @@ export function viewModel(state) {
     timeText: formatTime(s.remainMs),
     fillHeight: fillHeight(s.remainMs, dur, SCREEN_H),
     fillColor: phaseColor(s.phase, dim),
-    // 집중이 줄면 위쪽은 다음 휴식 초록, 휴식이 줄면 위쪽은 검정.
-    backColor: s.phase === 'break' ? COLOR_EMPTY : phaseColor('break', dim),
+    // 비워진 위쪽은 구간과 상관없이 검정(배경).
+    backColor: COLOR_EMPTY,
     paused: paused,
     idle: s.idle,
     upOpacity: s.focusMs >= FOCUS_MAX_MS ? ARROW_OPACITY_DIM : ARROW_OPACITY_ON,

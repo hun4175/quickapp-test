@@ -277,7 +277,7 @@ describe('viewModel', () => {
     assert.equal(idle.paused, false)
     assert.equal(idle.fillHeight, 514)
     assert.equal(idle.fillColor, '#8A3A3A')
-    assert.equal(idle.backColor, '#2A6B4A')
+    assert.equal(idle.backColor, '#000000')
     assert.equal(idle.upOpacity, ARROW_OPACITY_ON)
     assert.equal(idle.downOpacity, ARROW_OPACITY_ON)
 
@@ -286,7 +286,7 @@ describe('viewModel', () => {
     assert.equal(running.paused, false)
     assert.equal(running.fillHeight, 514)
     assert.equal(running.fillColor, '#FF4B4B')
-    assert.equal(running.backColor, '#3DDC84')
+    assert.equal(running.backColor, '#000000')
 
     const mid = start(initialState(), T0)
     const paused = viewModel(pause(mid, T0 + 12.5 * 60 * 1000))
@@ -295,7 +295,7 @@ describe('viewModel', () => {
     assert.equal(paused.timeText, '12:30')
     assert.equal(paused.fillHeight, 257)
     assert.equal(paused.fillColor, '#8A3A3A')
-    assert.equal(paused.backColor, '#2A6B4A')
+    assert.equal(paused.backColor, '#000000')
 
     const toBreak = advance(start(initialState(), T0), T0 + FOCUS_MS)
     const br = viewModel(toBreak.state)
@@ -308,12 +308,12 @@ describe('viewModel', () => {
     assert.equal(phaseColor('focus', false), '#FF4B4B')
     assert.equal(phaseColor('break', true), '#2A6B4A')
   })
-  it('집중이 줄면 위쪽은 휴식 초록, 휴식이 줄면 위쪽은 검정', () => {
+  it('집중이 줄든 휴식이 줄든 위쪽은 검정', () => {
     const running = start(initialState(), T0)
     const half = viewModel(advance(running, T0 + 12.5 * 60 * 1000).state)
     assert.equal(half.fillHeight, 257)
     assert.equal(half.fillColor, '#FF4B4B')
-    assert.equal(half.backColor, '#3DDC84')
+    assert.equal(half.backColor, '#000000')
     const br = start({ phase: 'break', running: false, remainMs: BREAK_MS, focusMs: FOCUS_MS, idle: false }, T0)
     const brHalf = viewModel(advance(br, T0 + 2.5 * 60 * 1000).state)
     assert.equal(brHalf.timeText, '02:30')
