@@ -24,6 +24,7 @@ export const COLOR_FOCUS = '#FF4B4B'
 export const COLOR_BREAK = '#3DDC84'
 export const COLOR_FOCUS_DIM = '#8A3A3A'
 export const COLOR_BREAK_DIM = '#2A6B4A'
+export const COLOR_EMPTY = '#000000'
 
 const MAX_CATCHUP = 10000
 
@@ -261,24 +262,33 @@ export function fillHeight(remainMs, durationMs, screenH) {
   return Math.round(remainRatio(remainMs, durationMs) * h)
 }
 
+export const ARROW_OPACITY_ON = 1
+export const ARROW_OPACITY_DIM = 0.3
+
+export function nextPhaseOf(phase) {
+  return phase === 'break' ? 'focus' : 'break'
+}
+
+export function phaseColor(phase, dim) {
+  if (phase === 'break') return dim ? COLOR_BREAK_DIM : COLOR_BREAK
+  return dim ? COLOR_FOCUS_DIM : COLOR_FOCUS
+}
+
 export function viewModel(state) {
   const s = normalizeState(state)
   const running = s.running
   const paused = !running && !s.idle
-  const focus = s.phase !== 'break'
   const dim = !running
   const dur = durationOf(s.phase, s.focusMs)
   return {
     timeText: formatTime(s.remainMs),
     fillHeight: fillHeight(s.remainMs, dur, SCREEN_H),
-    fillColor: focus
-      ? dim
-        ? COLOR_FOCUS_DIM
-        : COLOR_FOCUS
-      : dim
-        ? COLOR_BREAK_DIM
-        : COLOR_BREAK,
+    fillColor: phaseColor(s.phase, dim),
+    // 집중이 줄면 위쪽은 다음 휴식 초록, 휴식이 줄면 위쪽은 검정.
+    backColor: s.phase === 'break' ? COLOR_EMPTY : phaseColor('break', dim),
     paused: paused,
-    idle: s.idle
+    idle: s.idle,
+    upOpacity: s.focusMs >= FOCUS_MAX_MS ? ARROW_OPACITY_DIM : ARROW_OPACITY_ON,
+    downOpacity: s.focusMs <= FOCUS_MIN_MS ? ARROW_OPACITY_DIM : ARROW_OPACITY_ON
   }
 }

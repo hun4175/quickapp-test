@@ -21,9 +21,9 @@ describe('프로젝트 구성', () => {
   it('manifest: 패키지명·버전·feature', () => {
     assert.equal(manifest.package, 'com.hun4175.pomodoro')
     assert.equal(manifest.name, '뽀모도로')
-    assert.equal(manifest.versionName, '0.1.1')
-    assert.equal(manifest.versionCode, 2)
-    assert.equal(pkg.version, '0.1.1')
+    assert.equal(manifest.versionName, '0.1.2')
+    assert.equal(manifest.versionCode, 3)
+    assert.equal(pkg.version, '0.1.2')
     assert.ok(manifest.deviceTypeList.includes('watch'))
     assert.deepEqual(
       manifest.features.map((f) => f.name).sort(),
@@ -82,15 +82,24 @@ describe('프로젝트 구성', () => {
     assert.ok(ux.includes('keepScreenOn: !!on') || ux.includes('keepScreenOn: true'))
   })
 
-  it('모래시계는 단일 div 높이 바인딩이고, 원형 링 에셋·생성 스크립트는 없다', () => {
+  it('모래시계는 단일 div 높이 바인딩이고, 대기 화살표 PNG가 있으며 링은 없다', () => {
     assert.ok(ux.includes('class="sand"'))
     assert.ok(ux.includes('height: {{fillHeight}}px'))
     assert.ok(ux.includes('background-color: {{fillColor}}'))
+    assert.ok(ux.includes('background-color: {{backColor}}'))
+    assert.ok(ux.includes('src="/common/arrow-up.png"'))
+    assert.ok(ux.includes('src="/common/arrow-down.png"'))
+    assert.ok(ux.includes('if="{{idle}}"'))
+    assert.ok(ux.includes('opacity: {{upOpacity}}'))
+    assert.ok(ux.includes('opacity: {{downOpacity}}'))
+    assert.ok(!ux.includes('▲') && !ux.includes('▼'))
     assert.ok(!/ringSrc|common\/rings|image-animator|@keyframes/.test(stripComments(ux)))
     assert.ok(!existsSync(path.join(SRC, 'common/rings')))
     assert.ok(!existsSync(path.join(ROOT, 'scripts/gen-rings.py')))
     assert.ok(existsSync(path.join(ROOT, 'scripts/gen-preview.py')))
     assert.ok(existsSync(path.join(SRC, 'common/logo.png')))
+    assert.ok(existsSync(path.join(SRC, 'common/arrow-up.png')))
+    assert.ok(existsSync(path.join(SRC, 'common/arrow-down.png')))
     const commonFiles = readdirSync(path.join(SRC, 'common'))
     assert.ok(!commonFiles.includes('rings'))
   })

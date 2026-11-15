@@ -1,13 +1,16 @@
 <template>
   <div
     class="page"
+    style="background-color: {{backColor}};"
     ontouchstart="onTouchStart"
     ontouchmove="onTouchMove"
     ontouchend="onTouchEnd"
     ontouchcancel="onTouchCancel"
   >
     <div class="sand" style="height: {{fillHeight}}px; background-color: {{fillColor}};"></div>
+    <image class="arrow arrow-up" if="{{idle}}" src="/common/arrow-up.png" style="opacity: {{upOpacity}};"></image>
     <text class="time">{{timeText}}</text>
+    <image class="arrow arrow-down" if="{{idle}}" src="/common/arrow-down.png" style="opacity: {{downOpacity}};"></image>
     <div class="pause" if="{{paused}}">
       <div class="bar"></div>
       <div class="bar bar-r"></div>
@@ -44,7 +47,11 @@ export default {
     timeText: '25:00',
     fillHeight: 514,
     fillColor: '#8A3A3A',
-    paused: false
+    backColor: '#2A6B4A',
+    paused: false,
+    idle: true,
+    upOpacity: 1,
+    downOpacity: 1
   },
 
   onInit() {
@@ -88,7 +95,11 @@ export default {
     this.timeText = v.timeText
     this.fillHeight = v.fillHeight
     this.fillColor = v.fillColor
+    this.backColor = v.backColor
     this.paused = v.paused
+    this.idle = v.idle
+    this.upOpacity = v.upOpacity
+    this.downOpacity = v.downOpacity
   },
 
   async reload(startIfRunning) {
@@ -281,7 +292,7 @@ export default {
 .page {
   width: 100%;
   height: 100%;
-  background-color: #000000;
+  background-color: #2a6b4a;
 }
 .sand {
   position: absolute;
@@ -290,6 +301,20 @@ export default {
   width: 432px;
   height: 514px;
   background-color: #ff4b4b;
+}
+.arrow-up {
+  position: absolute;
+  left: 192px;
+  top: 168px;
+  width: 48px;
+  height: 32px;
+}
+.arrow-down {
+  position: absolute;
+  left: 192px;
+  top: 310px;
+  width: 48px;
+  height: 32px;
 }
 .time {
   position: absolute;
