@@ -3,9 +3,14 @@ import assert from 'node:assert/strict'
 import {
   FOCUS_MS,
   BREAK_MS,
-  FRAMES,
+  FOCUS_MIN_MS,
+  FOCUS_MAX_MS,
+  FOCUS_STEP_MS,
+  TICK_MS,
   VIBRATE_OFFSETS_MS,
+  SCREEN_H,
   pad2,
+  clampFocusMs,
   durationOf,
   initialState,
   normalizeState,
@@ -16,16 +21,18 @@ import {
   pause,
   toggle,
   reset,
+  adjustFocus,
+  classifySwipe,
   advance,
   formatTime,
-  frameIndex,
-  ringSrc,
+  remainRatio,
+  fillHeight,
   viewModel
 } from '../src/common/timer.js'
 
 const T0 = 1_000_000_000_000
 
-describe('formatTime / frameIndex', () => {
+describe('formatTime / fillHeight', () => {
   it('pad2 는 두 자리로 맞춘다', () => {
     assert.equal(pad2(0), '00')
     assert.equal(pad2(9), '09')
@@ -41,16 +48,15 @@ describe('formatTime / frameIndex', () => {
     assert.equal(formatTime(BREAK_MS), '05:00')
     assert.equal(formatTime(-10), '00:00')
   })
-  it('프레임 0 은 가득, 마지막은 비움', () => {
-    assert.equal(frameIndex(FOCUS_MS, FOCUS_MS, 60), 0)
-    assert.equal(frameIndex(0, FOCUS_MS, 60), 59)
-    assert.equal(frameIndex(FOCUS_MS / 2, FOCUS_MS, 60), 30)
-    assert.equal(frameIndex(BREAK_MS, BREAK_MS), 0)
-    assert.ok(frameIndex(FOCUS_MS * 2, FOCUS_MS, 60) === 0)
-  })
-  it('ringSrc 경로와 색 폴더', () => {
-    assert.equal(ringSrc('focus', FOCUS_MS), '/common/rings/focus-00.png')
-    assert.equal(ringSrc('break', 0), '/common/rings/break-59.png')
+  it('남은 비율만큼 아래쪽 높이가 남고, 가득은 514, 절반은 257, 끝은 0', () => {
+    assert.equal(remainRatio(FOCUS_MS, FOCUS_MS), 1)
+    assert.equal(remainRatio(0, FOCUS_MS), 0)
+    assert.equal(remainRatio(FOCUS_MS / 2, FOCUS_MS), 0.5)
+    assert.equal(fillHeight(FOCUS_MS, FOCUS_MS, SCREEN_H), 514)
+    assert.equal(fillHeight(FOCUS_MS / 2, FOCUS_MS, SCREEN_H), 257)
+    assert.equal(fillHeight(0, FOCUS_MS, SCREEN_H), 0)
+    assert.equal(fillHeight(BREAK_MS, BREAK_MS), 514)
+    assert.equal(TICK_MS, 1000)
   })
 })
 
@@ -61,6 +67,8 @@ describe('상태 전환', () => {
     assert.equal(s.running, false)
     assert.equal(s.endAt, null)
     assert.equal(s.remainMs, FOCUS_MS)
+    assert.equal(s.focusMs, FOCUS_MS)
+    assert.equal(s.idle, true)
     assert.equal(isIdle(s), true)
     assert.equal(durationOf('focus'), FOCUS_MS)
     assert.equal(durationOf('break'), BREAK_MS)
@@ -68,6 +76,7 @@ describe('상태 전환', () => {
   it('시작하면 endAt = now + remain, 일시정지하면 남은 시간을 보존', () => {
     const running = start(initialState(), T0)
     assert.equal(running.running, true)
+    assert.equal(running.idle, false)
     assert.equal(running.endAt, T0 + FOCUS_MS)
     assert.equal(running.remainMs, FOCUS_MS)
     const later = T0 + 90 * 1000
@@ -75,6 +84,7 @@ describe('상태 전환', () => {
     assert.equal(mid.remainMs, FOCUS_MS - 90 * 1000)
     const paused = pause(mid, later)
     assert.equal(paused.running, false)
+    assert.equal(paused.idle, false)
     assert.equal(paused.endAt, null)
     assert.equal(paused.remainMs, FOCUS_MS - 90 * 1000)
     const resumed = start(paused, later + 5000)
@@ -87,13 +97,20 @@ describe('상태 전환', () => {
     const b = toggle(a, T0 + 1000)
     assert.equal(b.running, false)
     assert.equal(b.remainMs, FOCUS_MS - 1000)
+    assert.equal(b.idle, false)
   })
-  it('리셋은 확인 없이 집중 대기로 돌아간다', () => {
-    const running = start(initialState(), T0)
-    const { state: mid } = advance(running, T0 + FOCUS_MS + 1000)
+  it('리셋은 확인 없이 집중 대기로 돌아가고, 설정한 집중 시간은 유지한다', () => {
+    const custom = adjustFocus(adjustFocus(initialState(), 'up'), 'up')
+    assert.equal(custom.focusMs, 35 * 60 * 1000)
+    const running = start(custom, T0)
+    const { state: mid } = advance(running, T0 + custom.focusMs + 1000)
     assert.equal(mid.phase, 'break')
-    const r = reset()
-    assert.deepEqual(r, initialState())
+    const r = reset(mid)
+    assert.equal(r.idle, true)
+    assert.equal(r.running, false)
+    assert.equal(r.phase, 'focus')
+    assert.equal(r.focusMs, 35 * 60 * 1000)
+    assert.equal(r.remainMs, 35 * 60 * 1000)
     assert.equal(isIdle(r), true)
   })
   it('실행 중 start 를 다시 호출해도 끝시각을 바꾸지 않는다', () => {
@@ -121,17 +138,28 @@ describe('구간 진행(advance) — 끝시각 기준, 누적 감산 없음', ()
   })
   it('앱 밖에 있는 동안 여러 구간이 지나면 그만큼 진행한다', () => {
     const running = start(initialState(), T0)
-    // 2시간 = 4 사이클(집중 25 + 휴식 5) = 8 구간, 정확히 끝나면 다음 집중 시작
     const twoHours = 2 * 60 * 60 * 1000
     const after = advance(running, T0 + twoHours)
     assert.equal(after.crossed, 8)
     assert.equal(after.state.phase, 'focus')
     assert.equal(after.state.remainMs, FOCUS_MS)
-    // 2시간 + 10분 → 집중 15분 남음
     const after2 = advance(running, T0 + twoHours + 10 * 60 * 1000)
     assert.equal(after2.crossed, 8)
     assert.equal(after2.state.phase, 'focus')
     assert.equal(after2.state.remainMs, FOCUS_MS - 10 * 60 * 1000)
+  })
+  it('커스텀 집중 시간으로도 사이클이 맞게 돌아간다', () => {
+    const custom = adjustFocus(initialState(), 'down')
+    assert.equal(custom.focusMs, 20 * 60 * 1000)
+    const running = start(custom, T0)
+    const afterFocus = advance(running, T0 + 20 * 60 * 1000)
+    assert.equal(afterFocus.crossed, 1)
+    assert.equal(afterFocus.state.phase, 'break')
+    assert.equal(afterFocus.state.remainMs, BREAK_MS)
+    const afterBreak = advance(running, T0 + 20 * 60 * 1000 + BREAK_MS)
+    assert.equal(afterBreak.crossed, 2)
+    assert.equal(afterBreak.state.phase, 'focus')
+    assert.equal(afterBreak.state.remainMs, 20 * 60 * 1000)
   })
   it('정지 상태에서는 시간이 흐르지 않는다', () => {
     const paused = pause(start(initialState(), T0), T0 + 1000)
@@ -148,13 +176,76 @@ describe('구간 진행(advance) — 끝시각 기준, 누적 감산 없음', ()
   })
 })
 
+describe('집중 시간 설정', () => {
+  it('clampFocusMs 는 5분 단위, 5~60분', () => {
+    assert.equal(clampFocusMs(FOCUS_MS), FOCUS_MS)
+    assert.equal(clampFocusMs(7 * 60 * 1000), 5 * 60 * 1000)
+    assert.equal(clampFocusMs(8 * 60 * 1000), 10 * 60 * 1000)
+    assert.equal(clampFocusMs(0), FOCUS_MIN_MS)
+    assert.equal(clampFocusMs(99 * 60 * 1000), FOCUS_MAX_MS)
+    assert.equal(clampFocusMs('nope'), FOCUS_MS)
+    assert.equal(FOCUS_STEP_MS, 5 * 60 * 1000)
+  })
+  it('대기 중 위로 스와이프하면 5분 늘고, 아래로 줄고, 숫자는 바로 바뀐다', () => {
+    const up = adjustFocus(initialState(), 'up')
+    assert.equal(up.focusMs, 30 * 60 * 1000)
+    assert.equal(up.remainMs, 30 * 60 * 1000)
+    assert.equal(up.idle, true)
+    assert.equal(viewModel(up).timeText, '30:00')
+    assert.equal(viewModel(up).fillHeight, 514)
+    const down = adjustFocus(initialState(), 'down')
+    assert.equal(down.focusMs, 20 * 60 * 1000)
+    assert.equal(viewModel(down).timeText, '20:00')
+    const also = adjustFocus(initialState(), 1)
+    assert.equal(also.focusMs, 30 * 60 * 1000)
+  })
+  it('5분과 60분에서 더 줄이거나 늘리지 않는다', () => {
+    let s = initialState()
+    for (let i = 0; i < 10; i++) s = adjustFocus(s, 'down')
+    assert.equal(s.focusMs, FOCUS_MIN_MS)
+    assert.deepEqual(adjustFocus(s, 'down'), s)
+    s = initialState()
+    for (let i = 0; i < 20; i++) s = adjustFocus(s, 'up')
+    assert.equal(s.focusMs, FOCUS_MAX_MS)
+    assert.deepEqual(adjustFocus(s, 'up'), s)
+    assert.equal(viewModel(s).timeText, '60:00')
+  })
+  it('실행 중·일시정지에서는 스와이프를 무시한다', () => {
+    const running = start(initialState(), T0)
+    assert.deepEqual(adjustFocus(running, 'up'), running)
+    const paused = pause(running, T0 + 60 * 1000)
+    assert.equal(paused.idle, false)
+    assert.deepEqual(adjustFocus(paused, 'down'), paused)
+    assert.equal(paused.remainMs, FOCUS_MS - 60 * 1000)
+  })
+  it('설정값은 직렬화되어 다음 실행에도 유지된다', () => {
+    const s = adjustFocus(adjustFocus(initialState(), 'up'), 'up')
+    const raw = serializeState(s)
+    const back = deserializeState(raw)
+    assert.equal(back.focusMs, 35 * 60 * 1000)
+    assert.equal(back.remainMs, 35 * 60 * 1000)
+    assert.equal(back.idle, true)
+  })
+})
+
+describe('classifySwipe', () => {
+  it('위로 쓸면 up, 아래로 쓸면 down, 짧거나 가로면 null', () => {
+    assert.equal(classifySwipe(0, -80), 'up')
+    assert.equal(classifySwipe(0, 80), 'down')
+    assert.equal(classifySwipe(0, -20), null)
+    assert.equal(classifySwipe(0, 20), null)
+    assert.equal(classifySwipe(100, -40), null)
+    assert.equal(classifySwipe(5, -60), 'up')
+  })
+})
+
 describe('직렬화', () => {
   it('정상 상태를 복원한다', () => {
     const s = start(initialState(), T0)
     const raw = serializeState(s)
     assert.deepEqual(deserializeState(raw), normalizeState(s))
   })
-  it('깨진 값은 대기로 되돌린다', () => {
+  it('깨진 값은 대기로 되돌리고, 옛 상태에는 기본 25분을 넣는다', () => {
     assert.deepEqual(deserializeState(''), initialState())
     assert.deepEqual(deserializeState('not-json'), initialState())
     assert.deepEqual(deserializeState('null'), initialState())
@@ -162,40 +253,47 @@ describe('직렬화', () => {
     assert.equal(n.phase, 'focus')
     assert.equal(n.running, false)
     assert.equal(n.remainMs, FOCUS_MS)
+    assert.equal(n.focusMs, FOCUS_MS)
+    const old = normalizeState({
+      phase: 'focus',
+      running: false,
+      endAt: null,
+      remainMs: FOCUS_MS
+    })
+    assert.equal(old.idle, true)
+    assert.equal(old.focusMs, FOCUS_MS)
   })
 })
 
 describe('viewModel', () => {
-  it('대기는 어두운 빨강, 실행 중 집중은 밝은 빨강, 휴식은 초록, 일시정지는 막대만', () => {
+  it('대기는 어두운 빨강 가득, 실행 중 집중은 밝은 빨강, 휴식은 초록, 일시정지는 막대만', () => {
     const idle = viewModel(initialState())
     assert.equal(idle.timeText, '25:00')
     assert.equal(idle.idle, true)
     assert.equal(idle.paused, false)
-    assert.equal(idle.ringOpacity, 0.45)
-    assert.equal(idle.timeColor, '#8A3A3A')
-    assert.equal(idle.ringSrc, '/common/rings/focus-00.png')
+    assert.equal(idle.fillHeight, 514)
+    assert.equal(idle.fillColor, '#8A3A3A')
 
     const running = viewModel(start(initialState(), T0))
     assert.equal(running.idle, false)
     assert.equal(running.paused, false)
-    assert.equal(running.ringOpacity, 1)
-    assert.equal(running.timeColor, '#FF4B4B')
+    assert.equal(running.fillHeight, 514)
+    assert.equal(running.fillColor, '#FF4B4B')
 
     const mid = start(initialState(), T0)
-    const paused = viewModel(pause(mid, T0 + 60 * 1000))
+    const paused = viewModel(pause(mid, T0 + 12.5 * 60 * 1000))
     assert.equal(paused.paused, true)
     assert.equal(paused.idle, false)
-    assert.equal(paused.timeText, '24:00')
-    assert.equal(paused.ringOpacity, 0.45)
+    assert.equal(paused.timeText, '12:30')
+    assert.equal(paused.fillHeight, 257)
 
     const toBreak = advance(start(initialState(), T0), T0 + FOCUS_MS)
     const br = viewModel(toBreak.state)
     assert.equal(br.timeText, '05:00')
-    assert.equal(br.timeColor, '#3DDC84')
-    assert.equal(br.ringSrc, '/common/rings/break-00.png')
+    assert.equal(br.fillColor, '#3DDC84')
+    assert.equal(br.fillHeight, 514)
   })
   it('진동 간격은 0.5초 간격 3회', () => {
     assert.deepEqual(VIBRATE_OFFSETS_MS, [0, 500, 1000])
-    assert.equal(FRAMES, 60)
   })
 })
