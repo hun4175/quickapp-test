@@ -21,9 +21,9 @@ describe('프로젝트 구성', () => {
   it('manifest: 패키지명·버전·feature', () => {
     assert.equal(manifest.package, 'com.hun4175.pomodoro')
     assert.equal(manifest.name, '뽀모도로')
-    assert.equal(manifest.versionName, '0.1.2')
-    assert.equal(manifest.versionCode, 3)
-    assert.equal(pkg.version, '0.1.2')
+    assert.equal(manifest.versionName, '0.1.3')
+    assert.equal(manifest.versionCode, 4)
+    assert.equal(pkg.version, '0.1.3')
     assert.ok(manifest.deviceTypeList.includes('watch'))
     assert.deepEqual(
       manifest.features.map((f) => f.name).sort(),
@@ -82,25 +82,32 @@ describe('프로젝트 구성', () => {
     assert.ok(ux.includes('keepScreenOn: !!on') || ux.includes('keepScreenOn: true'))
   })
 
-  it('모래시계는 단일 div 높이 바인딩이고, 대기 화살표 PNG가 있으며 링은 없다', () => {
-    assert.ok(ux.includes('class="sand"'))
-    assert.ok(ux.includes('height: {{fillHeight}}px'))
-    assert.ok(ux.includes('background-color: {{fillColor}}'))
-    assert.ok(ux.includes('background-color: {{backColor}}'))
-    assert.ok(ux.includes('src="/common/arrow-up.png"'))
-    assert.ok(ux.includes('src="/common/arrow-down.png"'))
+  it('부스터 게이지는 단일 image src 교체이고, 프레임 g00~g36과 숫자·라벨 PNG가 있다', () => {
+    const c = stripComments(ux)
+    assert.ok(ux.includes('<image class="gauge" src="{{gaugeSrc}}"></image>'))
+    assert.equal((ux.match(/src="\{\{gaugeSrc\}\}"/g) || []).length, 1)
+    for (const k of ['labelSrc', 'm1Src', 'm2Src', 's1Src', 's2Src']) {
+      assert.ok(ux.includes('src="{{' + k + '}}"'), k)
+    }
     assert.ok(ux.includes('if="{{idle}}"'))
     assert.ok(ux.includes('opacity: {{upOpacity}}'))
     assert.ok(ux.includes('opacity: {{downOpacity}}'))
-    assert.ok(!ux.includes('▲') && !ux.includes('▼'))
-    assert.ok(!/ringSrc|common\/rings|image-animator|@keyframes/.test(stripComments(ux)))
-    assert.ok(!existsSync(path.join(SRC, 'common/rings')))
-    assert.ok(!existsSync(path.join(ROOT, 'scripts/gen-rings.py')))
-    assert.ok(existsSync(path.join(ROOT, 'scripts/gen-preview.py')))
+    assert.ok(!/class="sand"|image-animator|@keyframes|animation-name/.test(c))
+    const dir = path.join(SRC, 'common/booster')
+    const files = readdirSync(dir)
+    for (let i = 0; i <= 36; i++) {
+      assert.ok(files.includes('g' + String(i).padStart(2, '0') + '.png'), 'g' + i)
+    }
+    assert.equal(files.filter((f) => /^g\d\d\.png$/.test(f)).length, 37)
+    for (const d of '0123456789') {
+      assert.ok(files.includes('m' + d + '.png'))
+      assert.ok(files.includes('s' + d + '.png'))
+    }
+    for (const f of ['colon', 'focus', 'rest', 'hint-up', 'hint-text', 'hint-down']) {
+      assert.ok(files.includes(f + '.png'), f)
+    }
+    assert.ok(existsSync(path.join(ROOT, 'scripts/gen-booster.py')))
+    assert.ok(existsSync(path.join(ROOT, 'docs/booster-design/v9/gen_v9.py')))
     assert.ok(existsSync(path.join(SRC, 'common/logo.png')))
-    assert.ok(existsSync(path.join(SRC, 'common/arrow-up.png')))
-    assert.ok(existsSync(path.join(SRC, 'common/arrow-down.png')))
-    const commonFiles = readdirSync(path.join(SRC, 'common'))
-    assert.ok(!commonFiles.includes('rings'))
   })
 })

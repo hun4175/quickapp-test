@@ -274,18 +274,41 @@ export function phaseColor(phase, dim) {
   return dim ? COLOR_FOCUS_DIM : COLOR_FOCUS
 }
 
+/** 부스터 게이지 칸 수. 집중 30칸 + 휴식 6칸 = 36칸. */
+export const GAUGE_FOCUS_CELLS = 30
+export const GAUGE_BREAK_CELLS = 6
+export const GAUGE_CELLS = GAUGE_FOCUS_CELLS + GAUGE_BREAK_CELLS
+export const GAUGE_DIR = '/common/booster/'
+
+/**
+ * 켜진 칸 수(0~36). 집중: 휴식 6칸 + ceil(남은 비율 x 30), 휴식: ceil(남은 비율 x 6).
+ * 3시 방향 칸부터 시계 반대 방향으로 꺼진다.
+ */
+export function litCells(phase, remainMs, durationMs) {
+  const r = remainRatio(remainMs, durationMs)
+  if (phase === 'break') return Math.ceil(r * GAUGE_BREAK_CELLS)
+  return GAUGE_BREAK_CELLS + Math.ceil(r * GAUGE_FOCUS_CELLS)
+}
+
+export function gaugeSrc(lit) {
+  const n = Math.max(0, Math.min(GAUGE_CELLS, Math.floor(Number(lit) || 0)))
+  return GAUGE_DIR + 'g' + pad2(n) + '.png'
+}
+
 export function viewModel(state) {
   const s = normalizeState(state)
   const running = s.running
   const paused = !running && !s.idle
-  const dim = !running
   const dur = durationOf(s.phase, s.focusMs)
+  const t = formatTime(s.remainMs)
   return {
-    timeText: formatTime(s.remainMs),
-    fillHeight: fillHeight(s.remainMs, dur, SCREEN_H),
-    fillColor: phaseColor(s.phase, dim),
-    // 비워진 위쪽은 구간과 상관없이 검정(배경).
-    backColor: COLOR_EMPTY,
+    timeText: t,
+    gaugeSrc: gaugeSrc(s.idle ? GAUGE_CELLS : litCells(s.phase, s.remainMs, dur)),
+    labelSrc: GAUGE_DIR + (s.phase === 'break' ? 'rest' : 'focus') + '.png',
+    m1Src: GAUGE_DIR + 'm' + t.charAt(0) + '.png',
+    m2Src: GAUGE_DIR + 'm' + t.charAt(1) + '.png',
+    s1Src: GAUGE_DIR + 's' + t.charAt(3) + '.png',
+    s2Src: GAUGE_DIR + 's' + t.charAt(4) + '.png',
     paused: paused,
     idle: s.idle,
     upOpacity: s.focusMs >= FOCUS_MAX_MS ? ARROW_OPACITY_DIM : ARROW_OPACITY_ON,

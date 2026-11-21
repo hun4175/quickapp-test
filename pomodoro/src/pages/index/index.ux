@@ -1,16 +1,21 @@
 <template>
   <div
     class="page"
-    style="background-color: {{backColor}};"
     ontouchstart="onTouchStart"
     ontouchmove="onTouchMove"
     ontouchend="onTouchEnd"
     ontouchcancel="onTouchCancel"
   >
-    <div class="sand" style="height: {{fillHeight}}px; background-color: {{fillColor}};"></div>
-    <image class="arrow arrow-up" if="{{idle}}" src="/common/arrow-up.png" style="opacity: {{upOpacity}};"></image>
-    <text class="time">{{timeText}}</text>
-    <image class="arrow arrow-down" if="{{idle}}" src="/common/arrow-down.png" style="opacity: {{downOpacity}};"></image>
+    <image class="gauge" src="{{gaugeSrc}}"></image>
+    <image class="label" src="{{labelSrc}}"></image>
+    <image class="dm dm1" src="{{m1Src}}"></image>
+    <image class="dm dm2" src="{{m2Src}}"></image>
+    <image class="colon" src="/common/booster/colon.png"></image>
+    <image class="ds ds1" src="{{s1Src}}"></image>
+    <image class="ds ds2" src="{{s2Src}}"></image>
+    <image class="hint-up" if="{{idle}}" src="/common/booster/hint-up.png" style="opacity: {{upOpacity}};"></image>
+    <image class="hint-text" if="{{idle}}" src="/common/booster/hint-text.png"></image>
+    <image class="hint-down" if="{{idle}}" src="/common/booster/hint-down.png" style="opacity: {{downOpacity}};"></image>
     <div class="pause" if="{{paused}}">
       <div class="bar"></div>
       <div class="bar bar-r"></div>
@@ -21,6 +26,8 @@
 <script>
 /**
  * 뽀모도로 (REDMI Watch 6 글로벌 · 432x514).
+ * 화면: 부스터 계기판. 게이지는 미리 합성한 전체 화면 PNG 한 장의 src만 바꾸고(켜진 칸 0~36),
+ * 시간·라벨은 7세그먼트 PNG를 겹친다. 리소스는 scripts/gen-booster.py 로 만든다.
  * 화면 하나, 설정 화면 없음. 탭=시작/일시정지, 길게 누르면 즉시 리셋.
  * 대기 중에만 위/아래 스와이프로 집중 시간(5~60분, 5분 단위)을 바꾼다.
  * 소리·audio·muted·볼륨 API는 쓰지 않는다.
@@ -44,10 +51,12 @@ import {
 
 export default {
   private: {
-    timeText: '25:00',
-    fillHeight: 514,
-    fillColor: '#8A3A3A',
-    backColor: '#000000',
+    gaugeSrc: '/common/booster/g36.png',
+    labelSrc: '/common/booster/focus.png',
+    m1Src: '/common/booster/m2.png',
+    m2Src: '/common/booster/m5.png',
+    s1Src: '/common/booster/s0.png',
+    s2Src: '/common/booster/s0.png',
     paused: false,
     idle: true,
     upOpacity: 1,
@@ -92,10 +101,13 @@ export default {
 
   applyView() {
     const v = viewModel(this._state)
-    this.timeText = v.timeText
-    this.fillHeight = v.fillHeight
-    this.fillColor = v.fillColor
-    this.backColor = v.backColor
+    // 바뀐 값만 넣어 image src 재로딩을 줄인다.
+    if (this.gaugeSrc !== v.gaugeSrc) this.gaugeSrc = v.gaugeSrc
+    if (this.labelSrc !== v.labelSrc) this.labelSrc = v.labelSrc
+    if (this.m1Src !== v.m1Src) this.m1Src = v.m1Src
+    if (this.m2Src !== v.m2Src) this.m2Src = v.m2Src
+    if (this.s1Src !== v.s1Src) this.s1Src = v.s1Src
+    if (this.s2Src !== v.s2Src) this.s2Src = v.s2Src
     this.paused = v.paused
     this.idle = v.idle
     this.upOpacity = v.upOpacity
@@ -289,62 +301,100 @@ export default {
 </script>
 
 <style>
+/* 좌표는 scripts/booster-layout.json (gen-booster.py 출력) 과 같다. */
 .page {
   width: 100%;
   height: 100%;
   background-color: #000000;
 }
-.sand {
+.gauge {
   position: absolute;
   left: 0px;
-  bottom: 0px;
+  top: 0px;
   width: 432px;
   height: 514px;
-  background-color: #ff4b4b;
 }
-.arrow-up {
+.label {
   position: absolute;
-  left: 192px;
-  top: 168px;
-  width: 48px;
-  height: 32px;
+  left: 226px;
+  top: 126px;
+  width: 180px;
+  height: 67px;
 }
-.arrow-down {
+.dm1 {
   position: absolute;
-  left: 192px;
-  top: 310px;
-  width: 48px;
-  height: 32px;
+  left: 226px;
+  top: 175px;
+  width: 64px;
+  height: 85px;
 }
-.time {
+.dm2 {
   position: absolute;
-  left: 36px;
-  top: 213px;
-  width: 360px;
-  height: 88px;
-  font-size: 80px;
-  font-weight: bold;
-  text-align: center;
-  color: #ffffff;
-  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+  left: 266px;
+  top: 175px;
+  width: 64px;
+  height: 85px;
 }
+.colon {
+  position: absolute;
+  left: 313px;
+  top: 191px;
+  width: 31px;
+  height: 53px;
+}
+.ds1 {
+  position: absolute;
+  left: 326px;
+  top: 197px;
+  width: 50px;
+  height: 63px;
+}
+.ds2 {
+  position: absolute;
+  left: 355px;
+  top: 197px;
+  width: 50px;
+  height: 63px;
+}
+.hint-up {
+  position: absolute;
+  left: 287px;
+  top: 99px;
+  width: 43px;
+  height: 34px;
+}
+.hint-text {
+  position: absolute;
+  left: 312px;
+  top: 98px;
+  width: 59px;
+  height: 34px;
+}
+.hint-down {
+  position: absolute;
+  left: 358px;
+  top: 99px;
+  width: 41px;
+  height: 34px;
+}
+/* 일시정지: 게이지 중심 구멍 안의 막대 두 개 */
 .pause {
   position: absolute;
-  left: 186px;
-  top: 318px;
-  width: 60px;
-  height: 36px;
+  left: 200px;
+  top: 241px;
+  width: 32px;
+  height: 32px;
   flex-direction: row;
   justify-content: center;
   align-items: center;
 }
 .bar {
-  width: 10px;
-  height: 32px;
-  border-radius: 3px;
+  width: 8px;
+  height: 26px;
+  border-radius: 2px;
   background-color: #ffffff;
 }
 .bar-r {
-  margin-left: 12px;
+  margin-left: 8px;
 }
 </style>

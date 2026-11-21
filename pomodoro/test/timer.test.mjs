@@ -31,6 +31,9 @@ import {
   phaseColor,
   ARROW_OPACITY_ON,
   ARROW_OPACITY_DIM,
+  GAUGE_CELLS,
+  litCells,
+  gaugeSrc,
   viewModel
 } from '../src/common/timer.js'
 
@@ -196,7 +199,7 @@ describe('집중 시간 설정', () => {
     assert.equal(up.remainMs, 30 * 60 * 1000)
     assert.equal(up.idle, true)
     assert.equal(viewModel(up).timeText, '30:00')
-    assert.equal(viewModel(up).fillHeight, 514)
+    assert.equal(viewModel(up).gaugeSrc, '/common/booster/g36.png')
     const down = adjustFocus(initialState(), 'down')
     assert.equal(down.focusMs, 20 * 60 * 1000)
     assert.equal(viewModel(down).timeText, '20:00')
@@ -270,56 +273,78 @@ describe('직렬화', () => {
 })
 
 describe('viewModel', () => {
-  it('대기는 어두운 빨강 가득, 실행 중 집중은 밝은 빨강, 휴식은 초록, 일시정지는 막대만', () => {
+  it('대기는 게이지 가득 + FOCUS, 실행 중 집중은 칸이 줄고, 휴식은 REST, 일시정지는 막대', () => {
     const idle = viewModel(initialState())
     assert.equal(idle.timeText, '25:00')
     assert.equal(idle.idle, true)
     assert.equal(idle.paused, false)
-    assert.equal(idle.fillHeight, 514)
-    assert.equal(idle.fillColor, '#8A3A3A')
-    assert.equal(idle.backColor, '#000000')
+    assert.equal(idle.gaugeSrc, '/common/booster/g36.png')
+    assert.equal(idle.labelSrc, '/common/booster/focus.png')
+    assert.equal(idle.m1Src, '/common/booster/m2.png')
+    assert.equal(idle.m2Src, '/common/booster/m5.png')
+    assert.equal(idle.s1Src, '/common/booster/s0.png')
+    assert.equal(idle.s2Src, '/common/booster/s0.png')
     assert.equal(idle.upOpacity, ARROW_OPACITY_ON)
     assert.equal(idle.downOpacity, ARROW_OPACITY_ON)
 
     const running = viewModel(start(initialState(), T0))
     assert.equal(running.idle, false)
     assert.equal(running.paused, false)
-    assert.equal(running.fillHeight, 514)
-    assert.equal(running.fillColor, '#FF4B4B')
-    assert.equal(running.backColor, '#000000')
+    assert.equal(running.gaugeSrc, '/common/booster/g36.png')
 
     const mid = start(initialState(), T0)
     const paused = viewModel(pause(mid, T0 + 12.5 * 60 * 1000))
     assert.equal(paused.paused, true)
     assert.equal(paused.idle, false)
     assert.equal(paused.timeText, '12:30')
-    assert.equal(paused.fillHeight, 257)
-    assert.equal(paused.fillColor, '#8A3A3A')
-    assert.equal(paused.backColor, '#000000')
+    assert.equal(paused.gaugeSrc, '/common/booster/g21.png')
+    assert.equal(paused.m1Src, '/common/booster/m1.png')
+    assert.equal(paused.m2Src, '/common/booster/m2.png')
+    assert.equal(paused.s1Src, '/common/booster/s3.png')
+    assert.equal(paused.s2Src, '/common/booster/s0.png')
 
     const toBreak = advance(start(initialState(), T0), T0 + FOCUS_MS)
     const br = viewModel(toBreak.state)
     assert.equal(br.timeText, '05:00')
-    assert.equal(br.fillColor, '#3DDC84')
-    assert.equal(br.backColor, '#000000')
-    assert.equal(br.fillHeight, 514)
+    assert.equal(br.labelSrc, '/common/booster/rest.png')
+    assert.equal(br.gaugeSrc, '/common/booster/g06.png')
     assert.equal(nextPhaseOf('focus'), 'break')
     assert.equal(nextPhaseOf('break'), 'focus')
     assert.equal(phaseColor('focus', false), '#FF4B4B')
     assert.equal(phaseColor('break', true), '#2A6B4A')
   })
-  it('집중이 줄든 휴식이 줄든 위쪽은 검정', () => {
-    const running = start(initialState(), T0)
-    const half = viewModel(advance(running, T0 + 12.5 * 60 * 1000).state)
-    assert.equal(half.fillHeight, 257)
-    assert.equal(half.fillColor, '#FF4B4B')
-    assert.equal(half.backColor, '#000000')
-    const br = start({ phase: 'break', running: false, remainMs: BREAK_MS, focusMs: FOCUS_MS, idle: false }, T0)
-    const brHalf = viewModel(advance(br, T0 + 2.5 * 60 * 1000).state)
-    assert.equal(brHalf.timeText, '02:30')
-    assert.equal(brHalf.fillHeight, 257)
-    assert.equal(brHalf.fillColor, '#3DDC84')
-    assert.equal(brHalf.backColor, '#000000')
+  it('켜진 칸: 집중은 휴식 6칸 + ceil(rem/tot*30), 휴식은 ceil(rem/tot*6)', () => {
+    assert.equal(GAUGE_CELLS, 36)
+    assert.equal(litCells('focus', FOCUS_MS, FOCUS_MS), 36)
+    assert.equal(litCells('focus', FOCUS_MS - 1, FOCUS_MS), 36)
+    assert.equal(litCells('focus', FOCUS_MS / 2, FOCUS_MS), 21)
+    assert.equal(litCells('focus', 750 * 1000 - 1, FOCUS_MS), 21)
+    assert.equal(litCells('focus', 70 * 1000, FOCUS_MS), 8)
+    assert.equal(litCells('focus', 1, FOCUS_MS), 7)
+    assert.equal(litCells('focus', 0, FOCUS_MS), 6)
+    assert.equal(litCells('focus', FOCUS_MS * 2, FOCUS_MS), 36)
+    assert.equal(litCells('break', BREAK_MS, BREAK_MS), 6)
+    assert.equal(litCells('break', 150 * 1000, BREAK_MS), 3)
+    assert.equal(litCells('break', 150 * 1000 - 1, BREAK_MS), 3)
+    assert.equal(litCells('break', 1, BREAK_MS), 1)
+    assert.equal(litCells('break', 0, BREAK_MS), 0)
+    for (let rem = 0; rem <= FOCUS_MS; rem += 7919) {
+      assert.equal(litCells('focus', rem, FOCUS_MS), 6 + Math.ceil((rem / FOCUS_MS) * 30))
+    }
+    for (let rem = 0; rem <= BREAK_MS; rem += 997) {
+      assert.equal(litCells('break', rem, BREAK_MS), Math.ceil((rem / BREAK_MS) * 6))
+    }
+    assert.equal(gaugeSrc(0), '/common/booster/g00.png')
+    assert.equal(gaugeSrc(36), '/common/booster/g36.png')
+    assert.equal(gaugeSrc(99), '/common/booster/g36.png')
+    assert.equal(gaugeSrc(-3), '/common/booster/g00.png')
+  })
+  it('60분 표시도 숫자 이미지로 나뉜다', () => {
+    let s = initialState()
+    for (let i = 0; i < 20; i++) s = adjustFocus(s, 'up')
+    const v = viewModel(s)
+    assert.equal(v.m1Src, '/common/booster/m6.png')
+    assert.equal(v.m2Src, '/common/booster/m0.png')
   })
   it('대기에서만 화살표를 쓰고, 60분이면 ▲, 5분이면 ▼를 흐리게 한다', () => {
     const idle = viewModel(initialState())
