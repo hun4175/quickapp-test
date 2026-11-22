@@ -21,9 +21,9 @@ describe('프로젝트 구성', () => {
   it('manifest: 패키지명·버전·feature', () => {
     assert.equal(manifest.package, 'com.hun4175.pomodoro')
     assert.equal(manifest.name, '뽀모도로')
-    assert.equal(manifest.versionName, '0.1.3')
-    assert.equal(manifest.versionCode, 4)
-    assert.equal(pkg.version, '0.1.3')
+    assert.equal(manifest.versionName, '0.1.4')
+    assert.equal(manifest.versionCode, 5)
+    assert.equal(pkg.version, '0.1.4')
     assert.ok(manifest.deviceTypeList.includes('watch'))
     assert.deepEqual(
       manifest.features.map((f) => f.name).sort(),
@@ -82,6 +82,16 @@ describe('프로젝트 구성', () => {
     assert.ok(ux.includes('keepScreenOn: !!on') || ux.includes('keepScreenOn: true'))
   })
 
+  it('오버레이 CSS 좌표는 scripts/booster-layout.json 과 같다', () => {
+    const layout = JSON.parse(readFileSync(path.join(ROOT, 'scripts/booster-layout.json'), 'utf8'))
+    const map = { '.label': 'label', '.dm1': 'm', '.dm2': 'm2', '.colon': 'colon', '.ds1': 's', '.ds2': 's2', '.hint-up': 'hint-up', '.hint-text': 'hint-text', '.hint-down': 'hint-down' }
+    for (const [sel, key] of Object.entries(map)) {
+      const v = layout[key]
+      const block = sel + ' {\n  position: absolute;\n  left: ' + v.left + 'px;\n  top: ' + v.top + 'px;\n  width: ' + v.width + 'px;\n  height: ' + v.height + 'px;\n}'
+      assert.ok(ux.includes(block), sel)
+    }
+  })
+
   it('부스터 게이지는 단일 image src 교체이고, 프레임 g00~g36과 숫자·라벨 PNG가 있다', () => {
     const c = stripComments(ux)
     assert.ok(ux.includes('<image class="gauge" src="{{gaugeSrc}}"></image>'))
@@ -107,7 +117,7 @@ describe('프로젝트 구성', () => {
       assert.ok(files.includes(f + '.png'), f)
     }
     assert.ok(existsSync(path.join(ROOT, 'scripts/gen-booster.py')))
-    assert.ok(existsSync(path.join(ROOT, 'docs/booster-design/v9/gen_v9.py')))
+    assert.ok(existsSync(path.join(ROOT, 'docs/booster-design/v11/gen_v11.py')))
     assert.ok(existsSync(path.join(SRC, 'common/logo.png')))
   })
 })
