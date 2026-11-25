@@ -2,13 +2,13 @@
 
 REDMI Watch 6 글로벌(`M2523W1`, 펌웨어 `3.200.085`, 화면 432×514)용 Vela JS 퀵앱입니다. 집중과 5분 휴식을 반복하는 타이머입니다. 집중 시간은 기본 25분이고, 대기 화면에서 5~60분으로 바꿀 수 있습니다.
 
-- 패키지: `com.hun4175.pomodoro` · 버전 `0.1.4` (versionCode 5)
-- 산출물: [`dist/com.hun4175.pomodoro.debug.0.1.4.rpk`](dist/) (toolkit 내장 디버그 서명, 자세한 정보는 [`dist/BUILD_INFO.md`](dist/BUILD_INFO.md))
-- 0.1.4는 실기기 설치·확인 전입니다.
+- 패키지: `com.hun4175.pomodoro` · 버전 `0.1.5` (versionCode 6)
+- 산출물: [`dist/com.hun4175.pomodoro.debug.0.1.5.rpk`](dist/) (toolkit 내장 디버그 서명, 자세한 정보는 [`dist/BUILD_INFO.md`](dist/BUILD_INFO.md))
+- 0.1.5는 실기기 설치·확인 전입니다.
 
-![대기 화면](docs/preview-0.1.4-idle.png)
-![집중 절반](docs/preview-0.1.4-focus-mid.png)
-![휴식 절반](docs/preview-0.1.4-break.png)
+![대기 화면](docs/preview-0.1.5-idle.png)
+![집중 절반](docs/preview-0.1.5-focus-mid.png)
+![휴식 절반](docs/preview-0.1.5-break.png)
 
 ## 기능
 
@@ -51,11 +51,11 @@ cd pomodoro
 npm install
 npm run preview  # 아이콘, 게이지·숫자 리소스, 미리보기 PNG 다시 생성 (선택)
 npm test         # node:test 단위 테스트
-npm run build    # dist/com.hun4175.pomodoro.debug.0.1.4.rpk
+npm run build    # dist/com.hun4175.pomodoro.debug.0.1.5.rpk
 ```
 
 `sign/` 폴더가 없으면 aiot-toolkit 내장 디버그 인증서(CN=localhost)로 서명됩니다.  
-0.1.4는 릴리즈 서명을 하지 않았습니다. `npm run release`는 `dist/`를 지울 수 있어 넣지 않았습니다.
+0.1.5는 릴리즈 서명을 하지 않았습니다. `npm run release`는 `dist/`를 지울 수 있어 넣지 않았습니다.
 
 아이콘은 `scripts/gen-preview.py`, 화면 리소스·미리보기는 `scripts/gen-booster.py`(Python / Pillow)로 생성합니다.
 
@@ -77,6 +77,7 @@ MIT. [`LICENSE`](LICENSE) 참고.
 
 ## 변경 이력
 
+- **0.1.5**: 휴식 테두리 꼭짓점을 화면 중심으로 옮겨, 마지막 집중 칸과 첫 휴식 칸도 다른 칸과 같은 파이 조각 모양이 되도록 수정. 그 밖의 디자인·조작·타이머는 그대로.
 - **0.1.4**: 계기판 색·선·글로우를 원작 느낌으로 다듬음(평평한 셀 레드, 파스텔 그린, 노란 네온 2단 헤일로, 가는 7세그먼트, 굵은 이탤릭 라벨). 휴식 테두리의 중심 쪽 끝을 뾰족하게, FOCUS/REST 밑줄 왼쪽 끝을 중심 쪽으로 꺾고, 휴식 마지막 칸(3시 바로 아래)을 노랑으로 표시. 배치·조작·타이머는 그대로.
 - **0.1.3**: 화면을 사이버포뮬러 부스터 계기판 스타일로 교체. 원형 게이지 36칸(집중 30 + 휴식 6)이 3시 방향부터 시계 반대 방향으로 꺼지고, 우상단에 FOCUS/REST 라벨과 7세그먼트 시간 표시. 대기 힌트는 `^ 5~60 v`. 게이지는 미리 합성한 PNG 37장의 단일 `image` `src` 교체. 조작·타이머·진동은 그대로.
 - **0.1.2**: 대기 화면에 시간 위·아래 화살표 인디케이터 추가. 집중이 줄어든 위쪽은 휴식 초록으로 채우고, 휴식 구간 위쪽은 검정으로 둠.

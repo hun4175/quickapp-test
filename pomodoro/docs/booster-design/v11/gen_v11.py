@@ -1,5 +1,7 @@
 # 부스터 계기판 시안 v11 = v10 + 사용자 피드백 3가지. 실행: python3 gen_v11.py
 # v11 변경: (1) 휴식 테두리의 중심 쪽 꼭짓점을 원작처럼 뾰족하게(허브 원호 → 뾰족한 끝, 윗변 y=257은 그대로)
+#           (1') 0.1.5: 뾰족한 끝(꼭짓점)을 화면 중심(CX,CY)으로 옮김. 5시 쪽 변이 5시 방사선(60°) 그 자체가 되어
+#                마지막 집중 칸·첫 휴식 칸도 다른 칸과 같은 중심·같은 틈의 파이 조각이 됨
 #           (2) FOCUS/REST 밑줄 왼쪽 끝을 화면 중심(216,257) 쪽으로 꺾음(원작 숫자 위 브래킷 선)
 #           (3) 휴식 마지막 칸(i=35, 3시~3시 아래 10°, 카운트다운에서 가장 늦게 꺼지는 칸)을 노란 네온색으로
 # 이하 v10 설명:
@@ -22,7 +24,7 @@ GRN_IN=(18,76,34); GRN=(115,224,116); GRN_OUT=(128,230,120)  # 원작 파스텔 
 YC_IN=(70,46,4); YC_OUT=(255,228,80)   # v11: 휴식 마지막 칸(노랑) 허브 쪽 / 바깥
 YC_OFF_IN=(12,9,2); YC_OFF_OUT=(32,25,5)
 LAST=N-1                # 휴식 마지막 칸 인덱스(0°~10°, 3시 바로 아래)
-TIP_D=31                # 휴식 테두리 뾰족한 끝: 중심에서 오른쪽(3시 방향)으로 31px (구멍 반지름 26 바깥)
+TIP_D=0                 # 휴식 테두리 뾰족한 끝 = 화면 중심(CX,CY). (0.1.4는 31px 오른쪽이라 5시 변이 방사선에서 어긋났음)
 RED_OFF_IN=(12,2,2); RED_OFF_OUT=(30,6,5)
 GRN_OFF_IN=(3,14,7); GRN_OFF_OUT=(7,30,14)
 SEAM_K=0.50             # 켜진 칸 이음선 = 칸 색 × 0.50 (원작의 어두운 셀 경계선)
@@ -61,16 +63,8 @@ def _wedge_assets():
             else:   c=radial(rc,RED_IN,RED,RED_OUT); co=_lerp(RED_OFF_IN,RED_OFF_OUT,(rc-RIN)/(ROUT-RIN))
             wedge(d,r0,r1,a0-GAP,a1+GAP,c); wedge(do,r0,r1,a0-GAP,a1+GAP,co)
             wedge(dsm,r0,r1,a0-GAP,a1+GAP,tuple(int(v*SEAM_K) for v in c))
-        if brk:  # 뾰족한 끝 때문에 테두리 밖으로 삐져나오는 휴식 칸 조각은 잘라냄
+        if brk:  # 휴식 칸은 휴식 영역 안으로만(테두리 밖 화면 모서리 쪽 정리)
             rg=_rest_region(); m=ImageChops.multiply(m,rg); sm=ImageChops.multiply(sm,rg)
-        if i==NF-1:  # 5시 선 바로 위 집중 칸: 뾰족한 끝 때문에 생긴 빈 틈(5시 선~새 테두리)까지 채우고 테두리 앞 2px에서 멈춤
-            ex=Image.new('L',(W*S,H*S),0); wedge(ImageDraw.Draw(ex),RIN+3,ROUT,-360,a1,255)
-            ex=ex.filter(ImageFilter.GaussianBlur(RND*S/2)).point(lambda v:255 if v>150 else (0 if v<100 else int((v-100)*255/50)))
-            keep=ImageChops.invert(_rest_region().filter(ImageFilter.MaxFilter(4*S+1)))
-            m=ImageChops.multiply(ex,keep); sm=m
-            for j in range(rings):  # 넓어진 모양만큼 색도 다시 칠함
-                r0=RIN+(ROUT-RIN)*j/rings; r1=RIN+(ROUT-RIN)*(j+1)/rings+0.8; rc=(r0+r1)/2
-                wedge(d,r0,r1,-361,a1+GAP,radial(rc,RED_IN,RED,RED_OUT)); wedge(do,r0,r1,-361,a1+GAP,_lerp(RED_OFF_IN,RED_OFF_OUT,(rc-RIN)/(ROUT-RIN)))
         _CACHE[i]=(m,on,of,sm,seam)
     return _CACHE
 def gauge(off):
@@ -150,12 +144,12 @@ def _screen_mask():
 _BORDER={}
 _REG={}
 def _rest_region():
-    """휴식 구간 영역(S배 L 마스크). 윗변은 3시 선(y=CY) 그대로, 5시 쪽 변은 뾰족한 끝(CX+TIP_D,CY)에서
-    5시 선 위 r=300 지점(화면 아래 모서리 근처)으로 이어지고 그 바깥은 5시 선을 따름. 끝 주변은 둥글리지 않음."""
+    """휴식 구간 영역(S배 L 마스크). 꼭짓점 = 화면 중심(CX,CY). 윗변은 3시 방사선(y=CY), 5시 쪽 변은 5시 방사선(60°)
+    그대로라서 칸 경계각과 정확히 일치한다. 꼭짓점 주변은 둥글리지 않음."""
     if _REG: return _REG['r']
     FAR=900; a60=math.radians(60)
     tip=((CX+TIP_D)*S,CY*S)
-    pts=[tip,((CX+300*math.cos(a60))*S,(CY+300*math.sin(a60))*S),((CX+FAR*math.cos(a60))*S,(CY+FAR*math.sin(a60))*S),
+    pts=[tip,((CX+FAR*math.cos(a60))*S,(CY+FAR*math.sin(a60))*S),
          ((CX+FAR)*S,(CY+FAR*math.tan(math.radians(30)))*S),((CX+FAR)*S,CY*S)]
     sec=Image.new('L',(W*S,H*S),0); ImageDraw.Draw(sec).polygon(pts,fill=255)
     scr=Image.new('L',(W*S,H*S),0); ImageDraw.Draw(scr).rounded_rectangle((0,0,(W-1)*S,(H-1)*S),radius=80*S,fill=255)

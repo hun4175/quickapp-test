@@ -21,9 +21,9 @@ describe('프로젝트 구성', () => {
   it('manifest: 패키지명·버전·feature', () => {
     assert.equal(manifest.package, 'com.hun4175.pomodoro')
     assert.equal(manifest.name, '뽀모도로')
-    assert.equal(manifest.versionName, '0.1.4')
-    assert.equal(manifest.versionCode, 5)
-    assert.equal(pkg.version, '0.1.4')
+    assert.equal(manifest.versionName, '0.1.5')
+    assert.equal(manifest.versionCode, 6)
+    assert.equal(pkg.version, '0.1.5')
     assert.ok(manifest.deviceTypeList.includes('watch'))
     assert.deepEqual(
       manifest.features.map((f) => f.name).sort(),

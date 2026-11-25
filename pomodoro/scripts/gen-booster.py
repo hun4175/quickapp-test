@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""부스터 계기판(0.1.4) 런타임 리소스와 문서용 미리보기를 만든다.
+"""부스터 계기판(0.1.5) 런타임 리소스와 문서용 미리보기를 만든다.
 
 디자인 기준은 docs/booster-design/v11/gen_v11.py 이고, 그 함수를 그대로 가져다 쓴다.
 - src/common/booster/g00.png ~ g36.png : 켜진 칸 수(0~36)별 전체 화면 게이지 프레임(V.gauge_frame).
   시간 박스 검정 바탕과 휴식 테두리(네온)는 포함, 글자·숫자는 뺐다. 256색 팔레트 PNG.
 - src/common/booster/m0~m9.png(분), s0~s9.png(초), colon.png, focus.png, rest.png(라벨+네온 밑줄),
   hint-up.png, hint-text.png, hint-down.png : 투명 PNG 오버레이(v11 text_layer 와 같은 2단 글로우).
-- docs/preview-0.1.4-*.png : 위 리소스를 앱과 같은 좌표로 겹쳐 합성한 미리보기.
+- docs/preview-0.1.5-*.png : 위 리소스를 앱과 같은 좌표로 겹쳐 합성한 미리보기.
 앱은 게이지 image 하나의 src 만 바꾸고, 숫자 image 몇 개를 겹쳐 둔다.
 라벨 글꼴(Barlow Semi Condensed, SIL OFL 1.1)은 PNG 에 구워 넣고 rpk 에는 넣지 않는다.
 """
@@ -24,7 +24,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "docs", "booster-design", "v11"))
 import gen_v11 as V  # noqa: E402
 
-VERSION = "0.1.4"
+VERSION = "0.1.5"
 OUT = os.path.join(ROOT, "src", "common", "booster")
 DOCS = os.path.join(ROOT, "docs")
 W, H, CX, CY, S = V.W, V.H, V.CX, V.CY, V.S
