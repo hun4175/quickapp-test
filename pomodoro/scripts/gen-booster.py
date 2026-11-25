@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""부스터 계기판(0.1.5) 런타임 리소스와 문서용 미리보기를 만든다.
+"""부스터 계기판(0.1.6) 런타임 리소스와 문서용 미리보기를 만든다.
 
 디자인 기준은 docs/booster-design/v11/gen_v11.py 이고, 그 함수를 그대로 가져다 쓴다.
 - src/common/booster/g00.png ~ g36.png : 켜진 칸 수(0~36)별 전체 화면 게이지 프레임(V.gauge_frame).
   시간 박스 검정 바탕과 휴식 테두리(네온)는 포함, 글자·숫자는 뺐다. 256색 팔레트 PNG.
 - src/common/booster/m0~m9.png(분), s0~s9.png(초), colon.png, focus.png, rest.png(라벨+네온 밑줄),
-  hint-up.png, hint-text.png, hint-down.png : 투명 PNG 오버레이(v11 text_layer 와 같은 2단 글로우).
-- docs/preview-0.1.5-*.png : 위 리소스를 앱과 같은 좌표로 겹쳐 합성한 미리보기.
+  : 투명 PNG 오버레이(v11 text_layer 와 같은 2단 글로우).
+- src/common/setup/ : 설정 화면(0.1.6) 리소스. scripts/gen-setup.py 가 만든다(이 스크립트가 함께 부른다).
+- docs/preview-0.1.6-*.png : 위 리소스를 앱과 같은 좌표로 겹쳐 합성한 미리보기.
 앱은 게이지 image 하나의 src 만 바꾸고, 숫자 image 몇 개를 겹쳐 둔다.
 라벨 글꼴(Barlow Semi Condensed, SIL OFL 1.1)은 PNG 에 구워 넣고 rpk 에는 넣지 않는다.
 """
@@ -24,15 +25,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "docs", "booster-design", "v11"))
 import gen_v11 as V  # noqa: E402
 
-VERSION = "0.1.5"
+VERSION = "0.1.6"
 OUT = os.path.join(ROOT, "src", "common", "booster")
 DOCS = os.path.join(ROOT, "docs")
 W, H, CX, CY, S = V.W, V.H, V.CX, V.CY, V.S
 N, NF, NB = V.N, V.NF, V.NB
 GAUGE_COLORS = 256
 X0, Y0 = V.X0, V.Y0
-HY = V.BOXTOP - 14
-HINT_C = (170, 160, 150)
 PAUSE_C = V.TC  # 일시정지 막대도 숫자와 같은 웜화이트
 
 
@@ -121,22 +120,10 @@ def main():
         d.ellipse((X0 + 83.5, Y0 + 16.5, X0 + 88.5, Y0 + 21.5), fill=V.TC)
         d.ellipse((X0 + 83.5, Y0 + 38.5, X0 + 88.5, Y0 + 43.5), fill=V.TC)
 
-    def hint_up(T, d):
-        d.line([(300, HY + 5), (308, HY - 3), (316, HY + 5)], fill=HINT_C, width=2)
-
-    def hint_text(T, d):
-        d.text((324, HY - 10), "5~60", font=ImageFont.truetype(V.FONT_HINT, 17), fill=(140, 134, 126))
-
-    def hint_down(T, d):
-        d.line([(370, HY - 3), (378, HY + 5), (386, HY - 3)], fill=HINT_C, width=2)
-
     ul = underline_layer()
     # focus/rest 는 같은 .label 노드에서 src 만 바뀐다 → layout 키는 "label"
     put_group("label", [("focus", layer(label("FOCUS"), ul)), ("rest", layer(label("REST"), ul))])
     put_group("colon", [("colon", layer(colon))])
-    put_group("hint-up", [("hint-up", layer(hint_up))])
-    put_group("hint-text", [("hint-text", layer(hint_text))])
-    put_group("hint-down", [("hint-down", layer(hint_down))])
     css = {k: {"left": v[0], "top": v[1], "width": v[2][0], "height": v[2][1]} for k, v in layout.items()}
     css["m2"] = dict(css["m"], left=css["m"]["left"] + 40)
     css["s2"] = dict(css["s"], left=css["s"]["left"] + 29)
@@ -150,14 +137,12 @@ def main():
     previews(css)
 
 
-def compose(css, lit, mode, mm, ss, hint=False, up=1.0, down=1.0, paused=False) -> Image.Image:
+def compose(css, lit, mode, mm, ss, paused=False) -> Image.Image:
     """앱과 같은 순서·좌표로 실제 리소스를 겹친다(검정 위 alpha 합성)."""
     im = Image.open(os.path.join(OUT, f"g{lit:02d}.png")).convert("RGBA")
 
-    def put(name, key, opacity=1.0):
+    def put(name, key):
         o = Image.open(os.path.join(OUT, name + ".png")).convert("RGBA")
-        if opacity < 1:
-            o.putalpha(o.getchannel("A").point(lambda p: int(p * opacity)))
         im.alpha_composite(o, (css[key]["left"], css[key]["top"]))
 
     put("rest" if mode == "break" else "focus", "label")
@@ -166,10 +151,6 @@ def compose(css, lit, mode, mm, ss, hint=False, up=1.0, down=1.0, paused=False) 
     put("colon", "colon")
     put("s" + f"{ss:02d}"[0], "s")
     put("s" + f"{ss:02d}"[1], "s2")
-    if hint:
-        put("hint-up", "hint-up", up)
-        put("hint-text", "hint-text")
-        put("hint-down", "hint-down", down)
     if paused:  # index.ux .pause: 중심 구멍 안 웜화이트 막대 8x26 두 개
         d = ImageDraw.Draw(im)
         d.rounded_rectangle((204, 244, 211, 269), radius=2, fill=PAUSE_C + (255,))
@@ -185,12 +166,11 @@ def lit_of(phase, rem, tot):
 
 def previews(css):
     cases = [
-        ("idle", compose(css, N, "focus", 25, 0, hint=True), V.draw("idle", 25, 0, 0, True)),
-        ("focus-mid", compose(css, lit_of("focus", 750, 1500), "focus", 12, 30), V.draw("focus", 12, 30, V.off_focus(750, 1500))),
-        ("break", compose(css, lit_of("break", 150, 300), "break", 2, 30), V.draw("break", 2, 30, V.off_break(150, 300))),
+        ("timer-focus", compose(css, lit_of("focus", 750, 1500), "focus", 12, 30), V.draw("focus", 12, 30, V.off_focus(750, 1500))),
+        ("timer-break", compose(css, lit_of("break", 150, 300), "break", 2, 30), V.draw("break", 2, 30, V.off_break(150, 300))),
     ]
-    compose(css, lit_of("focus", 750, 1500), "focus", 12, 30, paused=True).save(
-        os.path.join(DOCS, f"preview-{VERSION}-paused.png"), optimize=True)
+    # 시작 애니메이션 중간(약 0.45초): 게이지 18칸, 숫자는 설정한 집중 시간 그대로
+    compose(css, 18, "focus", 25, 0).save(os.path.join(DOCS, f"preview-{VERSION}-intro-mid.png"), optimize=True)
     for name, mine, ref in cases:
         mine.save(os.path.join(DOCS, f"preview-{VERSION}-{name}.png"), optimize=True)
         diff = ImageChops.difference(mine, ref).convert("L")
@@ -203,3 +183,8 @@ def previews(css):
 
 if __name__ == "__main__":
     main()
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("gen_setup", os.path.join(ROOT, "scripts", "gen-setup.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.main()

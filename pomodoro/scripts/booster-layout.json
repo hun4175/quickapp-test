@@ -5,24 +5,6 @@
   "top": 190,
   "width": 32
  },
- "hint-down": {
-  "height": 34,
-  "left": 359,
-  "top": 99,
-  "width": 39
- },
- "hint-text": {
-  "height": 38,
-  "left": 311,
-  "top": 96,
-  "width": 59
- },
- "hint-up": {
-  "height": 34,
-  "left": 288,
-  "top": 99,
-  "width": 41
- },
  "label": {
   "height": 86,
   "left": 221,

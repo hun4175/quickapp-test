@@ -6,101 +6,236 @@
     ontouchend="onTouchEnd"
     ontouchcancel="onTouchCancel"
   >
-    <image class="gauge" src="{{gaugeSrc}}"></image>
-    <image class="label" src="{{labelSrc}}"></image>
-    <image class="dm dm1" src="{{m1Src}}"></image>
-    <image class="dm dm2" src="{{m2Src}}"></image>
-    <image class="colon" src="/common/booster/colon.png"></image>
-    <image class="ds ds1" src="{{s1Src}}"></image>
-    <image class="ds ds2" src="{{s2Src}}"></image>
-    <image class="hint-up" if="{{idle}}" src="/common/booster/hint-up.png" style="opacity: {{upOpacity}};"></image>
-    <image class="hint-text" if="{{idle}}" src="/common/booster/hint-text.png"></image>
-    <image class="hint-down" if="{{idle}}" src="/common/booster/hint-down.png" style="opacity: {{downOpacity}};"></image>
-    <div class="pause" if="{{paused}}">
-      <div class="bar"></div>
-      <div class="bar bar-r"></div>
+    <div class="view" if="{{view === 'setup'}}">
+      <image class="st-bg" src="/common/setup/bg.png"></image>
+      <image class="st-f1" src="{{f1Src}}"></image>
+      <image class="st-f2" src="{{f2Src}}"></image>
+      <image class="st-fprev1" if="{{fPrevShow}}" src="{{fPrev1Src}}"></image>
+      <image class="st-fprev2" if="{{fPrevShow}}" src="{{fPrev2Src}}"></image>
+      <image class="st-fnext1" if="{{fNextShow}}" src="{{fNext1Src}}"></image>
+      <image class="st-fnext2" if="{{fNextShow}}" src="{{fNext2Src}}"></image>
+      <image class="st-r1" src="{{r1Src}}"></image>
+      <image class="st-r2" src="{{r2Src}}"></image>
+      <image class="st-rprev1" if="{{rPrevShow}}" src="{{rPrev1Src}}"></image>
+      <image class="st-rprev2" if="{{rPrevShow}}" src="{{rPrev2Src}}"></image>
+      <image class="st-rnext1" if="{{rNextShow}}" src="{{rNext1Src}}"></image>
+      <image class="st-rnext2" if="{{rNextShow}}" src="{{rNext2Src}}"></image>
+      <image class="st-tog" src="{{toggleSrc}}"></image>
+    </div>
+    <div class="view" if="{{view === 'timer'}}">
+      <image class="gauge" src="{{gaugeSrc}}"></image>
+      <image class="label" src="{{labelSrc}}"></image>
+      <image class="dm dm1" src="{{m1Src}}"></image>
+      <image class="dm dm2" src="{{m2Src}}"></image>
+      <image class="colon" src="/common/booster/colon.png"></image>
+      <image class="ds ds1" src="{{s1Src}}"></image>
+      <image class="ds ds2" src="{{s2Src}}"></image>
+      <div class="pause" if="{{paused}}">
+        <div class="bar"></div>
+        <div class="bar bar-r"></div>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
 /**
- * 뽀모도로 (REDMI Watch 6 글로벌 · 432x514).
- * 화면: 부스터 계기판. 게이지는 미리 합성한 전체 화면 PNG 한 장의 src만 바꾸고(켜진 칸 0~36),
- * 시간·라벨은 7세그먼트 PNG를 겹친다. 리소스는 scripts/gen-booster.py 로 만든다.
- * 화면 하나, 설정 화면 없음. 탭=시작/일시정지, 길게 누르면 즉시 리셋.
- * 대기 중에만 위/아래 스와이프로 집중 시간(5~60분, 5분 단위)을 바꾼다.
+ * 뽀모도로 0.1.6 (REDMI Watch 6 글로벌 · 432x514).
+ * 한 페이지 안에 독립 뷰 두 개: view === 'setup'(설정) / 'timer'(부스터 계기판).
+ * 별도 페이지(router) 대신 한 페이지로 둔 이유:
+ *  - "백그라운드에서 돌아오면 항상 설정부터"를 onShow 하나로 처리한다. 페이지를 나누면
+ *    설정 → 타이머 → (router.back) 때도 onShow 가 불려 복귀와 구분이 안 된다.
+ *  - 페이지 스택이 없어 시스템 뒤로(오른쪽 스와이프)가 숨은 타이머 페이지로 가는 경우가 없다.
+ *  - router 를 쓰지 않으면 manifest·권한이 그대로다.
+ * 설정: 집중(5~60분, 5분 단위)·휴식(1~30분, 1분 단위) 값을 좌우로 끌어 바꾸고(왼쪽 끌기=늘림),
+ *       값 줄 좌/우 끝을 탭해도 한 칸씩 바뀐다. REPEAT 줄 탭=반복 토글, START 탭=시작.
+ * 시작: 설정 뷰를 닫고 게이지를 0칸→36칸으로 약 0.9초 채운 뒤 카운트다운 시작.
+ * 타이머: 탭=일시정지/재개, 길게 누르기=중지 후 설정으로.
+ * 초기화: onInit/onShow 에서 항상 설정 뷰, 진행 중 타이머는 버린다(설정값만 저장).
  * 소리·audio·muted·볼륨 API는 쓰지 않는다.
  */
 import vibrator from '@system.vibrator'
-import { loadState, saveState } from '../../common/persist.js'
+import { loadSettings, saveSettings } from '../../common/persist.js'
 import {
   TICK_MS,
   LONGPRESS_MS,
   VIBRATE_OFFSETS_MS,
   TAP_MAX_MOVE,
-  initialState,
-  isIdle,
-  advance,
+  INTRO_MS,
+  INTRO_FRAME_MS,
+  defaultSettings,
+  normalizeSettings,
+  stepSetting,
+  toggleRepeat,
+  scrollSteps,
+  setupHit,
+  tapSide,
+  setupViewModel,
+  armedState,
+  start,
   toggle,
-  reset,
-  adjustFocus,
-  classifySwipe,
+  advance,
+  introLit,
   viewModel
 } from '../../common/timer.js'
 
+/** 끌기 직후 이 시간(ms) 안의 뒤로 이벤트는 값 끌기로 보고 삼킨다. */
+const BACK_GUARD_MS = 400
+
 export default {
   private: {
+    view: 'setup',
+    f1Src: '/common/setup/f2.png',
+    f2Src: '/common/setup/f5.png',
+    r1Src: '/common/setup/r0.png',
+    r2Src: '/common/setup/r5.png',
+    fPrevShow: true,
+    fPrev1Src: '/common/setup/n2.png',
+    fPrev2Src: '/common/setup/n0.png',
+    fNextShow: true,
+    fNext1Src: '/common/setup/n3.png',
+    fNext2Src: '/common/setup/n0.png',
+    rPrevShow: true,
+    rPrev1Src: '/common/setup/n0.png',
+    rPrev2Src: '/common/setup/n4.png',
+    rNextShow: true,
+    rNext1Src: '/common/setup/n0.png',
+    rNext2Src: '/common/setup/n6.png',
+    toggleSrc: '/common/setup/tog-on.png',
     gaugeSrc: '/common/booster/g36.png',
     labelSrc: '/common/booster/focus.png',
     m1Src: '/common/booster/m2.png',
     m2Src: '/common/booster/m5.png',
     s1Src: '/common/booster/s0.png',
     s2Src: '/common/booster/s0.png',
-    paused: false,
-    idle: true,
-    upOpacity: 1,
-    downOpacity: 1
+    paused: false
   },
 
   onInit() {
-    this._state = initialState()
+    this._settings = defaultSettings()
+    this._state = null
     this._tickTimer = null
+    this._introTimer = null
+    this._introAt = 0
     this._lpTimer = null
     this._vibTimers = []
-    this._saveChain = Promise.resolve()
     this._touchActive = false
     this._longPressed = false
     this._touchX = 0
     this._touchY = 0
-    this.applyView()
+    this._touchRow = null
+    this._dragSteps = 0
+    this._dragged = false
+    this._lastDragAt = 0
+    this._settingsTouched = false
+    this.goSetup(false)
   },
 
   onShow() {
-    this.reload(true)
+    // 첫 실행이든 백그라운드에서 돌아온 것이든 항상 설정부터. 진행 중 타이머는 버린다.
+    this.goSetup(false)
+    this._settingsTouched = false
+    const self = this
+    loadSettings().then(function (s) {
+      if (self._settingsTouched || self.view !== 'setup') return
+      self._settings = normalizeSettings(s)
+      self.applySetup()
+    })
   },
 
   onHide() {
-    this.stopTick()
-    this.clearLpTimer()
-    this.clearVibrateTimers()
-    this.queueSave()
-    this.setKeepScreen(false)
+    this.goSetup(false)
+    saveSettings(this._settings)
   },
 
   onDestroy() {
-    this.stopTick()
-    this.clearLpTimer()
-    this.clearVibrateTimers()
-    this.setKeepScreen(false)
+    this.stopAll(false)
   },
 
   onBackPress() {
+    // 시스템 뒤로 = 오른쪽 스와이프. 설정에서 값을 끄는 중이면 앱을 닫지 않는다.
+    if (this.view === 'setup') {
+      if (this._touchActive && this._dragged) return true
+      if (Date.now() - this._lastDragAt < BACK_GUARD_MS) return true
+    }
     return false
   },
 
-  applyView() {
-    const v = viewModel(this._state)
+  /* ---------- 화면 전환 ---------- */
+
+  stopAll(keepVibe) {
+    this.stopTick()
+    this.stopIntro()
+    this.clearLpTimer()
+    if (!keepVibe) this.clearVibrateTimers()
+    this.setKeepScreen(false)
+  },
+
+  goSetup(keepVibe) {
+    this.stopAll(keepVibe)
+    this._state = null
+    this.paused = false
+    this.applySetup()
+    this.view = 'setup'
+  },
+
+  applySetup() {
+    const v = setupViewModel(this._settings)
+    const keys = [
+      'f1Src', 'f2Src', 'r1Src', 'r2Src',
+      'fPrevShow', 'fPrev1Src', 'fPrev2Src', 'fNextShow', 'fNext1Src', 'fNext2Src',
+      'rPrevShow', 'rPrev1Src', 'rPrev2Src', 'rNextShow', 'rNext1Src', 'rNext2Src',
+      'toggleSrc'
+    ]
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i]
+      if (this[k] !== v[k]) this[k] = v[k]
+    }
+  },
+
+  changeSettings(next) {
+    this._settings = next
+    this._settingsTouched = true
+    this.applySetup()
+  },
+
+  /** START: 설정 뷰 닫기 → 게이지 0칸에서 36칸까지 채우는 시작 애니메이션 → 카운트다운. */
+  beginSession() {
+    saveSettings(this._settings)
+    this.stopAll(false)
+    this._state = armedState(this._settings)
+    this.applyTimer(0)
+    this.view = 'timer'
+    this.setKeepScreen(true)
+    this._introAt = Date.now()
+    const self = this
+    this._introTimer = setInterval(function () {
+      self.onIntroFrame()
+    }, INTRO_FRAME_MS)
+  },
+
+  onIntroFrame() {
+    const elapsed = Date.now() - this._introAt
+    if (elapsed < INTRO_MS) {
+      this.applyTimer(introLit(elapsed))
+      return
+    }
+    this.stopIntro()
+    this._state = start(this._state, Date.now())
+    this.applyTimer()
+    this.startTick()
+  },
+
+  stopIntro() {
+    if (this._introTimer) {
+      clearInterval(this._introTimer)
+      this._introTimer = null
+    }
+  },
+
+  applyTimer(litOverride) {
+    if (!this._state) return
+    const v = viewModel(this._state, litOverride)
     // 바뀐 값만 넣어 image src 재로딩을 줄인다.
     if (this.gaugeSrc !== v.gaugeSrc) this.gaugeSrc = v.gaugeSrc
     if (this.labelSrc !== v.labelSrc) this.labelSrc = v.labelSrc
@@ -108,35 +243,10 @@ export default {
     if (this.m2Src !== v.m2Src) this.m2Src = v.m2Src
     if (this.s1Src !== v.s1Src) this.s1Src = v.s1Src
     if (this.s2Src !== v.s2Src) this.s2Src = v.s2Src
-    this.paused = v.paused
-    this.idle = v.idle
-    this.upOpacity = v.upOpacity
-    this.downOpacity = v.downOpacity
+    if (this.paused !== v.paused) this.paused = v.paused
   },
 
-  async reload(startIfRunning) {
-    const loaded = await loadState()
-    const now = Date.now()
-    const result = advance(loaded, now)
-    this._state = result.state
-    this.applyView()
-    if (result.crossed > 0) this.pulseVibrate()
-    this.queueSave()
-    if (startIfRunning && this._state.running) {
-      this.startTick()
-      this.setKeepScreen(true)
-    } else {
-      this.stopTick()
-      this.setKeepScreen(false)
-    }
-  },
-
-  queueSave() {
-    const state = this._state
-    this._saveChain = this._saveChain.then(function () {
-      return saveState(state)
-    })
-  },
+  /* ---------- 타이머 ---------- */
 
   startTick() {
     this.stopTick()
@@ -154,12 +264,28 @@ export default {
   },
 
   onTick() {
+    if (!this._state) return
     const result = advance(this._state, Date.now())
     this._state = result.state
-    this.applyView()
-    if (result.crossed > 0) {
-      this.pulseVibrate()
-      this.queueSave()
+    if (result.crossed > 0) this.pulseVibrate()
+    if (result.finished) {
+      // 반복 끔: 집중+휴식 한 번이 끝나면 진동 후 설정으로
+      this.goSetup(true)
+      return
+    }
+    this.applyTimer()
+  },
+
+  onToggle() {
+    if (!this._state || this._introTimer) return
+    this._state = toggle(this._state, Date.now())
+    this.applyTimer()
+    if (this._state.running) {
+      this.startTick()
+      this.setKeepScreen(true)
+    } else {
+      this.stopTick()
+      this.setKeepScreen(false)
     }
   },
 
@@ -209,6 +335,8 @@ export default {
     }
   },
 
+  /* ---------- 터치 ---------- */
+
   touchPoint(e) {
     const list =
       (e && e.changedTouches && e.changedTouches.length && e.changedTouches) ||
@@ -226,16 +354,23 @@ export default {
     const p = this.touchPoint(e)
     this._touchActive = true
     this._longPressed = false
+    this._dragged = false
+    this._dragSteps = 0
     this._touchX = p ? p.x : 0
     this._touchY = p ? p.y : 0
     this.clearLpTimer()
+    if (this.view === 'setup') {
+      this._touchRow = p ? setupHit(p.x, p.y) : null
+      return
+    }
+    // 타이머: 길게 누르면 중지하고 설정으로(시작 애니메이션 중에도)
     const self = this
     this._lpTimer = setTimeout(function () {
       self._lpTimer = null
       if (!self._touchActive) return
       self._longPressed = true
       self._touchActive = false
-      self.onReset()
+      self.goSetup(false)
     }, LONGPRESS_MS)
   },
 
@@ -245,9 +380,25 @@ export default {
     if (!p) return
     const dx = p.x - this._touchX
     const dy = p.y - this._touchY
-    if (dx * dx + dy * dy > TAP_MAX_MOVE * TAP_MAX_MOVE) {
-      this.clearLpTimer()
+    if (this.view === 'setup') {
+      const row = this._touchRow
+      if (row !== 'focus' && row !== 'break') return
+      if (Math.abs(dx) < Math.abs(dy)) return
+      const steps = scrollSteps(dx)
+      if (steps !== this._dragSteps) {
+        let next = this._settings
+        const dir = steps > this._dragSteps ? 1 : -1
+        for (let i = this._dragSteps; i !== steps; i += dir) next = stepSetting(next, row, dir)
+        this._dragSteps = steps
+        this.changeSettings(next)
+      }
+      if (Math.abs(dx) > TAP_MAX_MOVE) {
+        this._dragged = true
+        this._lastDragAt = Date.now()
+      }
+      return
     }
+    if (dx * dx + dy * dy > TAP_MAX_MOVE * TAP_MAX_MOVE) this.clearLpTimer()
   },
 
   onTouchEnd(e) {
@@ -258,54 +409,150 @@ export default {
     const p = this.touchPoint(e)
     const dx = p ? p.x - this._touchX : 0
     const dy = p ? p.y - this._touchY : 0
-    const swipe = classifySwipe(dx, dy)
-    if (swipe) {
-      if (isIdle(this._state)) {
-        this._state = adjustFocus(this._state, swipe)
-        this.applyView()
-        this.queueSave()
+    const isTap = dx * dx + dy * dy <= TAP_MAX_MOVE * TAP_MAX_MOVE
+    if (this.view === 'setup') {
+      if (this._dragged || this._dragSteps !== 0) {
+        this._lastDragAt = Date.now()
+        saveSettings(this._settings)
+        return
+      }
+      if (!isTap) return
+      const row = this._touchRow
+      if (row === 'focus' || row === 'break') {
+        const side = tapSide(this._touchX)
+        if (side) {
+          this.changeSettings(stepSetting(this._settings, row, side))
+          saveSettings(this._settings)
+        }
+      } else if (row === 'repeat') {
+        this.changeSettings(toggleRepeat(this._settings))
+        saveSettings(this._settings)
+      } else if (row === 'start') {
+        this.beginSession()
       }
       return
     }
-    if (dx * dx + dy * dy > TAP_MAX_MOVE * TAP_MAX_MOVE) return
-    this.onToggle()
+    if (isTap) this.onToggle()
   },
 
   onTouchCancel() {
     this.clearLpTimer()
     this._touchActive = false
-  },
-
-  onToggle() {
-    const next = toggle(this._state, Date.now())
-    this._state = next
-    this.applyView()
-    this.queueSave()
-    if (next.running) {
-      this.startTick()
-      this.setKeepScreen(true)
-    } else {
-      this.stopTick()
-      this.setKeepScreen(false)
-    }
-  },
-
-  onReset() {
-    this.stopTick()
-    this._state = reset(this._state)
-    this.applyView()
-    this.queueSave()
-    this.setKeepScreen(false)
   }
 }
 </script>
 
 <style>
-/* 좌표는 scripts/booster-layout.json (gen-booster.py 출력) 과 같다. */
+/* 좌표는 scripts/setup-layout.json, scripts/booster-layout.json (gen-booster.py / gen-setup.py 출력) 과 같다. */
 .page {
   width: 100%;
   height: 100%;
   background-color: #000000;
+}
+.view {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 432px;
+  height: 514px;
+}
+.st-bg {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 432px;
+  height: 514px;
+}
+.st-f1 {
+  position: absolute;
+  left: 138px;
+  top: 72px;
+  width: 92px;
+  height: 125px;
+}
+.st-f2 {
+  position: absolute;
+  left: 202px;
+  top: 72px;
+  width: 92px;
+  height: 125px;
+}
+.st-fnext1 {
+  position: absolute;
+  left: 319px;
+  top: 115px;
+  width: 26px;
+  height: 39px;
+}
+.st-fnext2 {
+  position: absolute;
+  left: 345px;
+  top: 115px;
+  width: 26px;
+  height: 39px;
+}
+.st-fprev1 {
+  position: absolute;
+  left: 61px;
+  top: 115px;
+  width: 26px;
+  height: 39px;
+}
+.st-fprev2 {
+  position: absolute;
+  left: 87px;
+  top: 115px;
+  width: 26px;
+  height: 39px;
+}
+.st-r1 {
+  position: absolute;
+  left: 139px;
+  top: 229px;
+  width: 90px;
+  height: 123px;
+}
+.st-r2 {
+  position: absolute;
+  left: 203px;
+  top: 229px;
+  width: 90px;
+  height: 123px;
+}
+.st-rnext1 {
+  position: absolute;
+  left: 319px;
+  top: 271px;
+  width: 26px;
+  height: 39px;
+}
+.st-rnext2 {
+  position: absolute;
+  left: 345px;
+  top: 271px;
+  width: 26px;
+  height: 39px;
+}
+.st-rprev1 {
+  position: absolute;
+  left: 61px;
+  top: 271px;
+  width: 26px;
+  height: 39px;
+}
+.st-rprev2 {
+  position: absolute;
+  left: 87px;
+  top: 271px;
+  width: 26px;
+  height: 39px;
+}
+.st-tog {
+  position: absolute;
+  left: 243px;
+  top: 352px;
+  width: 133px;
+  height: 64px;
 }
 .gauge {
   position: absolute;
@@ -355,27 +602,6 @@ export default {
   top: 193px;
   width: 56px;
   height: 71px;
-}
-.hint-up {
-  position: absolute;
-  left: 288px;
-  top: 99px;
-  width: 41px;
-  height: 34px;
-}
-.hint-text {
-  position: absolute;
-  left: 311px;
-  top: 96px;
-  width: 59px;
-  height: 38px;
-}
-.hint-down {
-  position: absolute;
-  left: 359px;
-  top: 99px;
-  width: 39px;
-  height: 34px;
 }
 /* 일시정지: 게이지 중심 구멍 안의 막대 두 개 (숫자와 같은 웜화이트) */
 .pause {

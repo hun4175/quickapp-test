@@ -1,12 +1,13 @@
 /**
- * system.storage 래퍼. 타이머 상태만 로컬에 저장한다.
+ * system.storage 래퍼. 설정(집중·휴식·반복)만 저장한다.
+ * 진행 중 타이머 상태는 저장하지 않는다: 앱을 다시 열거나 백그라운드에서 돌아오면 항상 설정부터.
  */
 import storage from '@system.storage'
 import {
-  STORAGE_KEY,
-  serializeState,
-  deserializeState,
-  initialState
+  SETTINGS_KEY,
+  LEGACY_STATE_KEY,
+  serializeSettings,
+  deserializeSettings
 } from './timer.js'
 
 const storageGet = (key) =>
@@ -23,19 +24,18 @@ const storageGet = (key) =>
     }
   })
 
-export const loadState = () =>
-  new Promise((resolve) => {
-    storageGet(STORAGE_KEY).then((data) => {
-      resolve(data ? deserializeState(data) : initialState())
-    })
+export const loadSettings = () =>
+  storageGet(SETTINGS_KEY).then((raw) => {
+    if (raw) return deserializeSettings(raw, '')
+    return storageGet(LEGACY_STATE_KEY).then((legacy) => deserializeSettings('', legacy))
   })
 
-export const saveState = (state) =>
+export const saveSettings = (settings) =>
   new Promise((resolve) => {
     try {
       storage.set({
-        key: STORAGE_KEY,
-        value: serializeState(state),
+        key: SETTINGS_KEY,
+        value: serializeSettings(settings),
         success: () => resolve(true),
         fail: () => resolve(false)
       })

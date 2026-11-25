@@ -1,30 +1,36 @@
 /**
- * 뽀모도로 타이머 순수 로직.
+ * 뽀모도로 순수 로직(0.1.6).
+ * - 설정(settings): 집중 시간, 휴식 시간, 반복 여부. 마지막 값만 저장한다.
+ * - 세션(state): 진행 중 타이머. 저장하지 않는다(앱을 다시 열거나 백그라운드에서 돌아오면 설정부터).
  * 남은 시간은 끝시각(endAt)에서 매번 계산한다. 누적 감산은 쓰지 않는다.
  */
 
-export const FOCUS_MS = 25 * 60 * 1000
-export const BREAK_MS = 5 * 60 * 1000
-export const FOCUS_MIN_MS = 5 * 60 * 1000
-export const FOCUS_MAX_MS = 60 * 60 * 1000
-export const FOCUS_STEP_MS = 5 * 60 * 1000
+const MIN = 60 * 1000
+
+export const FOCUS_MS = 25 * MIN
+export const BREAK_MS = 5 * MIN
+export const FOCUS_MIN_MS = 5 * MIN
+export const FOCUS_MAX_MS = 60 * MIN
+export const FOCUS_STEP_MS = 5 * MIN
+export const BREAK_MIN_MS = 1 * MIN
+export const BREAK_MAX_MS = 30 * MIN
+export const BREAK_STEP_MS = 1 * MIN
+export const REPEAT_DEFAULT = true
 export const TICK_MS = 1000
 export const LONGPRESS_MS = 560
 export const VIBRATE_OFFSETS_MS = [0, 500, 1000]
-export const STORAGE_KEY = 'pomodoro.state.v1'
+export const SETTINGS_KEY = 'pomodoro.settings.v1'
+/** 0.1.5 이하가 쓰던 상태 키. 집중 시간만 한 번 이어받는다. */
+export const LEGACY_STATE_KEY = 'pomodoro.state.v1'
 export const SCREEN_W = 432
 export const SCREEN_H = 514
 /** 탭으로 인정하는 최대 이동(px). 이보다 크면 길게 누르기를 취소한다. */
 export const TAP_MAX_MOVE = 40
-/** 대기 중 집중 시간 조절로 인정하는 최소 세로 이동(px). */
-export const SWIPE_MIN_DY = 48
-export const SWIPE_VERTICAL_RATIO = 1.2
-
-export const COLOR_FOCUS = '#FF4B4B'
-export const COLOR_BREAK = '#3DDC84'
-export const COLOR_FOCUS_DIM = '#8A3A3A'
-export const COLOR_BREAK_DIM = '#2A6B4A'
-export const COLOR_EMPTY = '#000000'
+/** 설정 화면 가로 끌기: 이 거리(px)마다 한 칸씩 값이 바뀐다. */
+export const SCROLL_STEP_PX = 44
+/** 시작 애니메이션: 게이지 0칸 → 36칸을 이 시간(ms)에 채운다. */
+export const INTRO_MS = 900
+export const INTRO_FRAME_MS = 50
 
 const MAX_CATCHUP = 10000
 
@@ -33,209 +39,271 @@ export function pad2(n) {
   return s.length < 2 ? '0' + s : s
 }
 
-/** 5분 단위로 맞추고 5~60분 범위로 자른다. 비정상이면 기본 25분. */
-export function clampFocusMs(ms) {
+function clampStep(ms, lo, hi, step, dflt) {
   const raw = Number(ms)
-  if (!isFinite(raw)) return FOCUS_MS
-  const snapped = Math.round(raw / FOCUS_STEP_MS) * FOCUS_STEP_MS
-  if (snapped < FOCUS_MIN_MS) return FOCUS_MIN_MS
-  if (snapped > FOCUS_MAX_MS) return FOCUS_MAX_MS
+  if (ms === null || ms === undefined || ms === '' || !isFinite(raw)) return dflt
+  const snapped = Math.round(raw / step) * step
+  if (snapped < lo) return lo
+  if (snapped > hi) return hi
   return snapped
 }
 
-export function durationOf(phase, focusMs) {
-  return phase === 'break' ? BREAK_MS : clampFocusMs(focusMs)
+/** 5분 단위, 5~60분. 비정상이면 기본 25분. */
+export function clampFocusMs(ms) {
+  return clampStep(ms, FOCUS_MIN_MS, FOCUS_MAX_MS, FOCUS_STEP_MS, FOCUS_MS)
 }
 
-export function initialState() {
+/** 1분 단위, 1~30분. 비정상이면 기본 5분. */
+export function clampBreakMs(ms) {
+  return clampStep(ms, BREAK_MIN_MS, BREAK_MAX_MS, BREAK_STEP_MS, BREAK_MS)
+}
+
+/* ---------------- 설정 ---------------- */
+
+export function defaultSettings() {
+  return { focusMs: FOCUS_MS, breakMs: BREAK_MS, repeat: REPEAT_DEFAULT }
+}
+
+export function normalizeSettings(raw) {
+  const s = raw && typeof raw === 'object' ? raw : {}
+  return {
+    focusMs: clampFocusMs(s.focusMs),
+    breakMs: clampBreakMs(s.breakMs),
+    repeat: s.repeat === false ? false : s.repeat === true ? true : REPEAT_DEFAULT
+  }
+}
+
+export function serializeSettings(settings) {
+  return JSON.stringify(normalizeSettings(settings))
+}
+
+/**
+ * 저장 문자열 → 설정. 새 키가 없으면 옛 상태(0.1.5 이하)의 focusMs 만 이어받는다.
+ * 옛 상태의 진행 중 타이머(running/endAt)는 버린다.
+ */
+export function deserializeSettings(raw, legacyRaw) {
+  const parse = (str) => {
+    if (!str || typeof str !== 'string') return null
+    try {
+      const p = JSON.parse(str)
+      return p && typeof p === 'object' ? p : null
+    } catch (e) {
+      return null
+    }
+  }
+  const cur = parse(raw)
+  if (cur) return normalizeSettings(cur)
+  const old = parse(legacyRaw)
+  if (old && old.focusMs != null) return normalizeSettings({ focusMs: old.focusMs })
+  return defaultSettings()
+}
+
+/** which: 'focus' | 'break', dir: +1 늘림 / -1 줄임. 끝에서는 그대로. */
+export function stepSetting(settings, which, dir) {
+  const s = normalizeSettings(settings)
+  const d = Number(dir) > 0 ? 1 : Number(dir) < 0 ? -1 : 0
+  if (!d) return s
+  if (which === 'break') {
+    return { focusMs: s.focusMs, breakMs: clampBreakMs(s.breakMs + d * BREAK_STEP_MS), repeat: s.repeat }
+  }
+  return { focusMs: clampFocusMs(s.focusMs + d * FOCUS_STEP_MS), breakMs: s.breakMs, repeat: s.repeat }
+}
+
+export function toggleRepeat(settings) {
+  const s = normalizeSettings(settings)
+  return { focusMs: s.focusMs, breakMs: s.breakMs, repeat: !s.repeat }
+}
+
+/**
+ * 가로 끌기 누적 이동 dx(px) → 지금까지 적용할 칸 수.
+ * 왼쪽으로 끌면(dx<0) 오른쪽의 더 큰 값이 가운데로 온다 → 늘림(+).
+ */
+export function scrollSteps(dx, stepPx) {
+  const px = Number(stepPx) > 0 ? Number(stepPx) : SCROLL_STEP_PX
+  const v = -(Number(dx) || 0) / px
+  const n = v >= 0 ? Math.floor(v) : -Math.floor(-v)
+  return n === 0 ? 0 : n
+}
+
+/** 설정 화면 터치 영역(y 구간). scripts/gen-setup.py 배치와 맞춘다(test/project.test.mjs 가 확인). */
+export const SETUP_ROWS = {
+  focus: [0, 196],
+  break: [196, 352],
+  repeat: [352, 416],
+  start: [416, SCREEN_H]
+}
+export const SETUP_START_X = [96, 336]
+/** 값 줄에서 이 x보다 왼쪽 탭은 -1, 오른쪽 탭은 +1(가로 끌기가 시스템 제스처에 먹힐 때의 보조). */
+export const SETUP_TAP_SIDE = [144, 288]
+
+export function setupHit(x, y) {
+  const yy = Number(y) || 0
+  const xx = Number(x) || 0
+  if (yy < SETUP_ROWS.focus[1]) return 'focus'
+  if (yy < SETUP_ROWS.break[1]) return 'break'
+  if (yy < SETUP_ROWS.repeat[1]) return 'repeat'
+  if (xx >= SETUP_START_X[0] && xx <= SETUP_START_X[1]) return 'start'
+  return null
+}
+
+/** 값 줄 탭 위치 → -1 / 0 / +1 */
+export function tapSide(x) {
+  const xx = Number(x) || 0
+  if (xx < SETUP_TAP_SIDE[0]) return -1
+  if (xx > SETUP_TAP_SIDE[1]) return 1
+  return 0
+}
+
+export const SETUP_DIR = '/common/setup/'
+
+function digitSrcs(prefix, minutes) {
+  const t = pad2(minutes)
+  return [SETUP_DIR + prefix + t.charAt(0) + '.png', SETUP_DIR + prefix + t.charAt(1) + '.png']
+}
+
+export function setupViewModel(settings) {
+  const s = normalizeSettings(settings)
+  const fm = Math.round(s.focusMs / MIN)
+  const bm = Math.round(s.breakMs / MIN)
+  const f = digitSrcs('f', fm)
+  const b = digitSrcs('r', bm)
+  const fPrev = s.focusMs > FOCUS_MIN_MS ? digitSrcs('n', fm - FOCUS_STEP_MS / MIN) : null
+  const fNext = s.focusMs < FOCUS_MAX_MS ? digitSrcs('n', fm + FOCUS_STEP_MS / MIN) : null
+  const bPrev = s.breakMs > BREAK_MIN_MS ? digitSrcs('n', bm - 1) : null
+  const bNext = s.breakMs < BREAK_MAX_MS ? digitSrcs('n', bm + 1) : null
+  const blank = SETUP_DIR + 'n0.png'
+  return {
+    focusText: pad2(fm),
+    breakText: pad2(bm),
+    f1Src: f[0],
+    f2Src: f[1],
+    r1Src: b[0],
+    r2Src: b[1],
+    fPrevShow: !!fPrev,
+    fPrev1Src: fPrev ? fPrev[0] : blank,
+    fPrev2Src: fPrev ? fPrev[1] : blank,
+    fNextShow: !!fNext,
+    fNext1Src: fNext ? fNext[0] : blank,
+    fNext2Src: fNext ? fNext[1] : blank,
+    rPrevShow: !!bPrev,
+    rPrev1Src: bPrev ? bPrev[0] : blank,
+    rPrev2Src: bPrev ? bPrev[1] : blank,
+    rNextShow: !!bNext,
+    rNext1Src: bNext ? bNext[0] : blank,
+    rNext2Src: bNext ? bNext[1] : blank,
+    repeat: s.repeat,
+    toggleSrc: SETUP_DIR + (s.repeat ? 'tog-on.png' : 'tog-off.png')
+  }
+}
+
+/* ---------------- 세션(타이머) ---------------- */
+
+export function durationOf(phase, settings) {
+  const s = normalizeSettings(settings)
+  return phase === 'break' ? s.breakMs : s.focusMs
+}
+
+/** 설정 완료 직후, 시작 애니메이션 동안의 상태: 집중 가득, 아직 시간은 흐르지 않음. */
+export function armedState(settings) {
+  const s = normalizeSettings(settings)
   return {
     phase: 'focus',
     running: false,
     endAt: null,
-    remainMs: FOCUS_MS,
-    focusMs: FOCUS_MS,
-    idle: true
+    remainMs: s.focusMs,
+    focusMs: s.focusMs,
+    breakMs: s.breakMs,
+    repeat: s.repeat,
+    done: false
   }
 }
 
 export function normalizeState(raw) {
   const src = raw && typeof raw === 'object' ? raw : {}
+  const st = normalizeSettings(src)
   const phase = src.phase === 'break' ? 'break' : 'focus'
-  const running = !!src.running
-  const focusMs = clampFocusMs(src.focusMs == null ? FOCUS_MS : src.focusMs)
+  const dur = durationOf(phase, st)
   const endAtNum = Number(src.endAt)
-  const endAt = running && isFinite(endAtNum) && endAtNum > 0 ? endAtNum : null
+  const endAt = src.running && isFinite(endAtNum) && endAtNum > 0 ? endAtNum : null
   let remainMs = Number(src.remainMs)
-  if (!isFinite(remainMs) || remainMs < 0) {
-    remainMs = durationOf(phase, focusMs)
-  }
-  const maxRemain = durationOf(phase, focusMs)
-  if (remainMs > maxRemain) {
-    remainMs = maxRemain
-  }
-  if (running && endAt === null) {
-    return {
-      phase: phase,
-      running: false,
-      endAt: null,
-      remainMs: remainMs,
-      focusMs: focusMs,
-      idle: inferIdle(false, phase, remainMs, focusMs, src.idle)
-    }
-  }
+  if (!isFinite(remainMs) || remainMs < 0) remainMs = dur
+  if (remainMs > dur) remainMs = dur
+  const running = !!src.running && endAt !== null
   return {
     phase: phase,
     running: running,
     endAt: running ? endAt : null,
     remainMs: remainMs,
-    focusMs: focusMs,
-    idle: inferIdle(running, phase, remainMs, focusMs, src.idle)
+    focusMs: st.focusMs,
+    breakMs: st.breakMs,
+    repeat: st.repeat,
+    done: !!src.done && !running
   }
 }
 
-function inferIdle(running, phase, remainMs, focusMs, rawIdle) {
-  if (running) return false
-  if (rawIdle === true || rawIdle === false) return rawIdle
-  return phase === 'focus' && remainMs === focusMs
-}
-
-export function serializeState(state) {
-  return JSON.stringify(normalizeState(state))
-}
-
-export function deserializeState(raw) {
-  if (!raw || typeof raw !== 'string') return initialState()
-  try {
-    const parsed = JSON.parse(raw)
-    if (!parsed || typeof parsed !== 'object') return initialState()
-    return normalizeState(parsed)
-  } catch (e) {
-    return initialState()
+function withTime(s, fields) {
+  return {
+    phase: fields.phase != null ? fields.phase : s.phase,
+    running: fields.running != null ? fields.running : s.running,
+    endAt: fields.endAt !== undefined ? fields.endAt : s.endAt,
+    remainMs: fields.remainMs != null ? fields.remainMs : s.remainMs,
+    focusMs: s.focusMs,
+    breakMs: s.breakMs,
+    repeat: s.repeat,
+    done: fields.done != null ? fields.done : s.done
   }
-}
-
-export function isIdle(state) {
-  return normalizeState(state).idle
 }
 
 export function start(state, now) {
   const s = normalizeState(state)
   const t = Number(now)
-  if (!isFinite(t)) return s
-  if (s.running) return s
-  let phase = s.phase
-  let remain = s.remainMs
-  if (remain <= 0) {
-    phase = phase === 'focus' ? 'break' : 'focus'
-    remain = durationOf(phase, s.focusMs)
-  }
-  return {
-    phase: phase,
-    running: true,
-    endAt: t + remain,
-    remainMs: remain,
-    focusMs: s.focusMs,
-    idle: false
-  }
+  if (!isFinite(t) || s.running || s.done) return s
+  const remain = s.remainMs > 0 ? s.remainMs : durationOf(s.phase, s)
+  return withTime(s, { running: true, endAt: t + remain, remainMs: remain })
 }
 
 export function pause(state, now) {
   const s = normalizeState(state)
   const t = Number(now)
   if (!s.running) return s
-  const endAt = s.endAt === null ? t : s.endAt
-  const remain = Math.max(0, endAt - t)
-  return {
-    phase: s.phase,
-    running: false,
-    endAt: null,
-    remainMs: remain,
-    focusMs: s.focusMs,
-    idle: false
-  }
+  const remain = Math.max(0, (isFinite(t) ? s.endAt - t : s.remainMs))
+  return withTime(s, { running: false, endAt: null, remainMs: remain })
 }
 
 export function toggle(state, now) {
   return normalizeState(state).running ? pause(state, now) : start(state, now)
 }
 
-/** 확인 없이 집중 대기로. 저장해 둔 집중 시간은 유지한다. */
-export function reset(state) {
-  const focusMs = clampFocusMs(state && state.focusMs)
-  return {
-    phase: 'focus',
-    running: false,
-    endAt: null,
-    remainMs: focusMs,
-    focusMs: focusMs,
-    idle: true
-  }
-}
-
-/**
- * 대기 중에만 집중 시간을 5분 단위로 바꾼다.
- * dir: 'up' | 1 늘림, 'down' | -1 줄임. 실행/일시정지면 그대로 둔다.
- */
-export function adjustFocus(state, dir) {
-  const s = normalizeState(state)
-  if (!s.idle) return s
-  const step = dir === 'up' || dir === 1 ? FOCUS_STEP_MS : -FOCUS_STEP_MS
-  const next = clampFocusMs(s.focusMs + step)
-  if (next === s.focusMs) return s
-  return {
-    phase: 'focus',
-    running: false,
-    endAt: null,
-    remainMs: next,
-    focusMs: next,
-    idle: true
-  }
-}
-
-/**
- * 세로 스와이프 판정. 위로 쓸면 'up', 아래로 쓸면 'down', 아니면 null.
- * 탭·가로 이동과 구분하기 위해 최소 거리와 세로 비율을 본다.
- */
-export function classifySwipe(dx, dy, opts) {
-  const o = opts && typeof opts === 'object' ? opts : {}
-  const minDy = Number(o.minDy != null ? o.minDy : SWIPE_MIN_DY)
-  const ratio = Number(o.ratio != null ? o.ratio : SWIPE_VERTICAL_RATIO)
-  const adx = Math.abs(Number(dx) || 0)
-  const ady = Math.abs(Number(dy) || 0)
-  if (ady < minDy) return null
-  if (ady < adx * ratio) return null
-  return Number(dy) < 0 ? 'up' : 'down'
-}
-
 /**
  * 실행 중이면 now 기준으로 구간을 진행시킨다.
- * 앱 밖에 있는 동안 여러 구간이 지났으면 crossed 만큼 넘어간다.
- * @returns {{ state: object, crossed: number }}
+ * 반복 켬: 집중→휴식→집중… 반복 끔: 집중→휴식 한 번 후 done(정지).
+ * @returns {{ state: object, crossed: number, finished: boolean }}
  */
 export function advance(state, now) {
   const s = normalizeState(state)
   const t = Number(now)
   if (!s.running || s.endAt === null || !isFinite(t)) {
-    return { state: s, crossed: 0 }
+    return { state: s, crossed: 0, finished: false }
   }
   let phase = s.phase
   let endAt = s.endAt
   let crossed = 0
   while (t >= endAt && crossed < MAX_CATCHUP) {
-    phase = phase === 'focus' ? 'break' : 'focus'
-    endAt = endAt + durationOf(phase, s.focusMs)
     crossed = crossed + 1
+    if (phase === 'break' && !s.repeat) {
+      return {
+        state: withTime(s, { phase: 'break', running: false, endAt: null, remainMs: 0, done: true }),
+        crossed: crossed,
+        finished: true
+      }
+    }
+    phase = phase === 'focus' ? 'break' : 'focus'
+    endAt = endAt + durationOf(phase, s)
   }
   return {
-    state: {
-      phase: phase,
-      running: true,
-      endAt: endAt,
-      remainMs: Math.max(0, endAt - t),
-      focusMs: s.focusMs,
-      idle: false
-    },
-    crossed: crossed
+    state: withTime(s, { phase: phase, running: true, endAt: endAt, remainMs: Math.max(0, endAt - t) }),
+    crossed: crossed,
+    finished: false
   }
 }
 
@@ -247,31 +315,13 @@ export function formatTime(ms) {
   return pad2(m) + ':' + pad2(sec)
 }
 
-/** 남은 비율 0..1. 1이면 화면이 가득, 0이면 비움. */
+/** 남은 비율 0..1. */
 export function remainRatio(remainMs, durationMs) {
   const dur = Number(durationMs)
   const rem = Math.max(0, Number(remainMs) || 0)
   if (!dur || dur <= 0) return 0
   if (rem >= dur) return 1
   return rem / dur
-}
-
-/** 아래쪽에 남는 색 영역의 높이(px). */
-export function fillHeight(remainMs, durationMs, screenH) {
-  const h = screenH || SCREEN_H
-  return Math.round(remainRatio(remainMs, durationMs) * h)
-}
-
-export const ARROW_OPACITY_ON = 1
-export const ARROW_OPACITY_DIM = 0.3
-
-export function nextPhaseOf(phase) {
-  return phase === 'break' ? 'focus' : 'break'
-}
-
-export function phaseColor(phase, dim) {
-  if (phase === 'break') return dim ? COLOR_BREAK_DIM : COLOR_BREAK
-  return dim ? COLOR_FOCUS_DIM : COLOR_FOCUS
 }
 
 /** 부스터 게이지 칸 수. 집중 30칸 + 휴식 6칸 = 36칸. */
@@ -290,28 +340,37 @@ export function litCells(phase, remainMs, durationMs) {
   return GAUGE_BREAK_CELLS + Math.ceil(r * GAUGE_FOCUS_CELLS)
 }
 
+/**
+ * 시작 애니메이션: 경과 ms → 켜진 칸 수. 0ms=0칸, INTRO_MS 이상=36칸.
+ * 프레임 타이머가 밀려도 경과 시간 기준이라 끝나는 시점은 같다(칸을 건너뛸 수는 있음).
+ */
+export function introLit(elapsedMs, introMs) {
+  const total = Number(introMs) > 0 ? Number(introMs) : INTRO_MS
+  const e = Number(elapsedMs)
+  if (!isFinite(e) || e <= 0) return 0
+  if (e >= total) return GAUGE_CELLS
+  return Math.min(GAUGE_CELLS, Math.ceil((e / total) * GAUGE_CELLS))
+}
+
 export function gaugeSrc(lit) {
   const n = Math.max(0, Math.min(GAUGE_CELLS, Math.floor(Number(lit) || 0)))
   return GAUGE_DIR + 'g' + pad2(n) + '.png'
 }
 
-export function viewModel(state) {
+/** 타이머 화면. litOverride 가 있으면(시작 애니메이션) 게이지만 그 칸 수로. */
+export function viewModel(state, litOverride) {
   const s = normalizeState(state)
-  const running = s.running
-  const paused = !running && !s.idle
-  const dur = durationOf(s.phase, s.focusMs)
+  const dur = durationOf(s.phase, s)
   const t = formatTime(s.remainMs)
+  const lit = litOverride != null ? litOverride : litCells(s.phase, s.remainMs, dur)
   return {
     timeText: t,
-    gaugeSrc: gaugeSrc(s.idle ? GAUGE_CELLS : litCells(s.phase, s.remainMs, dur)),
+    gaugeSrc: gaugeSrc(lit),
     labelSrc: GAUGE_DIR + (s.phase === 'break' ? 'rest' : 'focus') + '.png',
     m1Src: GAUGE_DIR + 'm' + t.charAt(0) + '.png',
     m2Src: GAUGE_DIR + 'm' + t.charAt(1) + '.png',
     s1Src: GAUGE_DIR + 's' + t.charAt(3) + '.png',
     s2Src: GAUGE_DIR + 's' + t.charAt(4) + '.png',
-    paused: paused,
-    idle: s.idle,
-    upOpacity: s.focusMs >= FOCUS_MAX_MS ? ARROW_OPACITY_DIM : ARROW_OPACITY_ON,
-    downOpacity: s.focusMs <= FOCUS_MIN_MS ? ARROW_OPACITY_DIM : ARROW_OPACITY_ON
+    paused: !s.running && !s.done && litOverride == null
   }
 }
