@@ -21,10 +21,10 @@ function stripComments(code) {
 describe('프로젝트 구성', () => {
   it('manifest: 패키지명·버전·feature', () => {
     assert.equal(manifest.package, 'com.hun4175.pomodoro')
-    assert.equal(manifest.name, '뽀모도로')
-    assert.equal(manifest.versionName, '0.1.7')
-    assert.equal(manifest.versionCode, 8)
-    assert.equal(pkg.version, '0.1.7')
+    assert.equal(manifest.name, 'BOOST')
+    assert.equal(manifest.versionName, '0.1.8')
+    assert.equal(manifest.versionCode, 9)
+    assert.equal(pkg.version, '0.1.8')
     assert.ok(manifest.deviceTypeList.includes('watch'))
     assert.deepEqual(
       manifest.features.map((f) => f.name).sort(),
@@ -153,6 +153,16 @@ describe('프로젝트 구성', () => {
     assert.ok(existsSync(path.join(ROOT, 'docs/booster-design/v11/gen_v11.py')))
     assert.ok(existsSync(path.join(SRC, 'common/logo.png')))
     assert.ok(!files.some((f) => f.startsWith('hint-')))
+  })
+
+  it('앱 아이콘 logo.png 는 확정 시안 A SECTOR(docs/icon-design/A/icon-192.png)와 바이트 동일', () => {
+    assert.equal(manifest.icon, '/common/logo.png')
+    const logo = readFileSync(path.join(SRC, 'common/logo.png'))
+    const iconA = readFileSync(path.join(ROOT, 'docs/icon-design/A/icon-192.png'))
+    assert.ok(logo.equals(iconA))
+    // PNG IHDR 폭·높이 = 192x192
+    assert.equal(logo.readUInt32BE(16), 192)
+    assert.equal(logo.readUInt32BE(20), 192)
   })
 
   it('설정 화면 리소스와 CSS 좌표는 scripts/setup-layout.json(= 디자인 패키지 layout.json) 과 같다', () => {

@@ -1,17 +1,17 @@
-# 뽀모도로 (pomodoro)
+# BOOST (pomodoro)
 
-REDMI Watch 6 글로벌(`M2523W1`, 펌웨어 `3.200.085`, 화면 432×514)용 Vela JS 퀵앱입니다. 집중과 휴식을 번갈아 재는 타이머입니다. 시작 전에 설정 화면에서 집중 시간(5~60분), 휴식 시간(1~30분), 반복 여부를 고릅니다.
+REDMI Watch 6 글로벌(`M2523W1`, 펌웨어 `3.200.085`, 화면 432×514)용 Vela JS 퀵앱 **BOOST**입니다(런처 표시 이름). 집중과 휴식을 번갈아 재는 타이머입니다. 시작 전에 설정 화면에서 집중 시간(5~60분), 휴식 시간(1~30분), 반복 여부를 고릅니다.
 
-- 패키지: `com.hun4175.pomodoro` · 버전 `0.1.7` (versionCode 8)
-- 산출물: [`dist/com.hun4175.pomodoro.debug.0.1.7.rpk`](dist/) (toolkit 내장 디버그 서명, 자세한 정보는 [`dist/BUILD_INFO.md`](dist/BUILD_INFO.md))
-- 0.1.7은 실기기 설치·확인 전입니다.
+- 패키지: `com.hun4175.pomodoro` · 버전 `0.1.8` (versionCode 9)
+- 산출물: [`dist/com.hun4175.pomodoro.debug.0.1.8.rpk`](dist/) (toolkit 내장 디버그 서명, 자세한 정보는 [`dist/BUILD_INFO.md`](dist/BUILD_INFO.md))
+- 0.1.8은 실기기 설치·확인 전입니다.
 
-![설정 화면](docs/preview-0.1.7-setup.png)
-![설정 화면, 휴식 막대를 끄는 중](docs/preview-0.1.7-setup-changing.png)
-![설정 화면, 반복 끔·끝값](docs/preview-0.1.7-setup-repeat-off.png)
-![시작 애니메이션 중간](docs/preview-0.1.7-intro-mid.png)
-![집중 절반](docs/preview-0.1.7-timer-focus.png)
-![휴식 절반](docs/preview-0.1.7-timer-break.png)
+![설정 화면](docs/preview-0.1.8-setup.png)
+![설정 화면, 휴식 막대를 끄는 중](docs/preview-0.1.8-setup-changing.png)
+![설정 화면, 반복 끔·끝값](docs/preview-0.1.8-setup-repeat-off.png)
+![시작 애니메이션 중간](docs/preview-0.1.8-intro-mid.png)
+![집중 절반](docs/preview-0.1.8-timer-focus.png)
+![휴식 절반](docs/preview-0.1.8-timer-break.png)
 
 ## 기능
 
@@ -62,13 +62,13 @@ cd pomodoro
 npm install
 npm run preview  # 아이콘, 게이지·숫자 리소스, 미리보기 PNG 다시 생성 (선택)
 npm test         # node:test 단위 테스트
-npm run build    # dist/com.hun4175.pomodoro.debug.0.1.7.rpk
+npm run build    # dist/com.hun4175.pomodoro.debug.0.1.8.rpk
 ```
 
 `sign/` 폴더가 없으면 aiot-toolkit 내장 디버그 인증서(CN=localhost)로 서명됩니다.  
-0.1.7은 릴리즈 서명을 하지 않았습니다. `npm run release`는 `dist/`를 지울 수 있어 넣지 않았습니다.
+0.1.8은 릴리즈 서명을 하지 않았습니다. `npm run release`는 `dist/`를 지울 수 있어 넣지 않았습니다.
 
-아이콘은 `scripts/gen-preview.py`, 화면 리소스·미리보기는 `scripts/gen-booster.py`(설정 화면 `scripts/gen-setup.py`까지 함께 실행, Python / Pillow)로 생성합니다.
+아이콘은 확정 시안 `docs/icon-design/A/icon-192.png`(생성기 `docs/icon-design/gen_icons.py`)를 `scripts/gen-preview.py`가 `src/common/logo.png`로 복사하고, 화면 리소스·미리보기는 `scripts/gen-booster.py`(설정 화면 `scripts/gen-setup.py`까지 함께 실행, Python / Pillow)로 생성합니다.
 
 ## 설치
 
@@ -80,7 +80,7 @@ npm run build    # dist/com.hun4175.pomodoro.debug.0.1.7.rpk
 
 서명 우회·기기에 직접 쓰는 스크립트는 제공하지 않습니다.
 
-앱 목록에서 **뽀모도로**를 실행하면 설정 화면이 나옵니다. 오른쪽 막대를 짚거나 위아래로 끌어 집중·휴식 값을 고르고(큰 숫자 윗절반·아랫절반 탭으로 한 단계씩 조정) `START`를 탭하면 시작합니다. 타이머 화면은 탭하면 일시정지/재개, 길게 누르면 설정 화면으로 돌아갑니다.
+앱 목록에서 **BOOST**를 실행하면 설정 화면이 나옵니다. 오른쪽 막대를 짚거나 위아래로 끌어 집중·휴식 값을 고르고(큰 숫자 윗절반·아랫절반 탭으로 한 단계씩 조정) `START`를 탭하면 시작합니다. 타이머 화면은 탭하면 일시정지/재개, 길게 누르면 설정 화면으로 돌아갑니다.
 
 ## 라이선스
 
@@ -88,6 +88,7 @@ MIT. [`LICENSE`](LICENSE) 참고.
 
 ## 변경 이력
 
+- **0.1.8**: 앱 이름을 BOOST로 바꾸고 아이콘을 부채꼴 게이지(A SECTOR)로 교체. 패키지명·화면·조작·타이머는 그대로.
 - **0.1.7**: 설정 화면을 세로 조작(THERMO)으로 교체. 오른쪽 세로 막대 두 개를 짚거나 위아래로 끌어 값을 고르고, 큰 숫자 윗절반·아랫절반 탭으로 한 단계씩 조정. 좌우 끌기 제거(오른쪽으로 끌면 앱이 닫히던 문제 대응). 타이머·시작 애니메이션·초기화 정책은 그대로.
 - **0.1.6**: 시간 설정을 별도 설정 화면으로 분리(집중·휴식 큰 숫자를 좌우로 끌어 변경, 반복 토글, START). 시작하면 게이지가 0칸부터 차오른 뒤 카운트다운, 타이머 화면 길게 누르면 설정으로 복귀. 앱을 다시 켜거나 돌아오면 항상 설정부터 시작(설정값만 저장). 휴식 1~30분 설정 추가, 대기 힌트 제거.
 - **0.1.5**: 휴식 테두리 꼭짓점을 화면 중심으로 옮겨, 마지막 집중 칸과 첫 휴식 칸도 다른 칸과 같은 파이 조각 모양이 되도록 수정. 그 밖의 디자인·조작·타이머는 그대로.

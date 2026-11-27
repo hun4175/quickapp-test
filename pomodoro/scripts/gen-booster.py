@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""부스터 계기판(0.1.7) 런타임 리소스와 문서용 미리보기를 만든다.
+"""부스터 계기판(0.1.8) 런타임 리소스와 문서용 미리보기를 만든다.
 
 디자인 기준은 docs/booster-design/v11/gen_v11.py 이고, 그 함수를 그대로 가져다 쓴다.
 - src/common/booster/g00.png ~ g36.png : 켜진 칸 수(0~36)별 전체 화면 게이지 프레임(V.gauge_frame).
@@ -25,7 +25,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "docs", "booster-design", "v11"))
 import gen_v11 as V  # noqa: E402
 
-VERSION = "0.1.7"
+VERSION = "0.1.8"
 OUT = os.path.join(ROOT, "src", "common", "booster")
 DOCS = os.path.join(ROOT, "docs")
 W, H, CX, CY, S = V.W, V.H, V.CX, V.CY, V.S
