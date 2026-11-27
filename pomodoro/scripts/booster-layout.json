@@ -1,0 +1,38 @@
+{
+ "colon": {
+  "height": 54,
+  "left": 312,
+  "top": 190,
+  "width": 32
+ },
+ "label": {
+  "height": 86,
+  "left": 221,
+  "top": 122,
+  "width": 186
+ },
+ "m": {
+  "height": 93,
+  "left": 223,
+  "top": 171,
+  "width": 70
+ },
+ "m2": {
+  "height": 93,
+  "left": 263,
+  "top": 171,
+  "width": 70
+ },
+ "s": {
+  "height": 71,
+  "left": 323,
+  "top": 193,
+  "width": 56
+ },
+ "s2": {
+  "height": 71,
+  "left": 352,
+  "top": 193,
+  "width": 56
+ }
+}

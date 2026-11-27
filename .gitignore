@@ -16,3 +16,8 @@ yeomju/node_modules/
 yeomju/dist/*
 !yeomju/dist/*.rpk
 !yeomju/dist/BUILD_INFO.md
+pomodoro/build/
+pomodoro/node_modules/
+pomodoro/dist/*
+!pomodoro/dist/*.rpk
+!pomodoro/dist/BUILD_INFO.md
