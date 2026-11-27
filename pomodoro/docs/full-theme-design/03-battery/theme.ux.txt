@@ -1,0 +1,592 @@
+<!-- BATTERY: 타이머 -->
+<div class="t-batCap"></div>
+<div class="t-batBody"></div>
+<div class="t-batEmpty"></div>
+<div class="t-batFill" style="{{t_batFill}}"></div>
+<div class="t-batSep1"></div>
+<div class="t-batSep2"></div>
+<div class="t-batSep3"></div>
+<div class="t-batSep4"></div>
+<div class="t-pill" style="{{t_pill}}"></div>
+<text class="t-pillTxt">{{t_pillTxt}}</text>
+<text class="t-mm">{{t_mm}}</text>
+<text class="t-ss">{{t_ss}}</text>
+<text class="t-pct">{{t_pct}}</text>
+<!-- 설정 -->
+<div class="s-focusPill"></div>
+<text class="s-focusLab">FOCUS</text>
+<text class="s-focusNum">{{s_focusNum}}</text>
+<text class="s-focusUp">+</text>
+<text class="s-focusDn">−</text>
+<div class="s-restPill"></div>
+<text class="s-restLab">REST</text>
+<text class="s-restNum">{{s_restNum}}</text>
+<text class="s-restUp">+</text>
+<text class="s-restDn">−</text>
+<div class="s-fBatCap"></div>
+<div class="s-fBatBody"></div>
+<div class="s-fBatEmpty"></div>
+<div class="s-fBatFill" style="{{s_fBatFill}}"></div>
+<div class="s-fBatSep1"></div>
+<div class="s-fBatSep2"></div>
+<div class="s-fBatSep3"></div>
+<div class="s-fBatSep4"></div>
+<div class="s-fBatSep5"></div>
+<div class="s-fBatSep6"></div>
+<div class="s-fBatSep7"></div>
+<div class="s-fBatSep8"></div>
+<div class="s-fBatSep9"></div>
+<div class="s-fBatSep10"></div>
+<div class="s-fBatSep11"></div>
+<text class="s-fMax">60</text>
+<text class="s-fMin">5</text>
+<div class="s-rBatCap"></div>
+<div class="s-rBatBody"></div>
+<div class="s-rBatEmpty"></div>
+<div class="s-rBatFill" style="{{s_rBatFill}}"></div>
+<div class="s-rBatSep1"></div>
+<div class="s-rBatSep2"></div>
+<div class="s-rBatSep3"></div>
+<div class="s-rBatSep4"></div>
+<div class="s-rBatSep5"></div>
+<text class="s-rMax">30</text>
+<text class="s-rMin">1</text>
+<text class="s-repLab">REPEAT</text>
+<div class="s-tog"></div>
+<div class="s-knob" style="{{s_knob}}"></div>
+<text class="s-togTxt">ON</text>
+<div class="s-start"></div>
+<text class="s-startTxt">START</text>
+<style>
+.t-batCap {
+  position: absolute;
+  left: 102px;
+  top: 80px;
+  width: 54px;
+  height: 18px;
+  background-color: #E6E6E6;
+  border-radius: 5px;
+}
+.t-batBody {
+  position: absolute;
+  left: 54px;
+  top: 96px;
+  width: 150px;
+  height: 364px;
+  border-width: 6px;
+  border-color: #E6E6E6;
+  border-radius: 22px;
+}
+.t-batEmpty {
+  position: absolute;
+  left: 65px;
+  top: 107px;
+  width: 128px;
+  height: 342px;
+  background-color: #1A1A1A;
+  border-radius: 12px;
+}
+.t-batFill {
+  position: absolute;
+  left: 65px;
+  top: 278px;
+  width: 128px;
+  height: 171px;
+  background-color: #FF5A4A;
+  border-radius: 12px;
+}
+.t-batSep1 {
+  position: absolute;
+  left: 65px;
+  top: 378px;
+  width: 128px;
+  height: 6px;
+  background-color: #000000;
+}
+.t-batSep2 {
+  position: absolute;
+  left: 65px;
+  top: 309px;
+  width: 128px;
+  height: 6px;
+  background-color: #000000;
+}
+.t-batSep3 {
+  position: absolute;
+  left: 65px;
+  top: 241px;
+  width: 128px;
+  height: 6px;
+  background-color: #000000;
+}
+.t-batSep4 {
+  position: absolute;
+  left: 65px;
+  top: 172px;
+  width: 128px;
+  height: 6px;
+  background-color: #000000;
+}
+.t-pill {
+  position: absolute;
+  left: 232px;
+  top: 104px;
+  width: 150px;
+  height: 40px;
+  background-color: #FF5A4A;
+  border-radius: 20px;
+}
+.t-pillTxt {
+  position: absolute;
+  left: 232px;
+  top: 104px;
+  width: 150px;
+  height: 40px;
+  font-size: 24px;
+  color: #000000;
+  text-align: center;
+  font-weight: bold;
+}
+.t-mm {
+  position: absolute;
+  left: 222px;
+  top: 160px;
+  width: 180px;
+  height: 150px;
+  font-size: 150px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
+}
+.t-ss {
+  position: absolute;
+  left: 222px;
+  top: 304px;
+  width: 180px;
+  height: 70px;
+  font-size: 62px;
+  color: #BDBDBD;
+  text-align: center;
+}
+.t-pct {
+  position: absolute;
+  left: 222px;
+  top: 392px;
+  width: 180px;
+  height: 40px;
+  font-size: 20px;
+  color: #FF5A4A;
+  text-align: center;
+  font-weight: bold;
+}
+.s-focusPill {
+  position: absolute;
+  left: 48px;
+  top: 62px;
+  width: 104px;
+  height: 32px;
+  background-color: #FF5A4A;
+  border-radius: 16px;
+}
+.s-focusLab {
+  position: absolute;
+  left: 48px;
+  top: 62px;
+  width: 104px;
+  height: 32px;
+  font-size: 19px;
+  color: #000000;
+  text-align: center;
+  font-weight: bold;
+}
+.s-focusNum {
+  position: absolute;
+  left: 40px;
+  top: 104px;
+  width: 140px;
+  height: 104px;
+  font-size: 96px;
+  color: #FFFFFF;
+  text-align: left;
+  font-weight: bold;
+}
+.s-focusUp {
+  position: absolute;
+  left: 178px;
+  top: 110px;
+  width: 36px;
+  height: 34px;
+  font-size: 30px;
+  color: #9A9A9A;
+  text-align: center;
+  font-weight: bold;
+}
+.s-focusDn {
+  position: absolute;
+  left: 178px;
+  top: 168px;
+  width: 36px;
+  height: 34px;
+  font-size: 30px;
+  color: #9A9A9A;
+  text-align: center;
+  font-weight: bold;
+}
+.s-restPill {
+  position: absolute;
+  left: 48px;
+  top: 222px;
+  width: 104px;
+  height: 32px;
+  background-color: #3CE07E;
+  border-radius: 16px;
+}
+.s-restLab {
+  position: absolute;
+  left: 48px;
+  top: 222px;
+  width: 104px;
+  height: 32px;
+  font-size: 19px;
+  color: #000000;
+  text-align: center;
+  font-weight: bold;
+}
+.s-restNum {
+  position: absolute;
+  left: 40px;
+  top: 262px;
+  width: 140px;
+  height: 84px;
+  font-size: 76px;
+  color: #FFFFFF;
+  text-align: left;
+  font-weight: bold;
+}
+.s-restUp {
+  position: absolute;
+  left: 178px;
+  top: 268px;
+  width: 36px;
+  height: 34px;
+  font-size: 30px;
+  color: #9A9A9A;
+  text-align: center;
+  font-weight: bold;
+}
+.s-restDn {
+  position: absolute;
+  left: 178px;
+  top: 306px;
+  width: 36px;
+  height: 34px;
+  font-size: 30px;
+  color: #9A9A9A;
+  text-align: center;
+  font-weight: bold;
+}
+.s-fBatCap {
+  position: absolute;
+  left: 257px;
+  top: 51px;
+  width: 17px;
+  height: 18px;
+  background-color: #E6E6E6;
+  border-radius: 5px;
+}
+.s-fBatBody {
+  position: absolute;
+  left: 242px;
+  top: 67px;
+  width: 48px;
+  height: 326px;
+  border-width: 4px;
+  border-color: #E6E6E6;
+  border-radius: 12px;
+}
+.s-fBatEmpty {
+  position: absolute;
+  left: 251px;
+  top: 76px;
+  width: 30px;
+  height: 308px;
+  background-color: #1A1A1A;
+  border-radius: 6px;
+}
+.s-fBatFill {
+  position: absolute;
+  left: 251px;
+  top: 256px;
+  width: 30px;
+  height: 128px;
+  background-color: #FF5A4A;
+  border-radius: 6px;
+}
+.s-fBatSep1 {
+  position: absolute;
+  left: 251px;
+  top: 355px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-fBatSep2 {
+  position: absolute;
+  left: 251px;
+  top: 330px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-fBatSep3 {
+  position: absolute;
+  left: 251px;
+  top: 304px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-fBatSep4 {
+  position: absolute;
+  left: 251px;
+  top: 278px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-fBatSep5 {
+  position: absolute;
+  left: 251px;
+  top: 253px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-fBatSep6 {
+  position: absolute;
+  left: 251px;
+  top: 227px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-fBatSep7 {
+  position: absolute;
+  left: 251px;
+  top: 201px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-fBatSep8 {
+  position: absolute;
+  left: 251px;
+  top: 176px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-fBatSep9 {
+  position: absolute;
+  left: 251px;
+  top: 150px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-fBatSep10 {
+  position: absolute;
+  left: 251px;
+  top: 124px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-fBatSep11 {
+  position: absolute;
+  left: 251px;
+  top: 99px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-fMax {
+  position: absolute;
+  left: 216px;
+  top: 46px;
+  width: 36px;
+  height: 20px;
+  font-size: 15px;
+  color: #9A9A9A;
+  text-align: right;
+}
+.s-fMin {
+  position: absolute;
+  left: 236px;
+  top: 396px;
+  width: 60px;
+  height: 20px;
+  font-size: 15px;
+  color: #9A9A9A;
+  text-align: center;
+}
+.s-rBatCap {
+  position: absolute;
+  left: 353px;
+  top: 61px;
+  width: 17px;
+  height: 18px;
+  background-color: #E6E6E6;
+  border-radius: 5px;
+}
+.s-rBatBody {
+  position: absolute;
+  left: 338px;
+  top: 77px;
+  width: 48px;
+  height: 316px;
+  border-width: 4px;
+  border-color: #E6E6E6;
+  border-radius: 12px;
+}
+.s-rBatEmpty {
+  position: absolute;
+  left: 347px;
+  top: 86px;
+  width: 30px;
+  height: 298px;
+  background-color: #1A1A1A;
+  border-radius: 6px;
+}
+.s-rBatFill {
+  position: absolute;
+  left: 347px;
+  top: 334px;
+  width: 30px;
+  height: 50px;
+  background-color: #3CE07E;
+  border-radius: 6px;
+}
+.s-rBatSep1 {
+  position: absolute;
+  left: 347px;
+  top: 331px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-rBatSep2 {
+  position: absolute;
+  left: 347px;
+  top: 282px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-rBatSep3 {
+  position: absolute;
+  left: 347px;
+  top: 232px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-rBatSep4 {
+  position: absolute;
+  left: 347px;
+  top: 182px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-rBatSep5 {
+  position: absolute;
+  left: 347px;
+  top: 133px;
+  width: 30px;
+  height: 6px;
+  background-color: #000000;
+}
+.s-rMax {
+  position: absolute;
+  left: 312px;
+  top: 56px;
+  width: 36px;
+  height: 20px;
+  font-size: 15px;
+  color: #9A9A9A;
+  text-align: right;
+}
+.s-rMin {
+  position: absolute;
+  left: 332px;
+  top: 396px;
+  width: 60px;
+  height: 20px;
+  font-size: 15px;
+  color: #9A9A9A;
+  text-align: center;
+}
+.s-repLab {
+  position: absolute;
+  left: 54px;
+  top: 370px;
+  width: 76px;
+  height: 36px;
+  font-size: 17px;
+  color: #FFFFFF;
+  text-align: left;
+  font-weight: bold;
+}
+.s-tog {
+  position: absolute;
+  left: 130px;
+  top: 369px;
+  width: 50px;
+  height: 32px;
+  border-width: 3px;
+  border-color: #E6E6E6;
+  border-radius: 8px;
+}
+.s-knob {
+  position: absolute;
+  left: 156px;
+  top: 374px;
+  width: 19px;
+  height: 22px;
+  background-color: #3CE07E;
+  border-radius: 4px;
+}
+.s-togTxt {
+  position: absolute;
+  left: 184px;
+  top: 372px;
+  width: 32px;
+  height: 28px;
+  font-size: 14px;
+  color: #3CE07E;
+  text-align: left;
+  font-weight: bold;
+}
+.s-start {
+  position: absolute;
+  left: 136px;
+  top: 436px;
+  width: 160px;
+  height: 48px;
+  border-width: 4px;
+  border-color: #FF5A4A;
+  border-radius: 14px;
+}
+.s-startTxt {
+  position: absolute;
+  left: 136px;
+  top: 436px;
+  width: 160px;
+  height: 48px;
+  font-size: 24px;
+  color: #FF5A4A;
+  text-align: center;
+  font-weight: bold;
+}
+</style>

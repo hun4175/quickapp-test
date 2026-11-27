@@ -1,0 +1,113 @@
+{
+ "screen": [
+  432,
+  514
+ ],
+ "cornerRadius": 80,
+ "format": "[x0, y0, x1, y1] (x1/y1 미포함)",
+ "zones": {
+  "focusGauge": [
+   40,
+   64,
+   212,
+   428
+  ],
+  "restGauge": [
+   220,
+   64,
+   392,
+   428
+  ],
+  "repeat": [
+   304,
+   432,
+   384,
+   500
+  ],
+  "start": [
+   124,
+   432,
+   300,
+   506
+  ]
+ },
+ "gestures": {
+  "vertical": "12px 움직이면 축 고정. 세로 고정 → 그 영역의 끌기. 가로 고정 → 아무것도 안 함(앱은 좌우 제스처 없음)",
+  "tap": "축 고정 없이 손을 떼고 총 움직임 ≤ 40px",
+  "repeat": "탭 = ON/OFF",
+  "start": "탭 = 시작",
+  "dragStart": "끌기 영역은 y ≥ 64 에서 시작해야 함(위 가장자리 시스템 풀다운과 분리)"
+ },
+ "mapping": {
+  "type": "absolute",
+  "tap": "탭한 높이의 칸으로 바로 설정",
+  "drag": "세로 끌기 동안 손가락 높이의 칸을 따라감(스냅)",
+  "focus": {
+   "levels": 12,
+   "pxPerStep": 29.33,
+   "formula": "k = clamp(ceil((420 - y) / 29.3333), 1, 12); 값 = 5k"
+  },
+  "rest": {
+   "levels": 30,
+   "pxPerStep": 11.73,
+   "formula": "k = clamp(ceil((420 - y) / 11.7333), 1, 30); 값 = k"
+  },
+  "clamp": "y < 68 는 최대, y > 420 는 최소로 (영역 64~428 밖으로 나가도 끌기 유지)"
+ },
+ "check": {
+  "overlaps": [],
+  "cornerOutsideRoundRect": [],
+  "inLeftEdge(x<30)": [],
+  "dragZoneTopY": {
+   "focusGauge": 64,
+   "restGauge": 64
+  },
+  "under48px": {},
+  "sizes": {
+   "focusGauge": [
+    172,
+    364
+   ],
+   "restGauge": [
+    172,
+    364
+   ],
+   "repeat": [
+    80,
+    68
+   ],
+   "start": [
+    176,
+    74
+   ]
+  },
+  "ok": true
+ },
+ "safeArea": {
+  "rule": "둥근 화면(반경 80) 안쪽까지의 최소 거리 px (음수 = 밖). 화면 요소는 4px 이상, 터치 영역은 0 이상이면 통과",
+  "zones": {
+   "focusGauge": 36.9,
+   "restGauge": 36.9,
+   "repeat": 6.7,
+   "start": 8
+  },
+  "elements": {
+   "focusTrack": 42.1,
+   "restTrack": 42.1,
+   "start": 18,
+   "repLab": 38.8,
+   "tog": 15.2,
+   "knob": 20.1
+  },
+  "bottomRowAlign": {
+   "start": [
+    440,
+    496
+   ],
+   "repeatLabelTop": 440,
+   "repeatToggleBottom": 496,
+   "sameHeight": true
+  },
+  "ok": true
+ }
+}

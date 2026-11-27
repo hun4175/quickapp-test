@@ -1,0 +1,330 @@
+<!-- TWIN TUBES (final) 설정 화면 -->
+<div class="m-focusTrack"></div>
+<div class="m-focusFill" style="{{m_focusFill}}"></div>
+<div class="m-focusActive" style="{{m_focusActive}}"></div>
+<div class="m-focusTick1"></div>
+<div class="m-focusTick2"></div>
+<div class="m-focusTick3"></div>
+<div class="m-focusTick4"></div>
+<div class="m-focusTick5"></div>
+<div class="m-focusTick6"></div>
+<div class="m-focusTick7"></div>
+<div class="m-focusTick8"></div>
+<div class="m-focusTick9"></div>
+<div class="m-focusTick10"></div>
+<div class="m-focusTick11"></div>
+<text class="m-focusLab">FOCUS</text>
+<text class="m-focusNum">{{m_focusNum}}</text>
+<text class="m-focusUnit">MIN</text>
+<div class="m-restTrack"></div>
+<div class="m-restFill" style="{{m_restFill}}"></div>
+<div class="m-restTick1"></div>
+<div class="m-restTick2"></div>
+<div class="m-restTick3"></div>
+<div class="m-restTick4"></div>
+<div class="m-restTick5"></div>
+<text class="m-restLab">REST</text>
+<text class="m-restNum">{{m_restNum}}</text>
+<text class="m-restUnit">MIN</text>
+<div class="m-start"></div>
+<text class="m-startTxt">START</text>
+<text class="m-repLab">{{m_repLab}}</text>
+<div class="m-tog" style="{{m_tog}}"></div>
+<div class="m-knob" style="{{m_knob}}"></div>
+<style>
+.m-focusTrack {
+  position: absolute;
+  left: 44px;
+  top: 68px;
+  width: 164px;
+  height: 352px;
+  background-color: #262626;
+  border-radius: 30px;
+}
+.m-focusFill {
+  position: absolute;
+  left: 44px;
+  top: 185px;
+  width: 164px;
+  height: 235px;
+  background-color: #FF4B4B;
+  border-radius: 30px;
+}
+.m-focusActive {
+  position: absolute;
+  left: 41px;
+  top: 65px;
+  width: 170px;
+  height: 358px;
+  border-width: 3px;
+  border-color: #FFFFFF;
+  border-radius: 33px;
+}
+.m-focusTick1 {
+  position: absolute;
+  left: 190px;
+  top: 390px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-focusTick2 {
+  position: absolute;
+  left: 190px;
+  top: 360px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-focusTick3 {
+  position: absolute;
+  left: 190px;
+  top: 331px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-focusTick4 {
+  position: absolute;
+  left: 190px;
+  top: 302px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-focusTick5 {
+  position: absolute;
+  left: 190px;
+  top: 272px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-focusTick6 {
+  position: absolute;
+  left: 190px;
+  top: 243px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-focusTick7 {
+  position: absolute;
+  left: 190px;
+  top: 214px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-focusTick8 {
+  position: absolute;
+  left: 190px;
+  top: 184px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-focusTick9 {
+  position: absolute;
+  left: 190px;
+  top: 155px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-focusTick10 {
+  position: absolute;
+  left: 190px;
+  top: 126px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-focusTick11 {
+  position: absolute;
+  left: 190px;
+  top: 96px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-focusLab {
+  position: absolute;
+  left: 44px;
+  top: 88px;
+  width: 164px;
+  height: 30px;
+  font-size: 24px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.m-focusNum {
+  position: absolute;
+  left: 44px;
+  top: 118px;
+  width: 164px;
+  height: 110px;
+  font-size: 96px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.m-focusUnit {
+  position: absolute;
+  left: 44px;
+  top: 224px;
+  width: 164px;
+  height: 26px;
+  font-size: 18px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.m-restTrack {
+  position: absolute;
+  left: 224px;
+  top: 68px;
+  width: 164px;
+  height: 352px;
+  background-color: #262626;
+  border-radius: 30px;
+}
+.m-restFill {
+  position: absolute;
+  left: 224px;
+  top: 361px;
+  width: 164px;
+  height: 59px;
+  background-color: #3DDC84;
+  border-radius: 30px;
+}
+.m-restTick1 {
+  position: absolute;
+  left: 370px;
+  top: 360px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-restTick2 {
+  position: absolute;
+  left: 370px;
+  top: 302px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-restTick3 {
+  position: absolute;
+  left: 370px;
+  top: 243px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-restTick4 {
+  position: absolute;
+  left: 370px;
+  top: 184px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-restTick5 {
+  position: absolute;
+  left: 370px;
+  top: 126px;
+  width: 10px;
+  height: 2px;
+  background-color: #FFFFFF;
+}
+.m-restLab {
+  position: absolute;
+  left: 224px;
+  top: 88px;
+  width: 164px;
+  height: 30px;
+  font-size: 24px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.m-restNum {
+  position: absolute;
+  left: 224px;
+  top: 118px;
+  width: 164px;
+  height: 110px;
+  font-size: 96px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.m-restUnit {
+  position: absolute;
+  left: 224px;
+  top: 224px;
+  width: 164px;
+  height: 26px;
+  font-size: 18px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.m-start {
+  position: absolute;
+  left: 136px;
+  top: 440px;
+  width: 160px;
+  height: 56px;
+  background-color: #FF4B4B;
+  border-radius: 28px;
+}
+.m-startTxt {
+  position: absolute;
+  left: 136px;
+  top: 440px;
+  width: 160px;
+  height: 56px;
+  font-size: 26px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
+}
+.m-repLab {
+  position: absolute;
+  left: 304px;
+  top: 440px;
+  width: 80px;
+  height: 20px;
+  font-size: 16px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
+}
+.m-tog {
+  position: absolute;
+  left: 317px;
+  top: 464px;
+  width: 54px;
+  height: 32px;
+  background-color: #3DDC84;
+  border-radius: 16px;
+}
+.m-knob {
+  position: absolute;
+  left: 343px;
+  top: 468px;
+  width: 24px;
+  height: 24px;
+  background-color: #FFFFFF;
+  border-radius: 12px;
+}
+</style>

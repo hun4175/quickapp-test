@@ -6,8 +6,8 @@
   시간 박스 검정 바탕과 휴식 테두리(네온)는 포함, 글자·숫자는 뺐다. 256색 팔레트 PNG.
 - src/common/booster/m0~m9.png(분), s0~s9.png(초), colon.png, focus.png, rest.png(라벨+네온 밑줄),
   : 투명 PNG 오버레이(v11 text_layer 와 같은 2단 글로우).
-- src/common/setup/ : 설정 화면(0.1.7, THERMO) 리소스. scripts/gen-setup.py 가 만든다(이 스크립트가 함께 부른다).
-- docs/preview-<버전>-*.png : 위 리소스를 앱과 같은 좌표로 겹쳐 합성한 미리보기.
+- 0.1.9 부터 BOOSTER 는 테마 4개 중 하나이고, 설정 화면(TWIN TUBES)은 CSS 만 쓴다(THERMO PNG 52장 제거).
+  미리보기는 scripts/gen-preview-0.1.9.py 가 실제 index.ux 를 평가해 만든다(이 스크립트의 previews() 는 0.1.8 기록용).
 앱은 게이지 image 하나의 src 만 바꾸고, 숫자 image 몇 개를 겹쳐 둔다.
 라벨 글꼴(Barlow Semi Condensed, SIL OFL 1.1)은 PNG 에 구워 넣고 rpk 에는 넣지 않는다.
 """
@@ -183,8 +183,3 @@ def previews(css):
 
 if __name__ == "__main__":
     main()
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("gen_setup", os.path.join(ROOT, "scripts", "gen-setup.py"))
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    mod.main()

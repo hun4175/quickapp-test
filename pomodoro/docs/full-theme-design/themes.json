@@ -1,0 +1,452 @@
+{
+ "screen": [
+  432,
+  514
+ ],
+ "cornerRadius": 80,
+ "touchZones": {
+  "focusNum": [
+   40,
+   60,
+   216,
+   210
+  ],
+  "focusNumUp": [
+   40,
+   60,
+   216,
+   135
+  ],
+  "focusNumDown": [
+   40,
+   135,
+   216,
+   210
+  ],
+  "restNum": [
+   40,
+   220,
+   216,
+   350
+  ],
+  "restNumUp": [
+   40,
+   220,
+   216,
+   285
+  ],
+  "restNumDown": [
+   40,
+   285,
+   216,
+   350
+  ],
+  "focusBar": [
+   226,
+   56,
+   306,
+   404
+  ],
+  "restBar": [
+   322,
+   56,
+   402,
+   404
+  ],
+  "repeat": [
+   40,
+   358,
+   216,
+   414
+  ],
+  "start": [
+   112,
+   424,
+   320,
+   496
+  ]
+ },
+ "sharedSettings": {
+  "theme": "01-sand",
+  "png": "01-sand/settings.png",
+  "note": "설정 화면은 테마별로 만들지 않고 모든 테마가 01 SAND 설정 하나를 쓴다"
+ },
+ "finalCandidates": [
+  "01-sand",
+  "02-booster",
+  "03-battery",
+  "08-sweep"
+ ],
+ "themes": [
+  {
+   "id": "01-sand",
+   "name": "SAND",
+   "ko": "모래시계 채움(초안)",
+   "concept": "초안 0.1.1 그대로: 화면 전체가 집중 빨강·휴식 초록으로 가득 찼다가 위에서부터 비워진다. 수위선·눈금·라벨을 더해 다듬음.",
+   "approach": "CSS만. 바닥에 붙은 div 하나(.sand)의 height(= 남은 비율 × 514)와 background-color, 그 위 수위선 div 의 top 만 바꾼다. 숫자·라벨은 text + text-shadow 검정 외곽선(0.1.1 과 같은 값). 눈금 4개는 고정 div.",
+   "css": true,
+   "pngFiles": 0,
+   "pngBytes": 0,
+   "uxBytes": 6822,
+   "uxGzipBytes": 1123,
+   "elements": {
+    "timer": 9,
+    "settings": 24
+   },
+   "cornerPixelsOutside": {
+    "focus-mid": 0,
+    "focus-late": 0,
+    "rest": 0,
+    "settings": 0
+   }
+  },
+  {
+   "id": "02-booster",
+   "name": "BOOSTER",
+   "ko": "부스터(현재)",
+   "concept": "지금 앱: 레이싱 계기판식 36칸 파이 게이지(집중 30·휴식 6), 노란 네온 테두리, 7세그먼트 숫자.",
+   "approach": "PNG. 게이지는 켜진 칸 수별 전체 화면 프레임 37장(g00~g36, 256색) 중 하나로 image src 교체, 숫자·라벨은 투명 PNG 23장. 설정은 THERMO PNG 52장.",
+   "css": false,
+   "pngFiles": 112,
+   "pngBytes": 1212866,
+   "timerPng": [
+    60,
+    878813
+   ],
+   "setupPng": [
+    52,
+    334053
+   ],
+   "gaugeFrames": 37,
+   "cornerPixelsOutside": {
+    "focus-mid": 3633,
+    "focus-late": 1578,
+    "rest": 1146,
+    "settings": 0
+   }
+  },
+  {
+   "id": "03-battery",
+   "name": "BATTERY",
+   "ko": "배터리",
+   "concept": "집중은 배터리를 쓰고(빨강이 줄어듦), 휴식은 충전한다(초록이 차오름). 5칸 배터리와 오른쪽 큰 숫자.",
+   "approach": "CSS만. 배터리 외곽 div(border 6px, radius) + 캡 div + 안쪽 채움 div 의 height/top/background-color, 그 위 고정 검정 칸막이 div 4개. 휴식은 채움 높이 = 지난 비율(충전). 숫자·라벨은 text.",
+   "css": true,
+   "pngFiles": 0,
+   "pngBytes": 0,
+   "uxBytes": 10506,
+   "uxGzipBytes": 1419,
+   "elements": {
+    "timer": 13,
+    "settings": 44
+   },
+   "cornerPixelsOutside": {
+    "focus-mid": 0,
+    "focus-late": 0,
+    "rest": 0,
+    "settings": 0
+   }
+  },
+  {
+   "id": "04-swiss",
+   "name": "SWISS",
+   "ko": "스위스 타이포",
+   "concept": "그림 없이 글자로만: 화면 절반을 채우는 큰 분 숫자, 색 블록 라벨, 바닥의 가는 진행선. 조용한 포스터 느낌.",
+   "approach": "CSS만. 색 블록 div(라벨 바탕) background-color, 진행선 div 의 width, text 3개(분·초·라벨). 가장 가볍다.",
+   "css": true,
+   "pngFiles": 0,
+   "pngBytes": 0,
+   "uxBytes": 7366,
+   "uxGzipBytes": 1169,
+   "elements": {
+    "timer": 11,
+    "settings": 28
+   },
+   "cornerPixelsOutside": {
+    "focus-mid": 0,
+    "focus-late": 0,
+    "rest": 0,
+    "settings": 0
+   }
+  },
+  {
+   "id": "05-lcd",
+   "name": "LCD",
+   "ko": "레트로 LCD",
+   "concept": "80년대 전자시계: div 로 만든 7세그먼트 숫자와 꺼진 칸이 비치는 LCD, FOCUS/REST 표시등, 10칸 배터리식 진행 막대.",
+   "approach": "CSS만. 숫자 4자리 = 세그먼트 div 28개 + 콜론 2개(background-color 만 바꿈), 표시등 text 2개 color, 진행 블록 div 10개 background-color. 이미지·글꼴 없이 7세그먼트 느낌.",
+   "css": true,
+   "pngFiles": 0,
+   "pngBytes": 0,
+   "uxBytes": 25865,
+   "uxGzipBytes": 2389,
+   "elements": {
+    "timer": 45,
+    "settings": 87
+   },
+   "cornerPixelsOutside": {
+    "focus-mid": 0,
+    "focus-late": 0,
+    "rest": 0,
+    "settings": 0
+   }
+  },
+  {
+   "id": "06-tomato",
+   "name": "TOMATO",
+   "ko": "토마토 주방 타이머",
+   "concept": "시릴로의 토마토 타이머 그대로: 0~55 숫자가 찍힌 60분 다이얼, 아래 고정 표시핀, 위 꼭지·잎. 남은 분만큼 흰 눈금이 핀에서부터 켜지고, 휴식은 초록 토마토.",
+   "approach": "CSS만(회전 없음). 토마토 몸통 원(div border-radius), 홈 원(border), 분 눈금 점 div 60개(5분마다 큰 점)의 background-color, 숫자 12개·꼭지/잎 div 는 고정. 1분마다 점 색만 바뀌고 매초는 시간 text 만 바뀐다.",
+   "css": true,
+   "pngFiles": 0,
+   "pngBytes": 0,
+   "uxBytes": 38597,
+   "uxGzipBytes": 3480,
+   "elements": {
+    "timer": 124,
+    "settings": 82
+   },
+   "cornerPixelsOutside": {
+    "focus-mid": 0,
+    "focus-late": 0,
+    "rest": 0,
+    "settings": 0
+   }
+  },
+  {
+   "id": "07-visual",
+   "name": "VISUAL",
+   "ko": "사각 비주얼 타이머",
+   "concept": "사용자 사진의 사각 비주얼 타이머: 연분홍 베젤 안 흰 다이얼, 12시 0부터 시계 방향 0~55 숫자·60분 눈금, 남은 시간만큼 빨간 부채꼴(휴식은 초록)이 줄어들고 가운데 분홍 노브에 남은 시간.",
+   "approach": "CSS + PNG. 베젤(화면 배경)·흰 다이얼·노브·글자는 div/text, 눈금·숫자·화살표는 고정 PNG 1장, 부채꼴은 (a) 분 단위 프레임 PNG(집중 60 + 휴식 30)를 image src 로 교체. (b) transform: rotate 반원 3장 안은 README.",
+   "css": false,
+   "pngFiles": 91,
+   "pngBytes": 198609,
+   "uxBytes": 13204,
+   "uxGzipBytes": 1706,
+   "elements": {
+    "timer": 9,
+    "settings": 67
+   },
+   "sizeLabel": "CSS+PNG 91 files · 194 KB",
+   "sector": {
+    "sectorBox": [
+     94,
+     134,
+     244,
+     244
+    ],
+    "a_perMinute": {
+     "focusFrames": 60,
+     "focusBytes": 124302,
+     "restFrames": 30,
+     "restBytes": 45278,
+     "frameMinMax": [
+      856,
+      3186
+     ],
+     "frameSize": [
+      244,
+      244
+     ],
+     "dialPng": [
+      [
+       374,
+       365
+      ],
+      29029
+     ],
+     "dialDarkPng": [
+      [
+       374,
+       365
+      ],
+      33007
+     ],
+     "palette16_focus60Bytes": 82826
+    },
+    "a_per10s_measuredInMemory": {
+     "frames": 360,
+     "bytes": 735771
+    },
+    "a_perSecond_estimate": {
+     "frames": 3600,
+     "bytes": 7357710
+    },
+    "b_rotate": {
+     "pngs": {
+      "half-red.png": 1511,
+      "half-green.png": 1528,
+      "half-white.png": 1577
+     },
+     "halfSize": [
+      122,
+      244
+     ]
+    },
+    "b_simulation": {
+     "12": {
+      "pixelsDiffOver64": 0,
+      "meanDiff": 0.188
+     },
+     "75": {
+      "pixelsDiffOver64": 0,
+      "meanDiff": 0.112
+     },
+     "150": {
+      "pixelsDiffOver64": 0,
+      "meanDiff": 0.08
+     },
+     "179": {
+      "pixelsDiffOver64": 0,
+      "meanDiff": 0.056
+     },
+     "181": {
+      "pixelsDiffOver64": 0,
+      "meanDiff": 0.299
+     },
+     "250": {
+      "pixelsDiffOver64": 5,
+      "meanDiff": 0.22
+     },
+     "359": {
+      "pixelsDiffOver64": 0,
+      "meanDiff": 0.176
+     }
+    }
+   },
+   "cornerPixelsOutside": {
+    "focus-mid": 0,
+    "focus-late": 0,
+    "rest": 0,
+    "settings": 0
+   }
+  },
+  {
+   "id": "08-sweep",
+   "name": "SWEEP",
+   "ko": "부채꼴 스윕",
+   "concept": "SAND 처럼 검정 바탕을 집중 빨강·휴식 초록이 화면 끝까지 채우고, 12시에서 시계 방향 부채꼴로 줄어든다. 한 바퀴 = 세션 길이, 가운데 큰 흰 MM:SS, 위 FOCUS/REST, 아래 25 MIN, 둘레 12칸 점 눈금.",
+   "approach": "PNG(a) 또는 rotate(b). 색 부채꼴은 (a) 화면 전체 프레임 60장/구간(1칸 = 세션의 1/60, 6°)을 image src 로 교체. 글자·둘레 점 눈금은 SAND 와 같은 CSS text/div. (b) 는 회전 div 3~4개(이미지 0) — README.",
+   "css": false,
+   "pngFiles": 120,
+   "pngBytes": 241119,
+   "uxBytes": 3300,
+   "uxGzipBytes": 639,
+   "elements": {
+    "timer": 16,
+    "settings": "01-sand 공통"
+   },
+   "sizeLabel": "(a) PNG 120 files · 235 KB / (b) 0 KB",
+   "sector": {
+    "a_frames": {
+     "perPhase": 60,
+     "stepDeg": 6.0,
+     "frameSize": [
+      432,
+      514
+     ],
+     "saved": "RGB 불투명 PNG optimize (검정 바탕), 팔레트 없음",
+     "focusBytes": 120097,
+     "restBytes": 121022,
+     "frameMinMax": [
+      1092,
+      2890
+     ],
+     "palette16_focus60Bytes": 79507
+    },
+    "a_1deg_360_measuredInMemory": {
+     "frames": 360,
+     "bytes": 709846
+    },
+    "b_simulation": {
+     "30": {
+      "pixelsDiffOver64": 72,
+      "meanDiff": 0.077
+     },
+     "150": {
+      "pixelsDiffOver64": 0,
+      "meanDiff": 0.04
+     },
+     "179": {
+      "pixelsDiffOver64": 0,
+      "meanDiff": 0.023
+     },
+     "181": {
+      "pixelsDiffOver64": 0,
+      "meanDiff": 0.026
+     },
+     "270": {
+      "pixelsDiffOver64": 0,
+      "meanDiff": 0.0
+     },
+     "354": {
+      "pixelsDiffOver64": 31,
+      "meanDiff": 0.055
+     }
+    },
+    "radiusToCover": 338,
+    "center": [
+     216,
+     257
+    ],
+    "edgeDots": [
+     [
+      216.0,
+      14.0
+     ],
+     [
+      356.0,
+      14.5
+     ],
+     [
+      417.8,
+      140.5
+     ],
+     [
+      417.0,
+      257.0
+     ],
+     [
+      417.8,
+      373.5
+     ],
+     [
+      356.0,
+      499.5
+     ],
+     [
+      216.0,
+      499.0
+     ],
+     [
+      76.0,
+      499.5
+     ],
+     [
+      14.2,
+      373.5
+     ],
+     [
+      14.0,
+      257.0
+     ],
+     [
+      14.2,
+      140.5
+     ],
+     [
+      76.0,
+      14.5
+     ]
+    ],
+    "frameRule": "focus: assets/sweep-focus/fNN.png, rest: assets/sweep-rest/rNN.png, NN = ceil(남은 초 / 전체 초 × 60), 0 이면 숨김. 한 바퀴 = 세션 길이."
+   },
+   "cornerPixelsOutside": {
+    "focus-mid": 0,
+    "focus-late": 0,
+    "rest": 0
+   }
+  }
+ ]
+}

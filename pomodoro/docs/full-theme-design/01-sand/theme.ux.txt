@@ -1,0 +1,364 @@
+<!-- SAND: 타이머 -->
+<div class="t-sand" style="{{t_sand}}"></div>
+<div class="t-level" style="{{t_level}}"></div>
+<div class="t-tick1"></div>
+<div class="t-tick2"></div>
+<div class="t-tick3"></div>
+<div class="t-tick4"></div>
+<text class="t-label">{{t_label}}</text>
+<text class="t-time">{{t_time}}</text>
+<text class="t-total">25 MIN</text>
+<!-- 설정 -->
+<text class="s-focusLab">FOCUS</text>
+<div class="s-focusUl"></div>
+<text class="s-focusNum">{{s_focusNum}}</text>
+<text class="s-focusUp">+</text>
+<text class="s-focusDn">−</text>
+<text class="s-restLab">REST</text>
+<div class="s-restUl"></div>
+<text class="s-restNum">{{s_restNum}}</text>
+<text class="s-restUp">+</text>
+<text class="s-restDn">−</text>
+<div class="s-focusTrack"></div>
+<div class="s-focusFill" style="{{s_focusFill}}"></div>
+<text class="s-focusMax">60</text>
+<text class="s-focusMin">5</text>
+<div class="s-restTrack"></div>
+<div class="s-restFill" style="{{s_restFill}}"></div>
+<text class="s-restMax">30</text>
+<text class="s-restMin">1</text>
+<text class="s-repLab">REPEAT</text>
+<div class="s-tog" style="{{s_tog}}"></div>
+<div class="s-knob" style="{{s_knob}}"></div>
+<text class="s-togTxt">ON</text>
+<div class="s-start"></div>
+<text class="s-startTxt">START</text>
+<style>
+.t-sand {
+  position: absolute;
+  left: 0px;
+  top: 257px;
+  width: 432px;
+  height: 257px;
+  background-color: #FF4B4B;
+}
+.t-level {
+  position: absolute;
+  left: 0px;
+  top: 255px;
+  width: 432px;
+  height: 4px;
+  background-color: #FFC9C0;
+}
+.t-tick1 {
+  position: absolute;
+  left: 390px;
+  top: 410px;
+  width: 22px;
+  height: 3px;
+  background-color: #9A9A9A;
+  border-radius: 1px;
+}
+.t-tick2 {
+  position: absolute;
+  left: 390px;
+  top: 307px;
+  width: 22px;
+  height: 3px;
+  background-color: #9A9A9A;
+  border-radius: 1px;
+}
+.t-tick3 {
+  position: absolute;
+  left: 390px;
+  top: 205px;
+  width: 22px;
+  height: 3px;
+  background-color: #9A9A9A;
+  border-radius: 1px;
+}
+.t-tick4 {
+  position: absolute;
+  left: 390px;
+  top: 102px;
+  width: 22px;
+  height: 3px;
+  background-color: #9A9A9A;
+  border-radius: 1px;
+}
+.t-label {
+  position: absolute;
+  left: 66px;
+  top: 150px;
+  width: 300px;
+  height: 40px;
+  font-size: 30px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.t-time {
+  position: absolute;
+  left: 16px;
+  top: 196px;
+  width: 400px;
+  height: 120px;
+  font-size: 104px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.t-total {
+  position: absolute;
+  left: 66px;
+  top: 318px;
+  width: 300px;
+  height: 34px;
+  font-size: 24px;
+  color: #FFFFFF;
+  text-align: center;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.s-focusLab {
+  position: absolute;
+  left: 54px;
+  top: 62px;
+  width: 150px;
+  height: 32px;
+  font-size: 26px;
+  color: #FF4B4B;
+  text-align: left;
+  font-weight: bold;
+}
+.s-focusUl {
+  position: absolute;
+  left: 48px;
+  top: 98px;
+  width: 158px;
+  height: 3px;
+  background-color: #FF4B4B;
+}
+.s-focusNum {
+  position: absolute;
+  left: 40px;
+  top: 104px;
+  width: 140px;
+  height: 104px;
+  font-size: 96px;
+  color: #FFFFFF;
+  text-align: left;
+  font-weight: bold;
+}
+.s-focusUp {
+  position: absolute;
+  left: 176px;
+  top: 110px;
+  width: 40px;
+  height: 34px;
+  font-size: 30px;
+  color: #8C8C8C;
+  text-align: center;
+  font-weight: bold;
+}
+.s-focusDn {
+  position: absolute;
+  left: 176px;
+  top: 168px;
+  width: 40px;
+  height: 34px;
+  font-size: 30px;
+  color: #8C8C8C;
+  text-align: center;
+  font-weight: bold;
+}
+.s-restLab {
+  position: absolute;
+  left: 54px;
+  top: 222px;
+  width: 150px;
+  height: 32px;
+  font-size: 26px;
+  color: #3DDC84;
+  text-align: left;
+  font-weight: bold;
+}
+.s-restUl {
+  position: absolute;
+  left: 48px;
+  top: 258px;
+  width: 158px;
+  height: 3px;
+  background-color: #3DDC84;
+}
+.s-restNum {
+  position: absolute;
+  left: 40px;
+  top: 262px;
+  width: 140px;
+  height: 84px;
+  font-size: 76px;
+  color: #FFFFFF;
+  text-align: left;
+  font-weight: bold;
+}
+.s-restUp {
+  position: absolute;
+  left: 176px;
+  top: 268px;
+  width: 40px;
+  height: 34px;
+  font-size: 30px;
+  color: #8C8C8C;
+  text-align: center;
+  font-weight: bold;
+}
+.s-restDn {
+  position: absolute;
+  left: 176px;
+  top: 306px;
+  width: 40px;
+  height: 34px;
+  font-size: 30px;
+  color: #8C8C8C;
+  text-align: center;
+  font-weight: bold;
+}
+.s-focusTrack {
+  position: absolute;
+  left: 248px;
+  top: 76px;
+  width: 36px;
+  height: 308px;
+  background-color: #262626;
+  border-radius: 18px;
+}
+.s-focusFill {
+  position: absolute;
+  left: 248px;
+  top: 256px;
+  width: 36px;
+  height: 128px;
+  background-color: #FF4B4B;
+  border-radius: 18px;
+}
+.s-focusMax {
+  position: absolute;
+  left: 236px;
+  top: 50px;
+  width: 60px;
+  height: 20px;
+  font-size: 15px;
+  color: #8C8C8C;
+  text-align: center;
+}
+.s-focusMin {
+  position: absolute;
+  left: 236px;
+  top: 390px;
+  width: 60px;
+  height: 20px;
+  font-size: 15px;
+  color: #8C8C8C;
+  text-align: center;
+}
+.s-restTrack {
+  position: absolute;
+  left: 344px;
+  top: 86px;
+  width: 36px;
+  height: 298px;
+  background-color: #262626;
+  border-radius: 18px;
+}
+.s-restFill {
+  position: absolute;
+  left: 344px;
+  top: 334px;
+  width: 36px;
+  height: 50px;
+  background-color: #3DDC84;
+  border-radius: 18px;
+}
+.s-restMax {
+  position: absolute;
+  left: 332px;
+  top: 60px;
+  width: 60px;
+  height: 20px;
+  font-size: 15px;
+  color: #8C8C8C;
+  text-align: center;
+}
+.s-restMin {
+  position: absolute;
+  left: 332px;
+  top: 390px;
+  width: 60px;
+  height: 20px;
+  font-size: 15px;
+  color: #8C8C8C;
+  text-align: center;
+}
+.s-repLab {
+  position: absolute;
+  left: 54px;
+  top: 370px;
+  width: 76px;
+  height: 36px;
+  font-size: 17px;
+  color: #FFFFFF;
+  text-align: left;
+  font-weight: bold;
+}
+.s-tog {
+  position: absolute;
+  left: 130px;
+  top: 369px;
+  width: 50px;
+  height: 32px;
+  background-color: #3DDC84;
+  border-radius: 16px;
+}
+.s-knob {
+  position: absolute;
+  left: 154px;
+  top: 373px;
+  width: 24px;
+  height: 24px;
+  background-color: #FFFFFF;
+  border-radius: 12px;
+}
+.s-togTxt {
+  position: absolute;
+  left: 184px;
+  top: 372px;
+  width: 32px;
+  height: 28px;
+  font-size: 14px;
+  color: #3DDC84;
+  text-align: left;
+  font-weight: bold;
+}
+.s-start {
+  position: absolute;
+  left: 136px;
+  top: 436px;
+  width: 160px;
+  height: 48px;
+  background-color: #FF4B4B;
+  border-radius: 24px;
+}
+.s-startTxt {
+  position: absolute;
+  left: 136px;
+  top: 436px;
+  width: 160px;
+  height: 48px;
+  font-size: 24px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
+}
+</style>

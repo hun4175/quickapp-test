@@ -6,354 +6,108 @@
  "cornerRadius": 80,
  "format": "[x0, y0, x1, y1] (x1/y1 미포함)",
  "zones": {
-  "focusNum": [
+  "focusGauge": [
    40,
-   60,
-   216,
-   210
+   64,
+   212,
+   428
   ],
-  "focusNumUp": [
-   40,
-   60,
-   216,
-   135
-  ],
-  "focusNumDown": [
-   40,
-   135,
-   216,
-   210
-  ],
-  "restNum": [
-   40,
+  "restGauge": [
    220,
-   216,
-   350
-  ],
-  "restNumUp": [
-   40,
-   220,
-   216,
-   285
-  ],
-  "restNumDown": [
-   40,
-   285,
-   216,
-   350
-  ],
-  "focusBar": [
-   226,
-   56,
-   306,
-   404
-  ],
-  "restBar": [
-   322,
-   56,
-   402,
-   404
+   64,
+   392,
+   428
   ],
   "repeat": [
-   40,
-   358,
-   216,
-   414
+   304,
+   432,
+   384,
+   500
   ],
   "start": [
-   112,
-   424,
-   320,
-   496
+   124,
+   432,
+   300,
+   506
   ]
  },
- "parents(parent contains these tap sub-zones)": {
-  "focusNum": [
-   "focusNumUp",
-   "focusNumDown"
-  ],
-  "restNum": [
-   "restNumUp",
-   "restNumDown"
-  ]
+ "gestures": {
+  "vertical": "12px 움직이면 축 고정. 세로 고정 → 그 영역의 끌기. 가로 고정 → 아무것도 안 함(앱은 좌우 제스처 없음)",
+  "tap": "축 고정 없이 손을 떼고 총 움직임 ≤ 40px",
+  "repeat": "탭 = ON/OFF",
+  "start": "탭 = 시작",
+  "dragStart": "끌기 영역은 y ≥ 64 에서 시작해야 함(위 가장자리 시스템 풀다운과 분리)"
  },
- "barMapping": {
-  "barBottom": 384,
-  "focusTop": 76,
-  "restTop": 86,
+ "mapping": {
+  "type": "absolute",
+  "tap": "탭한 높이의 칸으로 바로 설정",
+  "drag": "세로 끌기 동안 손가락 높이의 칸을 따라감(스냅)",
   "focus": {
    "levels": 12,
-   "valueOfLevel": "5*k",
-   "formula": "k = clamp(ceil((384 - y) / 26), 1, 12)"
+   "pxPerStep": 29.33,
+   "formula": "k = clamp(ceil((420 - y) / 29.3333), 1, 12); 값 = 5k"
   },
   "rest": {
    "levels": 30,
-   "valueOfLevel": "k",
-   "formula": "k = clamp(ceil((384 - y) / 10), 1, 30)"
+   "pxPerStep": 11.73,
+   "formula": "k = clamp(ceil((420 - y) / 11.7333), 1, 30); 값 = k"
   },
-  "focusBands": [
-   {
-    "value": 5,
-    "y0": 360.0,
-    "y1": 386.0
-   },
-   {
-    "value": 10,
-    "y0": 334.0,
-    "y1": 360.0
-   },
-   {
-    "value": 15,
-    "y0": 308.0,
-    "y1": 334.0
-   },
-   {
-    "value": 20,
-    "y0": 282.0,
-    "y1": 308.0
-   },
-   {
-    "value": 25,
-    "y0": 256.0,
-    "y1": 282.0
-   },
-   {
-    "value": 30,
-    "y0": 230.0,
-    "y1": 256.0
-   },
-   {
-    "value": 35,
-    "y0": 204.0,
-    "y1": 230.0
-   },
-   {
-    "value": 40,
-    "y0": 178.0,
-    "y1": 204.0
-   },
-   {
-    "value": 45,
-    "y0": 152.0,
-    "y1": 178.0
-   },
-   {
-    "value": 50,
-    "y0": 126.0,
-    "y1": 152.0
-   },
-   {
-    "value": 55,
-    "y0": 100.0,
-    "y1": 126.0
-   },
-   {
-    "value": 60,
-    "y0": 74.0,
-    "y1": 100.0
-   }
-  ],
-  "restBands": [
-   {
-    "value": 1,
-    "y0": 375.0,
-    "y1": 385.0
-   },
-   {
-    "value": 2,
-    "y0": 365.0,
-    "y1": 375.0
-   },
-   {
-    "value": 3,
-    "y0": 355.0,
-    "y1": 365.0
-   },
-   {
-    "value": 4,
-    "y0": 345.0,
-    "y1": 355.0
-   },
-   {
-    "value": 5,
-    "y0": 335.0,
-    "y1": 345.0
-   },
-   {
-    "value": 6,
-    "y0": 325.0,
-    "y1": 335.0
-   },
-   {
-    "value": 7,
-    "y0": 315.0,
-    "y1": 325.0
-   },
-   {
-    "value": 8,
-    "y0": 305.0,
-    "y1": 315.0
-   },
-   {
-    "value": 9,
-    "y0": 295.0,
-    "y1": 305.0
-   },
-   {
-    "value": 10,
-    "y0": 285.0,
-    "y1": 295.0
-   },
-   {
-    "value": 11,
-    "y0": 275.0,
-    "y1": 285.0
-   },
-   {
-    "value": 12,
-    "y0": 265.0,
-    "y1": 275.0
-   },
-   {
-    "value": 13,
-    "y0": 255.0,
-    "y1": 265.0
-   },
-   {
-    "value": 14,
-    "y0": 245.0,
-    "y1": 255.0
-   },
-   {
-    "value": 15,
-    "y0": 235.0,
-    "y1": 245.0
-   },
-   {
-    "value": 16,
-    "y0": 225.0,
-    "y1": 235.0
-   },
-   {
-    "value": 17,
-    "y0": 215.0,
-    "y1": 225.0
-   },
-   {
-    "value": 18,
-    "y0": 205.0,
-    "y1": 215.0
-   },
-   {
-    "value": 19,
-    "y0": 195.0,
-    "y1": 205.0
-   },
-   {
-    "value": 20,
-    "y0": 185.0,
-    "y1": 195.0
-   },
-   {
-    "value": 21,
-    "y0": 175.0,
-    "y1": 185.0
-   },
-   {
-    "value": 22,
-    "y0": 165.0,
-    "y1": 175.0
-   },
-   {
-    "value": 23,
-    "y0": 155.0,
-    "y1": 165.0
-   },
-   {
-    "value": 24,
-    "y0": 145.0,
-    "y1": 155.0
-   },
-   {
-    "value": 25,
-    "y0": 135.0,
-    "y1": 145.0
-   },
-   {
-    "value": 26,
-    "y0": 125.0,
-    "y1": 135.0
-   },
-   {
-    "value": 27,
-    "y0": 115.0,
-    "y1": 125.0
-   },
-   {
-    "value": 28,
-    "y0": 105.0,
-    "y1": 115.0
-   },
-   {
-    "value": 29,
-    "y0": 95.0,
-    "y1": 105.0
-   },
-   {
-    "value": 30,
-    "y0": 85.0,
-    "y1": 95.0
-   }
-  ]
+  "clamp": "y < 68 는 최대, y > 420 는 최소로 (영역 64~428 밖으로 나가도 끌기 유지)"
  },
  "check": {
-  "checkedPairs": 41,
   "overlaps": [],
-  "outsideRoundRect": [],
+  "cornerOutsideRoundRect": [],
   "inLeftEdge(x<30)": [],
-  "sizes": {
-   "focusNum": [
-    176,
-    150
-   ],
-   "focusNumUp": [
-    176,
-    75
-   ],
-   "focusNumDown": [
-    176,
-    75
-   ],
-   "restNum": [
-    176,
-    130
-   ],
-   "restNumUp": [
-    176,
-    65
-   ],
-   "restNumDown": [
-    176,
-    65
-   ],
-   "focusBar": [
-    80,
-    348
-   ],
-   "restBar": [
-    80,
-    348
-   ],
-   "repeat": [
-    176,
-    56
-   ],
-   "start": [
-    208,
-    72
-   ]
+  "dragZoneTopY": {
+   "focusGauge": 64,
+   "restGauge": 64
   },
   "under48px": {},
+  "sizes": {
+   "focusGauge": [
+    172,
+    364
+   ],
+   "restGauge": [
+    172,
+    364
+   ],
+   "repeat": [
+    80,
+    68
+   ],
+   "start": [
+    176,
+    74
+   ]
+  },
+  "ok": true
+ },
+ "safeArea": {
+  "rule": "둥근 화면(반경 80) 안쪽까지의 최소 거리 px (음수 = 밖). 화면 요소는 4px 이상, 터치 영역은 0 이상이면 통과",
+  "zones": {
+   "focusGauge": 36.9,
+   "restGauge": 36.9,
+   "repeat": 6.7,
+   "start": 8
+  },
+  "elements": {
+   "focusTrack": 42.1,
+   "restTrack": 42.1,
+   "start": 18,
+   "repLab": 38.8,
+   "tog": 15.2,
+   "knob": 20.1
+  },
+  "bottomRowAlign": {
+   "start": [
+    440,
+    496
+   ],
+   "repeatLabelTop": 440,
+   "repeatToggleBottom": 496,
+   "sameHeight": true
+  },
   "ok": true
  }
 }

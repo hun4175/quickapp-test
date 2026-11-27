@@ -1,0 +1,104 @@
+{
+ "a_frames": {
+  "perPhase": 60,
+  "stepDeg": 6.0,
+  "frameSize": [
+   432,
+   514
+  ],
+  "saved": "RGB 불투명 PNG optimize (검정 바탕), 팔레트 없음",
+  "focusBytes": 120097,
+  "restBytes": 121022,
+  "frameMinMax": [
+   1092,
+   2890
+  ],
+  "palette16_focus60Bytes": 79507
+ },
+ "a_1deg_360_measuredInMemory": {
+  "frames": 360,
+  "bytes": 709846
+ },
+ "b_simulation": {
+  "30": {
+   "pixelsDiffOver64": 72,
+   "meanDiff": 0.077
+  },
+  "150": {
+   "pixelsDiffOver64": 0,
+   "meanDiff": 0.04
+  },
+  "179": {
+   "pixelsDiffOver64": 0,
+   "meanDiff": 0.023
+  },
+  "181": {
+   "pixelsDiffOver64": 0,
+   "meanDiff": 0.026
+  },
+  "270": {
+   "pixelsDiffOver64": 0,
+   "meanDiff": 0.0
+  },
+  "354": {
+   "pixelsDiffOver64": 31,
+   "meanDiff": 0.055
+  }
+ },
+ "radiusToCover": 338,
+ "center": [
+  216,
+  257
+ ],
+ "edgeDots": [
+  [
+   216.0,
+   14.0
+  ],
+  [
+   356.0,
+   14.5
+  ],
+  [
+   417.8,
+   140.5
+  ],
+  [
+   417.0,
+   257.0
+  ],
+  [
+   417.8,
+   373.5
+  ],
+  [
+   356.0,
+   499.5
+  ],
+  [
+   216.0,
+   499.0
+  ],
+  [
+   76.0,
+   499.5
+  ],
+  [
+   14.2,
+   373.5
+  ],
+  [
+   14.0,
+   257.0
+  ],
+  [
+   14.2,
+   140.5
+  ],
+  [
+   76.0,
+   14.5
+  ]
+ ],
+ "frameRule": "focus: assets/sweep-focus/fNN.png, rest: assets/sweep-rest/rNN.png, NN = ceil(남은 초 / 전체 초 × 60), 0 이면 숨김. 한 바퀴 = 세션 길이."
+}

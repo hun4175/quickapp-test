@@ -1,0 +1,169 @@
+<!-- SWEEP: 타이머 (부채꼴 = (a) 프레임 image). 설정 화면은 01 SAND 공통 -->
+<image class="t-sweep" src="{{t_sweep}}"></image>
+<div class="t-tick0"></div>
+<div class="t-tick1"></div>
+<div class="t-tick2"></div>
+<div class="t-tick3"></div>
+<div class="t-tick4"></div>
+<div class="t-tick5"></div>
+<div class="t-tick6"></div>
+<div class="t-tick7"></div>
+<div class="t-tick8"></div>
+<div class="t-tick9"></div>
+<div class="t-tick10"></div>
+<div class="t-tick11"></div>
+<text class="t-label">{{t_label}}</text>
+<text class="t-time">{{t_time}}</text>
+<text class="t-total">25 MIN</text>
+<style>
+.t-sweep {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 432px;
+  height: 514px;
+}
+.t-tick0 {
+  position: absolute;
+  left: 212px;
+  top: 10px;
+  width: 8px;
+  height: 8px;
+  background-color: #9A9A9A;
+  border-radius: 4px;
+}
+.t-tick1 {
+  position: absolute;
+  left: 353px;
+  top: 12px;
+  width: 6px;
+  height: 6px;
+  background-color: #9A9A9A;
+  border-radius: 3px;
+}
+.t-tick2 {
+  position: absolute;
+  left: 415px;
+  top: 138px;
+  width: 6px;
+  height: 6px;
+  background-color: #9A9A9A;
+  border-radius: 3px;
+}
+.t-tick3 {
+  position: absolute;
+  left: 413px;
+  top: 253px;
+  width: 8px;
+  height: 8px;
+  background-color: #9A9A9A;
+  border-radius: 4px;
+}
+.t-tick4 {
+  position: absolute;
+  left: 415px;
+  top: 370px;
+  width: 6px;
+  height: 6px;
+  background-color: #9A9A9A;
+  border-radius: 3px;
+}
+.t-tick5 {
+  position: absolute;
+  left: 353px;
+  top: 496px;
+  width: 6px;
+  height: 6px;
+  background-color: #9A9A9A;
+  border-radius: 3px;
+}
+.t-tick6 {
+  position: absolute;
+  left: 212px;
+  top: 495px;
+  width: 8px;
+  height: 8px;
+  background-color: #9A9A9A;
+  border-radius: 4px;
+}
+.t-tick7 {
+  position: absolute;
+  left: 73px;
+  top: 496px;
+  width: 6px;
+  height: 6px;
+  background-color: #9A9A9A;
+  border-radius: 3px;
+}
+.t-tick8 {
+  position: absolute;
+  left: 11px;
+  top: 370px;
+  width: 6px;
+  height: 6px;
+  background-color: #9A9A9A;
+  border-radius: 3px;
+}
+.t-tick9 {
+  position: absolute;
+  left: 10px;
+  top: 253px;
+  width: 8px;
+  height: 8px;
+  background-color: #9A9A9A;
+  border-radius: 4px;
+}
+.t-tick10 {
+  position: absolute;
+  left: 11px;
+  top: 137px;
+  width: 6px;
+  height: 6px;
+  background-color: #9A9A9A;
+  border-radius: 3px;
+}
+.t-tick11 {
+  position: absolute;
+  left: 73px;
+  top: 12px;
+  width: 6px;
+  height: 6px;
+  background-color: #9A9A9A;
+  border-radius: 3px;
+}
+.t-label {
+  position: absolute;
+  left: 66px;
+  top: 150px;
+  width: 300px;
+  height: 40px;
+  font-size: 30px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.t-time {
+  position: absolute;
+  left: 16px;
+  top: 196px;
+  width: 400px;
+  height: 120px;
+  font-size: 104px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+.t-total {
+  position: absolute;
+  left: 66px;
+  top: 318px;
+  width: 300px;
+  height: 34px;
+  font-size: 24px;
+  color: #FFFFFF;
+  text-align: center;
+  text-shadow: -2px 0px 0px #000000, 2px 0px 0px #000000, 0px -2px 0px #000000, 0px 2px 0px #000000, 0px 0px 4px #000000;
+}
+</style>
