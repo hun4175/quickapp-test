@@ -1,5 +1,5 @@
 /**
- * 뽀모도로 순수 로직(0.1.6).
+ * 뽀모도로 순수 로직(0.1.7).
  * - 설정(settings): 집중 시간, 휴식 시간, 반복 여부. 마지막 값만 저장한다.
  * - 세션(state): 진행 중 타이머. 저장하지 않는다(앱을 다시 열거나 백그라운드에서 돌아오면 설정부터).
  * 남은 시간은 끝시각(endAt)에서 매번 계산한다. 누적 감산은 쓰지 않는다.
@@ -26,8 +26,12 @@ export const SCREEN_W = 432
 export const SCREEN_H = 514
 /** 탭으로 인정하는 최대 이동(px). 이보다 크면 길게 누르기를 취소한다. */
 export const TAP_MAX_MOVE = 40
-/** 설정 화면 가로 끌기: 이 거리(px)마다 한 칸씩 값이 바뀐다. */
-export const SCROLL_STEP_PX = 44
+/** 설정 화면(THERMO) 방향 잠금: 움직임이 이 거리(px)를 넘는 순간 세로/가로를 정한다. */
+export const DIR_LOCK_PX = 12
+/** 설정 화면 큰 숫자 칸 세로 쓸기: 이 거리(px)마다 한 단계(위로 = +). */
+export const NUM_SWIPE_PX = 36
+/** 미세 조정 ▲▼ 눌림 표시를 손 뗀 뒤 이 시간(ms) 더 보여 준다. */
+export const PRESS_FLASH_MS = 150
 /** 시작 애니메이션: 게이지 0칸 → 36칸을 이 시간(ms)에 채운다. */
 export const INTRO_MS = 900
 export const INTRO_FRAME_MS = 50
@@ -114,44 +118,251 @@ export function toggleRepeat(settings) {
   return { focusMs: s.focusMs, breakMs: s.breakMs, repeat: !s.repeat }
 }
 
+/* ---------------- 설정 화면(THERMO) 터치 ---------------- */
+
 /**
- * 가로 끌기 누적 이동 dx(px) → 지금까지 적용할 칸 수.
- * 왼쪽으로 끌면(dx<0) 오른쪽의 더 큰 값이 가운데로 온다 → 늘림(+).
+ * 터치 영역 [x0, y0, x1, y1) (x1/y1 미포함). docs/booster-design/setup-final-thermo/touch-zones.json
+ * (= scripts/setup-touch-zones.json) 과 같다(test/project.test.mjs 가 확인).
+ * focusNum/restNum 은 숫자 칸 전체(세로 쓸기)이고, 윗절반 Up / 아랫절반 Down 으로 나뉜다.
  */
-export function scrollSteps(dx, stepPx) {
-  const px = Number(stepPx) > 0 ? Number(stepPx) : SCROLL_STEP_PX
-  const v = -(Number(dx) || 0) / px
+export const SETUP_ZONES = {
+  focusNum: [40, 60, 216, 210],
+  focusNumUp: [40, 60, 216, 135],
+  focusNumDown: [40, 135, 216, 210],
+  restNum: [40, 220, 216, 350],
+  restNumUp: [40, 220, 216, 285],
+  restNumDown: [40, 285, 216, 350],
+  focusBar: [226, 56, 306, 404],
+  restBar: [322, 56, 402, 404],
+  repeat: [40, 358, 216, 414],
+  start: [112, 424, 320, 496]
+}
+/** 손가락이 처음 닿은 곳으로 고르는 영역(부모 focusNum/restNum 은 Up/Down 이 빈틈없이 덮는다). */
+const HIT_ORDER = ['focusNumUp', 'focusNumDown', 'restNumUp', 'restNumDown', 'focusBar', 'restBar', 'repeat', 'start']
+
+/**
+ * 막대: 아래 끝 칸 경계 y=384 에서 위로 칸 간격(집중 26px = 칸 22 + 틈 4, x 12칸 / 휴식 10px = 칸 8 + 틈 2, x 30칸).
+ * 칸별 y 범위는 touch-zones.json barMapping.focusBands/restBands 를 그대로 따른다: 칸 사이 틈의 가운데가 경계라서
+ * 맨 아래 칸 범위가 [384 - pitch + gap/2, 384 + gap/2) 이다(edge = 384 + gap/2).
+ * README 식 ceil((384 - y) / pitch) 와는 경계가 gap/2(집중 2px, 휴식 1px) 다르고, 그림 기준인 bands 쪽을 쓴다.
+ */
+export const BAR_BOTTOM = 384
+export const SETUP_BARS = {
+  focus: { pitch: 26, gap: 4, edge: 386, levels: 12, group: 6, prefix: 'fg', nodes: 2 },
+  break: { pitch: 10, gap: 2, edge: 385, levels: 30, group: 10, prefix: 'rg', nodes: 3 }
+}
+
+function inZone(z, x, y) {
+  return x >= z[0] && x < z[2] && y >= z[1] && y < z[3]
+}
+
+/** (x, y) → 영역 이름(focusNumUp … start) 또는 null. */
+export function setupHit(x, y) {
+  const xx = Number(x)
+  const yy = Number(y)
+  if (!isFinite(xx) || !isFinite(yy)) return null
+  for (let i = 0; i < HIT_ORDER.length; i++) {
+    if (inZone(SETUP_ZONES[HIT_ORDER[i]], xx, yy)) return HIT_ORDER[i]
+  }
+  return null
+}
+
+/** 영역이 바꾸는 값: 'focus' | 'break' | null */
+export function zoneTarget(zone) {
+  if (zone === 'focusNumUp' || zone === 'focusNumDown' || zone === 'focusBar') return 'focus'
+  if (zone === 'restNumUp' || zone === 'restNumDown' || zone === 'restBar') return 'break'
+  return null
+}
+
+export function isBarZone(zone) {
+  return zone === 'focusBar' || zone === 'restBar'
+}
+
+export function isNumZone(zone) {
+  return zone === 'focusNumUp' || zone === 'focusNumDown' || zone === 'restNumUp' || zone === 'restNumDown'
+}
+
+/** 숫자 칸 탭 단계: 윗절반 +1, 아랫절반 -1 */
+export function numTapDir(zone) {
+  if (zone === 'focusNumUp' || zone === 'restNumUp') return 1
+  if (zone === 'focusNumDown' || zone === 'restNumDown') return -1
+  return 0
+}
+
+/**
+ * 막대 높이 y → 레벨 k. 집중 k = clamp(ceil((386 - y) / 26), 1, 12), 휴식 k = clamp(ceil((385 - y) / 10), 1, 30)
+ * (= touch-zones.json bands). 막대 밖(위/아래)으로 끌어도 끝값으로 고정한다.
+ */
+export function barLevel(which, y) {
+  const b = which === 'break' ? SETUP_BARS.break : SETUP_BARS.focus
+  const yy = Number(y)
+  if (!isFinite(yy)) return 1
+  const k = Math.ceil((b.edge - yy) / b.pitch)
+  return k < 1 ? 1 : k > b.levels ? b.levels : k
+}
+
+/** 막대 높이 y 로 값을 정한 새 설정(집중 5·k 분, 휴식 k 분). 다른 값은 그대로. */
+export function barSetting(settings, which, y) {
+  const s = normalizeSettings(settings)
+  const k = barLevel(which, y)
+  if (which === 'break') return { focusMs: s.focusMs, breakMs: k * BREAK_STEP_MS, repeat: s.repeat }
+  return { focusMs: k * FOCUS_STEP_MS, breakMs: s.breakMs, repeat: s.repeat }
+}
+
+/**
+ * 방향 잠금. 움직임(dx, dy)이 DIR_LOCK_PX 이하이면 null(아직 모름),
+ * 넘으면 |dy| > |dx| 일 때만 'v', 아니면 'h'(그 터치는 값 변경에 쓰지 않는다).
+ */
+export function dirLock(dx, dy) {
+  const x = Math.abs(Number(dx) || 0)
+  const y = Math.abs(Number(dy) || 0)
+  if (x * x + y * y <= DIR_LOCK_PX * DIR_LOCK_PX) return null
+  return y > x ? 'v' : 'h'
+}
+
+/** 숫자 칸 세로 쓸기 누적 dy(px) → 단계 수. 위로(dy<0) = +, NUM_SWIPE_PX 마다 1. */
+export function numSwipeSteps(dy) {
+  const v = -(Number(dy) || 0) / NUM_SWIPE_PX
   const n = v >= 0 ? Math.floor(v) : -Math.floor(-v)
   return n === 0 ? 0 : n
 }
 
-/** 설정 화면 터치 영역(y 구간). scripts/gen-setup.py 배치와 맞춘다(test/project.test.mjs 가 확인). */
-export const SETUP_ROWS = {
-  focus: [0, 196],
-  break: [196, 352],
-  repeat: [352, 416],
-  start: [416, SCREEN_H]
-}
-export const SETUP_START_X = [96, 336]
-/** 값 줄에서 이 x보다 왼쪽 탭은 -1, 오른쪽 탭은 +1(가로 끌기가 시스템 제스처에 먹힐 때의 보조). */
-export const SETUP_TAP_SIDE = [144, 288]
-
-export function setupHit(x, y) {
-  const yy = Number(y) || 0
-  const xx = Number(x) || 0
-  if (yy < SETUP_ROWS.focus[1]) return 'focus'
-  if (yy < SETUP_ROWS.break[1]) return 'break'
-  if (yy < SETUP_ROWS.repeat[1]) return 'repeat'
-  if (xx >= SETUP_START_X[0] && xx <= SETUP_START_X[1]) return 'start'
-  return null
+/** 탭 판정: 이동 ≤ TAP_MAX_MOVE */
+export function isTapMove(dx, dy) {
+  const x = Number(dx) || 0
+  const y = Number(dy) || 0
+  return x * x + y * y <= TAP_MAX_MOVE * TAP_MAX_MOVE
 }
 
-/** 값 줄 탭 위치 → -1 / 0 / +1 */
-export function tapSide(x) {
-  const xx = Number(x) || 0
-  if (xx < SETUP_TAP_SIDE[0]) return -1
-  if (xx > SETUP_TAP_SIDE[1]) return 1
-  return 0
+/** 끌기·탭 직후 이 시간(ms) 안의 시스템 뒤로 이벤트는 삼킨다. */
+export const BACK_GUARD_MS = 400
+
+function copyGesture(g) {
+  return {
+    zone: g.zone,
+    target: g.target,
+    x0: g.x0,
+    y0: g.y0,
+    base: g.base,
+    settings: g.settings,
+    lock: g.lock,
+    steps: g.steps,
+    maxMove2: g.maxMove2
+  }
+}
+
+function sameSettings(a, b) {
+  return a.focusMs === b.focusMs && a.breakMs === b.breakMs && a.repeat === b.repeat
+}
+
+/**
+ * 설정 화면 터치 한 번(손 댐 → 이동 → 손 뗌)을 순수 함수로 처리한다. index.ux 는 결과만 화면에 반영한다.
+ * - 막대: 닿는 즉시 그 높이 값으로 스냅, 끌면 칸마다 따라감(막대 밖은 끝값 고정).
+ * - 숫자 칸: 탭 = 윗절반 +1 / 아랫절반 -1 단계, 세로 쓸기 = 36px 마다 1단계(위로 = +).
+ * - 방향 잠금: 12px 를 넘는 순간 |dy| > |dx| 가 아니면('h') 그 터치는 값을 바꾸지 않는다(막대 스냅도 되돌림).
+ *   세로로 잠긴 뒤에는 가로로 얼마나 움직여도 값만 바뀐다.
+ * - 탭 = 이동(최대) ≤ TAP_MAX_MOVE. REPEAT 탭 = 토글, START 탭 = 시작.
+ */
+export function setupTouchStart(settings, x, y) {
+  const base = normalizeSettings(settings)
+  const zone = setupHit(x, y)
+  const target = zoneTarget(zone)
+  const g = {
+    zone: zone,
+    target: target,
+    x0: Number(x) || 0,
+    y0: Number(y) || 0,
+    base: base,
+    settings: base,
+    lock: null,
+    steps: 0,
+    maxMove2: 0
+  }
+  if (isBarZone(zone)) g.settings = barSetting(base, target, y)
+  return g
+}
+
+function stepN(s, which, n) {
+  let out = s
+  const d = n > 0 ? 1 : -1
+  for (let i = 0; i !== n; i += d) out = stepSetting(out, which, d)
+  return out
+}
+
+export function setupTouchMove(gesture, x, y) {
+  const g = copyGesture(gesture)
+  const xx = Number(x)
+  const yy = Number(y)
+  if (!isFinite(xx) || !isFinite(yy)) return g
+  const dx = xx - g.x0
+  const dy = yy - g.y0
+  const m2 = dx * dx + dy * dy
+  if (m2 > g.maxMove2) g.maxMove2 = m2
+  if (g.lock === null) g.lock = dirLock(dx, dy)
+  if (!g.target) return g
+  if (g.lock === 'h') {
+    g.settings = g.base
+    g.steps = 0
+    return g
+  }
+  if (isBarZone(g.zone)) {
+    g.settings = barSetting(g.base, g.target, yy)
+  } else if (g.lock === 'v') {
+    g.steps = numSwipeSteps(dy)
+    g.settings = stepN(g.base, g.target, g.steps)
+  }
+  return g
+}
+
+/**
+ * @returns {{ gesture: object, settings: object, changed: boolean, action: 'start'|null, flash: string|null }}
+ * flash: 숫자 칸 탭으로 한 단계 바꿨을 때 잠깐 켤 ▲▼ 눌림 노드('fUp'|'fDn'|'rUp'|'rDn').
+ */
+export function setupTouchEnd(gesture, x, y) {
+  const g = x == null || y == null ? copyGesture(gesture) : setupTouchMove(gesture, x, y)
+  const tap = g.maxMove2 <= TAP_MAX_MOVE * TAP_MAX_MOVE
+  let action = null
+  let flash = null
+  if (isNumZone(g.zone) && g.lock !== 'h' && g.steps === 0 && tap) {
+    const dir = numTapDir(g.zone)
+    g.settings = stepSetting(g.base, g.target, dir)
+    flash = (g.target === 'break' ? 'r' : 'f') + (dir > 0 ? 'Up' : 'Dn')
+  } else if (g.zone === 'repeat' && tap) {
+    g.settings = toggleRepeat(g.base)
+  } else if (g.zone === 'start' && tap) {
+    action = 'start'
+  }
+  return { gesture: g, settings: g.settings, changed: !sameSettings(g.settings, g.base), action: action, flash: flash }
+}
+
+/** 터치 중 강조 표시: 바꾸는 줄 밑줄(fHot/rHot), 숫자 칸 ▲▼ 눌림, START 눌림. */
+export function setupGestureUi(gesture) {
+  const ui = { fHot: false, rHot: false, fUpOn: false, fDnOn: false, rUpOn: false, rDnOn: false, startOn: false }
+  if (!gesture) return ui
+  const g = gesture
+  const tap = g.maxMove2 <= TAP_MAX_MOVE * TAP_MAX_MOVE
+  if (g.target && g.lock !== 'h') {
+    if (g.target === 'focus') ui.fHot = true
+    else ui.rHot = true
+  }
+  if (isNumZone(g.zone) && g.lock === null) {
+    const k = (g.target === 'break' ? 'r' : 'f') + (numTapDir(g.zone) > 0 ? 'UpOn' : 'DnOn')
+    ui[k] = true
+  }
+  if (g.zone === 'start' && tap) ui.startOn = true
+  return ui
+}
+
+/**
+ * 시스템 뒤로(오른쪽 스와이프)를 삼킬지. 설정 화면에서 컨트롤 영역에서 시작한 터치가 진행 중이거나
+ * 끝난 지 BACK_GUARD_MS 안이면 삼킨다(값을 끄는 손가락이 오른쪽으로 비껴도 앱이 닫히지 않게).
+ * 컨트롤이 없는 곳(왼쪽 가장자리 x<30 등)에서 시작한 스와이프는 그대로 뒤로가기.
+ */
+export function shouldSwallowBack(view, touchActive, touchZone, lastTouchEndAt, now) {
+  if (view !== 'setup' || !touchZone) return false
+  if (touchActive) return true
+  const t = Number(now) - Number(lastTouchEndAt)
+  return isFinite(t) && t >= 0 && t < BACK_GUARD_MS
 }
 
 export const SETUP_DIR = '/common/setup/'
@@ -161,17 +372,32 @@ function digitSrcs(prefix, minutes) {
   return [SETUP_DIR + prefix + t.charAt(0) + '.png', SETUP_DIR + prefix + t.charAt(1) + '.png']
 }
 
+/**
+ * 막대 묶음 노드별 src. 레벨 L, 묶음 g 에서 k = L - g·n:
+ * k ≤ 0 숨김, 1 ≤ k ≤ n → {p}g{k:02d}m.png(맨 위 노란 눈금), k > n → {p}g{n:02d}.png(꽉 참).
+ * @returns {{show: boolean, src: string}[]}
+ */
+export function barNodes(which, level) {
+  const b = which === 'break' ? SETUP_BARS.break : SETUP_BARS.focus
+  const full = SETUP_DIR + b.prefix + pad2(b.group) + '.png'
+  const out = []
+  for (let g = 0; g < b.nodes; g++) {
+    const k = level - g * b.group
+    if (k <= 0) out.push({ show: false, src: full })
+    else if (k <= b.group) out.push({ show: true, src: SETUP_DIR + b.prefix + pad2(k) + 'm.png' })
+    else out.push({ show: true, src: full })
+  }
+  return out
+}
+
 export function setupViewModel(settings) {
   const s = normalizeSettings(settings)
   const fm = Math.round(s.focusMs / MIN)
   const bm = Math.round(s.breakMs / MIN)
   const f = digitSrcs('f', fm)
   const b = digitSrcs('r', bm)
-  const fPrev = s.focusMs > FOCUS_MIN_MS ? digitSrcs('n', fm - FOCUS_STEP_MS / MIN) : null
-  const fNext = s.focusMs < FOCUS_MAX_MS ? digitSrcs('n', fm + FOCUS_STEP_MS / MIN) : null
-  const bPrev = s.breakMs > BREAK_MIN_MS ? digitSrcs('n', bm - 1) : null
-  const bNext = s.breakMs < BREAK_MAX_MS ? digitSrcs('n', bm + 1) : null
-  const blank = SETUP_DIR + 'n0.png'
+  const fb = barNodes('focus', fm / (FOCUS_STEP_MS / MIN))
+  const rb = barNodes('break', bm)
   return {
     focusText: pad2(fm),
     breakText: pad2(bm),
@@ -179,18 +405,20 @@ export function setupViewModel(settings) {
     f2Src: f[1],
     r1Src: b[0],
     r2Src: b[1],
-    fPrevShow: !!fPrev,
-    fPrev1Src: fPrev ? fPrev[0] : blank,
-    fPrev2Src: fPrev ? fPrev[1] : blank,
-    fNextShow: !!fNext,
-    fNext1Src: fNext ? fNext[0] : blank,
-    fNext2Src: fNext ? fNext[1] : blank,
-    rPrevShow: !!bPrev,
-    rPrev1Src: bPrev ? bPrev[0] : blank,
-    rPrev2Src: bPrev ? bPrev[1] : blank,
-    rNextShow: !!bNext,
-    rNext1Src: bNext ? bNext[0] : blank,
-    rNext2Src: bNext ? bNext[1] : blank,
+    fBar0Show: fb[0].show,
+    fBar0Src: fb[0].src,
+    fBar1Show: fb[1].show,
+    fBar1Src: fb[1].src,
+    rBar0Show: rb[0].show,
+    rBar0Src: rb[0].src,
+    rBar1Show: rb[1].show,
+    rBar1Src: rb[1].src,
+    rBar2Show: rb[2].show,
+    rBar2Src: rb[2].src,
+    fUpOffShow: s.focusMs >= FOCUS_MAX_MS,
+    fDnOffShow: s.focusMs <= FOCUS_MIN_MS,
+    rUpOffShow: s.breakMs >= BREAK_MAX_MS,
+    rDnOffShow: s.breakMs <= BREAK_MIN_MS,
     repeat: s.repeat,
     toggleSrc: SETUP_DIR + (s.repeat ? 'tog-on.png' : 'tog-off.png')
   }

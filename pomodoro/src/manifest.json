@@ -1,8 +1,8 @@
 {
   "package": "com.hun4175.pomodoro",
   "name": "뽀모도로",
-  "versionName": "0.1.6",
-  "versionCode": 7,
+  "versionName": "0.1.7",
+  "versionCode": 8,
   "minPlatformVersion": 1000,
   "icon": "/common/logo.png",
   "deviceTypeList": [

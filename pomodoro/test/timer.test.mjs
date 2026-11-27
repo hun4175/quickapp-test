@@ -10,7 +10,10 @@ import {
   BREAK_MAX_MS,
   TICK_MS,
   VIBRATE_OFFSETS_MS,
-  SCROLL_STEP_PX,
+  DIR_LOCK_PX,
+  NUM_SWIPE_PX,
+  TAP_MAX_MOVE,
+  BACK_GUARD_MS,
   INTRO_MS,
   SETTINGS_KEY,
   LEGACY_STATE_KEY,
@@ -23,9 +26,19 @@ import {
   deserializeSettings,
   stepSetting,
   toggleRepeat,
-  scrollSteps,
   setupHit,
-  tapSide,
+  zoneTarget,
+  numTapDir,
+  barLevel,
+  barSetting,
+  barNodes,
+  dirLock,
+  numSwipeSteps,
+  setupTouchStart,
+  setupTouchMove,
+  setupTouchEnd,
+  setupGestureUi,
+  shouldSwallowBack,
   setupViewModel,
   durationOf,
   armedState,
@@ -127,27 +140,202 @@ describe('설정 저장', () => {
   })
 })
 
-describe('설정 화면 조작', () => {
-  it('왼쪽으로 끌면 늘고 오른쪽으로 끌면 준다(SCROLL_STEP_PX 마다 한 칸)', () => {
-    assert.equal(scrollSteps(0), 0)
-    assert.equal(scrollSteps(-SCROLL_STEP_PX + 1), 0)
-    assert.equal(scrollSteps(-SCROLL_STEP_PX), 1)
-    assert.equal(scrollSteps(-3 * SCROLL_STEP_PX - 5), 3)
-    assert.equal(scrollSteps(SCROLL_STEP_PX - 1), 0)
-    assert.equal(scrollSteps(SCROLL_STEP_PX), -1)
-    assert.equal(scrollSteps(2.5 * SCROLL_STEP_PX), -2)
+/** 터치 한 번을 흉내 낸다: pts = [[x, y], ...] 첫 점 = 손 댐, 마지막 점 = 손 뗌. */
+function gesture(settings, pts) {
+  let g = setupTouchStart(settings, pts[0][0], pts[0][1])
+  for (let i = 1; i < pts.length - 1; i++) g = setupTouchMove(g, pts[i][0], pts[i][1])
+  const last = pts[pts.length - 1]
+  return setupTouchEnd(g, last[0], last[1])
+}
+const FOCUS_BAR_X = 266
+const REST_BAR_X = 362
+
+describe('설정 화면(THERMO) 터치 영역', () => {
+  it('처음 닿은 곳으로 영역을 고른다(touch-zones.json, x1/y1 미포함)', () => {
+    assert.equal(setupHit(100, 100), 'focusNumUp')
+    assert.equal(setupHit(100, 134), 'focusNumUp')
+    assert.equal(setupHit(100, 135), 'focusNumDown')
+    assert.equal(setupHit(100, 209), 'focusNumDown')
+    assert.equal(setupHit(100, 210), null) // 집중↔휴식 숫자 사이 10px 틈
+    assert.equal(setupHit(100, 220), 'restNumUp')
+    assert.equal(setupHit(100, 285), 'restNumDown')
+    assert.equal(setupHit(226, 56), 'focusBar')
+    assert.equal(setupHit(305, 403), 'focusBar')
+    assert.equal(setupHit(306, 200), null) // 막대 사이 16px 틈
+    assert.equal(setupHit(322, 200), 'restBar')
+    assert.equal(setupHit(100, 380), 'repeat')
+    assert.equal(setupHit(216, 460), 'start')
+    assert.equal(setupHit(20, 300), null) // x<30 은 비움(시스템 뒤로 가장자리)
+    assert.equal(setupHit(NaN, 3), null)
+    assert.equal(zoneTarget('focusNumDown'), 'focus')
+    assert.equal(zoneTarget('restBar'), 'break')
+    assert.equal(zoneTarget('start'), null)
+    assert.equal(numTapDir('restNumUp'), 1)
+    assert.equal(numTapDir('focusNumDown'), -1)
   })
-  it('터치 위치로 줄을 고른다: 집중 / 휴식 / 반복 / START', () => {
-    assert.equal(setupHit(216, 130), 'focus')
-    assert.equal(setupHit(216, 280), 'break')
-    assert.equal(setupHit(330, 384), 'repeat')
-    assert.equal(setupHit(216, 454), 'start')
-    assert.equal(setupHit(20, 454), null)
-    assert.equal(tapSide(40), -1)
-    assert.equal(tapSide(216), 0)
-    assert.equal(tapSide(400), 1)
+})
+
+describe('설정 화면(THERMO) 막대 끌기 칸 매핑', () => {
+  it('집중 막대: 칸마다 26px, 5·k 분, 칸 경계는 bands(틈 가운데)', () => {
+    assert.equal(barLevel('focus', 385.9), 1)
+    assert.equal(barLevel('focus', 360), 1)
+    assert.equal(barLevel('focus', 359.9), 2)
+    assert.equal(barLevel('focus', 256), 5)
+    assert.equal(barLevel('focus', 255.9), 6)
+    assert.equal(barLevel('focus', 74), 12)
+    assert.equal(barSetting(defaultSettings(), 'focus', 270).focusMs, 25 * MIN)
+    assert.equal(barSetting(defaultSettings(), 'focus', 270).breakMs, 5 * MIN)
   })
-  it('setupViewModel: 큰 숫자, 좌우 이웃 값, 끝에서는 이웃 숨김, 토글 이미지', () => {
+  it('휴식 막대: 칸마다 10px, k 분', () => {
+    assert.equal(barLevel('break', 384.9), 1)
+    assert.equal(barLevel('break', 375), 1)
+    assert.equal(barLevel('break', 374.9), 2)
+    assert.equal(barLevel('break', 270), 12)
+    assert.equal(barLevel('break', 85), 30)
+    assert.equal(barSetting(S(40, 5, false), 'break', 300).breakMs, 9 * MIN)
+    assert.equal(barSetting(S(40, 5, false), 'break', 300).focusMs, 40 * MIN)
+    assert.equal(barSetting(S(40, 5, false), 'break', 300).repeat, false)
+  })
+  it('범위 끝 고정: 막대 위/아래 밖으로 끌어도 5~60, 1~30 에서 멈춘다', () => {
+    for (const y of [-500, 0, 56, 73]) assert.equal(barLevel('focus', y), 12, 'focus ' + y)
+    for (const y of [386, 404, 514, 2000]) assert.equal(barLevel('focus', y), 1, 'focus ' + y)
+    for (const y of [-500, 0, 56, 84]) assert.equal(barLevel('break', y), 30, 'break ' + y)
+    for (const y of [385, 404, 514]) assert.equal(barLevel('break', y), 1, 'break ' + y)
+    const up = gesture(defaultSettings(), [[FOCUS_BAR_X, 300], [FOCUS_BAR_X, 200], [FOCUS_BAR_X, 40], [FOCUS_BAR_X, 10]])
+    assert.equal(up.settings.focusMs, 60 * MIN)
+    const down = gesture(defaultSettings(), [[REST_BAR_X, 300], [REST_BAR_X, 450], [REST_BAR_X, 510]])
+    assert.equal(down.settings.breakMs, 1 * MIN)
+  })
+  it('막대를 짚으면 바로 스냅, 끄는 동안 칸마다 따라간다', () => {
+    let g = setupTouchStart(defaultSettings(), FOCUS_BAR_X, 100)
+    assert.equal(g.settings.focusMs, 55 * MIN) // 닿는 순간 스냅
+    const seen = []
+    for (let y = 100; y <= 380; y += 4) {
+      g = setupTouchMove(g, FOCUS_BAR_X, y)
+      seen.push(g.settings.focusMs / MIN)
+    }
+    for (let i = 1; i < seen.length; i++) assert.ok(seen[i] <= seen[i - 1]) // 아래로 갈수록 줄어듦
+    assert.deepEqual([...new Set(seen)], [55, 50, 45, 40, 35, 30, 25, 20, 15, 10, 5])
+    const r = setupTouchEnd(g, FOCUS_BAR_X, 380)
+    assert.equal(r.settings.focusMs, 5 * MIN)
+    assert.equal(r.changed, true)
+    assert.equal(r.action, null)
+    // 휴식 막대 탭 = 그 칸 값
+    const tap = gesture(defaultSettings(), [[REST_BAR_X, 190], [REST_BAR_X, 190]])
+    assert.equal(tap.settings.breakMs, 20 * MIN)
+    assert.equal(tap.settings.focusMs, 25 * MIN)
+  })
+})
+
+describe('설정 화면(THERMO) 숫자 칸 탭·쓸기', () => {
+  it('윗절반 탭 = +1단계, 아랫절반 탭 = -1단계(집중 ±5, 휴식 ±1)', () => {
+    assert.equal(gesture(defaultSettings(), [[120, 90], [122, 92]]).settings.focusMs, 30 * MIN)
+    assert.equal(gesture(defaultSettings(), [[120, 180], [120, 180]]).settings.focusMs, 20 * MIN)
+    assert.equal(gesture(defaultSettings(), [[120, 240], [120, 240]]).settings.breakMs, 6 * MIN)
+    const dn = gesture(defaultSettings(), [[120, 320], [125, 330]])
+    assert.equal(dn.settings.breakMs, 4 * MIN)
+    assert.equal(dn.flash, 'rDn')
+    assert.equal(gesture(defaultSettings(), [[120, 90], [120, 90]]).flash, 'fUp')
+  })
+  it('탭은 끝값에서 멈춘다(되돌아가지 않음)', () => {
+    const hi = gesture(S(60, 30, true), [[120, 90], [120, 90]])
+    assert.equal(hi.settings.focusMs, 60 * MIN)
+    assert.equal(hi.changed, false)
+    assert.equal(gesture(S(60, 30, true), [[120, 240], [120, 240]]).settings.breakMs, 30 * MIN)
+    assert.equal(gesture(S(5, 1, true), [[120, 180], [120, 180]]).settings.focusMs, 5 * MIN)
+    assert.equal(gesture(S(5, 1, true), [[120, 330], [120, 330]]).settings.breakMs, 1 * MIN)
+  })
+  it('숫자 칸 세로 쓸기: 36px 마다 1단계, 위로 = +, 쓸기는 탭으로 치지 않는다', () => {
+    assert.equal(NUM_SWIPE_PX, 36)
+    assert.equal(numSwipeSteps(0), 0)
+    assert.equal(numSwipeSteps(-35), 0)
+    assert.equal(numSwipeSteps(-36), 1)
+    assert.equal(numSwipeSteps(-110), 3)
+    assert.equal(numSwipeSteps(72), -2)
+    const up = gesture(defaultSettings(), [[120, 200], [120, 180], [120, 120], [120, 120]])
+    assert.equal(up.settings.focusMs, 35 * MIN) // 80px 위로 = +2단계, 탭 +1 은 더하지 않음
+    assert.equal(up.flash, null)
+    const many = gesture(S(25, 28, true), [[120, 340], [120, 300], [120, 60]])
+    assert.equal(many.settings.breakMs, 30 * MIN)
+  })
+  it('이동이 TAP_MAX_MOVE 를 넘으면 탭이 아니다', () => {
+    assert.equal(TAP_MAX_MOVE, 40)
+    const r = gesture(defaultSettings(), [[120, 90], [120, 112], [120, 92]]) // 22px 내려갔다 돌아옴 = 탭
+    assert.equal(r.settings.focusMs, 30 * MIN)
+    const far = gesture(defaultSettings(), [[120, 90], [120, 140], [120, 92]]) // 50px 왕복 = 쓸기(0단계)
+    assert.equal(far.settings.focusMs, 25 * MIN)
+  })
+})
+
+describe('설정 화면(THERMO) 방향 잠금 · 좌우 이동 무시', () => {
+  it('12px 를 넘는 순간 |dy| > |dx| 면 세로, 아니면 가로', () => {
+    assert.equal(DIR_LOCK_PX, 12)
+    assert.equal(dirLock(5, 5), null)
+    assert.equal(dirLock(0, 12), null)
+    assert.equal(dirLock(0, 13), 'v')
+    assert.equal(dirLock(13, 0), 'h')
+    assert.equal(dirLock(10, 10), 'h') // 같으면 세로가 아님
+    assert.equal(dirLock(-9, 11), 'v')
+  })
+  it('가로로 먼저 움직이면 값을 바꾸지 않는다(막대 스냅도 되돌림)', () => {
+    const bar = gesture(defaultSettings(), [[REST_BAR_X, 200], [REST_BAR_X + 20, 202], [REST_BAR_X + 60, 120]])
+    assert.deepEqual(bar.settings, defaultSettings())
+    assert.equal(bar.changed, false)
+    const num = gesture(defaultSettings(), [[60, 100], [90, 100], [200, 30]])
+    assert.deepEqual(num.settings, defaultSettings())
+    const numShort = gesture(defaultSettings(), [[60, 100], [85, 103]]) // 25px 가로 = 탭도 아님
+    assert.deepEqual(numShort.settings, defaultSettings())
+    assert.equal(gesture(defaultSettings(), [[100, 380], [160, 380]]).settings.repeat, true)
+    assert.equal(gesture(defaultSettings(), [[216, 460], [300, 460]]).action, null)
+  })
+  it('세로로 잠긴 뒤에는 가로로 크게 비껴도 값만 바뀐다(y 만 따라감)', () => {
+    let g = setupTouchStart(defaultSettings(), FOCUS_BAR_X, 300)
+    g = setupTouchMove(g, FOCUS_BAR_X + 2, 280)
+    assert.equal(g.lock, 'v')
+    g = setupTouchMove(g, FOCUS_BAR_X + 140, 150) // 오른쪽으로 140px 비낌
+    assert.equal(g.settings.focusMs, 50 * MIN)
+    const r = setupTouchEnd(g, 420, 150)
+    assert.equal(r.settings.focusMs, 50 * MIN)
+    const num = gesture(defaultSettings(), [[100, 200], [102, 180], [230, 128], [300, 128]])
+    assert.equal(num.settings.focusMs, 35 * MIN)
+  })
+  it('터치 중 강조: 바꾸는 줄 밑줄, 숫자 칸 ▲▼ 눌림, START 눌림', () => {
+    assert.deepEqual(setupGestureUi(null), { fHot: false, rHot: false, fUpOn: false, fDnOn: false, rUpOn: false, rDnOn: false, startOn: false })
+    let g = setupTouchStart(defaultSettings(), FOCUS_BAR_X, 200)
+    assert.equal(setupGestureUi(g).fHot, true)
+    assert.equal(setupGestureUi(g).rHot, false)
+    g = setupTouchStart(defaultSettings(), 120, 300)
+    assert.equal(setupGestureUi(g).rDnOn, true)
+    assert.equal(setupGestureUi(g).rHot, true)
+    g = setupTouchMove(g, 120, 260)
+    assert.equal(setupGestureUi(g).rDnOn, false) // 쓸기로 잠기면 눌림 끔
+    g = setupTouchStart(defaultSettings(), REST_BAR_X, 200)
+    g = setupTouchMove(g, REST_BAR_X + 30, 200)
+    assert.equal(setupGestureUi(g).rHot, false) // 가로 = 무시
+    g = setupTouchStart(defaultSettings(), 216, 460)
+    assert.equal(setupGestureUi(g).startOn, true)
+  })
+  it('REPEAT 탭 = 토글, START 탭 = 시작', () => {
+    const r = gesture(defaultSettings(), [[100, 380], [104, 384]])
+    assert.equal(r.settings.repeat, false)
+    assert.equal(r.changed, true)
+    const st = gesture(defaultSettings(), [[216, 460], [216, 462]])
+    assert.equal(st.action, 'start')
+    assert.equal(st.changed, false)
+    assert.equal(gesture(defaultSettings(), [[20, 460], [20, 460]]).action, null)
+  })
+  it('시스템 뒤로: 설정 컨트롤 터치 중·직후(BACK_GUARD_MS)만 삼킨다', () => {
+    const now = 5000
+    assert.equal(shouldSwallowBack('setup', true, 'focusBar', 0, now), true)
+    assert.equal(shouldSwallowBack('setup', false, 'restBar', now - BACK_GUARD_MS + 1, now), true)
+    assert.equal(shouldSwallowBack('setup', false, 'restBar', now - BACK_GUARD_MS, now), false)
+    assert.equal(shouldSwallowBack('setup', true, null, 0, now), false) // 가장자리(x<30) 스와이프는 뒤로
+    assert.equal(shouldSwallowBack('timer', true, 'focusBar', now, now), false)
+  })
+})
+
+describe('설정 화면 viewModel', () => {
+  it('큰 숫자, 막대 묶음, 끝값 패치, 토글 이미지', () => {
     const v = setupViewModel(defaultSettings())
     assert.equal(v.focusText, '25')
     assert.equal(v.breakText, '05')
@@ -155,21 +343,37 @@ describe('설정 화면 조작', () => {
     assert.equal(v.f2Src, '/common/setup/f5.png')
     assert.equal(v.r1Src, '/common/setup/r0.png')
     assert.equal(v.r2Src, '/common/setup/r5.png')
-    assert.equal(v.fPrev1Src + v.fPrev2Src, '/common/setup/n2.png/common/setup/n0.png')
-    assert.equal(v.fNext1Src + v.fNext2Src, '/common/setup/n3.png/common/setup/n0.png')
-    assert.equal(v.rPrev2Src, '/common/setup/n4.png')
-    assert.equal(v.rNext2Src, '/common/setup/n6.png')
+    assert.equal(v.fBar0Show, true)
+    assert.equal(v.fBar0Src, '/common/setup/fg05m.png')
+    assert.equal(v.fBar1Show, false)
+    assert.equal(v.rBar0Src, '/common/setup/rg05m.png')
+    assert.equal(v.rBar1Show, false)
+    assert.equal(v.rBar2Show, false)
+    assert.equal(v.fUpOffShow || v.fDnOffShow || v.rUpOffShow || v.rDnOffShow, false)
     assert.equal(v.toggleSrc, '/common/setup/tog-on.png')
     const lo = setupViewModel(S(5, 1, false))
-    assert.equal(lo.fPrevShow, false)
-    assert.equal(lo.rPrevShow, false)
-    assert.equal(lo.fNextShow, true)
+    assert.equal(lo.fBar0Src, '/common/setup/fg01m.png')
+    assert.equal(lo.rBar0Src, '/common/setup/rg01m.png')
+    assert.equal(lo.fDnOffShow, true)
+    assert.equal(lo.rDnOffShow, true)
+    assert.equal(lo.fUpOffShow, false)
     assert.equal(lo.toggleSrc, '/common/setup/tog-off.png')
     const hi = setupViewModel(S(60, 30, true))
-    assert.equal(hi.fNextShow, false)
-    assert.equal(hi.rNextShow, false)
-    assert.equal(hi.f1Src, '/common/setup/f6.png')
-    assert.equal(hi.r1Src, '/common/setup/r3.png')
+    assert.equal(hi.fBar0Src, '/common/setup/fg06.png')
+    assert.equal(hi.fBar1Src, '/common/setup/fg06m.png')
+    assert.equal(hi.rBar2Src, '/common/setup/rg10m.png')
+    assert.equal(hi.fUpOffShow && hi.rUpOffShow, true)
+    const mid = setupViewModel(S(35, 12, true))
+    assert.deepEqual([mid.fBar0Src, mid.fBar1Show, mid.fBar1Src], ['/common/setup/fg06.png', true, '/common/setup/fg01m.png'])
+    assert.deepEqual([mid.rBar0Src, mid.rBar1Src, mid.rBar2Show], ['/common/setup/rg10.png', '/common/setup/rg02m.png', false])
+  })
+  it('barNodes: 묶음 규칙(k≤0 숨김, 1≤k≤n 눈금, k>n 꽉 참)', () => {
+    for (let L = 1; L <= 30; L++) {
+      const nodes = barNodes('break', L)
+      const lit = nodes.reduce((a, n) => a + (!n.show ? 0 : n.src.endsWith('rg10.png') ? 10 : Number(n.src.match(/rg(\d\d)m/)[1])), 0)
+      assert.equal(lit, L, 'level ' + L)
+      assert.equal(nodes.filter((n) => n.show && /m\.png$/.test(n.src)).length, 1) // 노란 눈금은 하나
+    }
   })
 })
 
