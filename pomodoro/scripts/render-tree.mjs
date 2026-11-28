@@ -1,6 +1,6 @@
 /**
  * 미리보기용: src/pages/index/index.ux 를 그대로 읽어 페이지 객체(script)를 돌리고, template 의 if·{{}}·class·style 을
- * 평가해 화면에 보이는 요소 목록(JSON)을 낸다. scripts/gen-preview-0.1.9.py 가 이 목록을 PIL 로 그린다.
+ * 평가해 화면에 보이는 요소 목록(JSON)을 낸다. scripts/gen-preview-ui.py 가 이 목록을 PIL 로 그린다.
  * 사용: node scripts/render-tree.mjs <장면 이름>  (장면 목록은 SCENES)
  * 실기기 렌더링이 아니라 레이아웃 확인용 근사다(글꼴·텍스트 세로 정렬은 기기와 다를 수 있음).
  */
@@ -17,8 +17,9 @@ function loadPage() {
   const script = ux.slice(ux.indexOf('<script>') + 8, ux.indexOf('</script>'))
   const body = script
     .replace(/import vibrator from '@system\.vibrator'/, 'const vibrator = { vibrate() {} }')
-    .replace(/import \{ loadSettings, saveSettings \} from '\.\.\/\.\.\/common\/persist\.js'/,
-      'const loadSettings = () => Promise.resolve(__timer.defaultSettings()); const saveSettings = () => Promise.resolve(true)')
+    .replace(/import \{ loadSettings, saveSettings, loadSession, saveSession \} from '\.\.\/\.\.\/common\/persist\.js'/,
+      'const loadSettings = () => Promise.resolve(__timer.defaultSettings()); const saveSettings = () => Promise.resolve(true); ' +
+      'const loadSession = () => Promise.resolve(null); const saveSession = () => Promise.resolve(true)')
     .replace(/import \{([\s\S]*?)\} from '\.\.\/\.\.\/common\/timer\.js'/, 'const {$1} = __timer')
     .replace('export default {', 'return {')
   const def = new Function('__timer', 'require', body)(timer, () => null)
@@ -91,8 +92,8 @@ function collect(page, css, node, out) {
     const cls = node.attrs.class || ''
     if (cls === 'pause') {
       // flex 정렬 대신 gen-booster.py 와 같은 좌표(중심 구멍 안 막대 8x26 두 개)
-      out.push({ k: 'div', x: 204, y: 244, w: 8, h: 26, bg: '#fffcf4', r: 2 })
-      out.push({ k: 'div', x: 220, y: 244, w: 8, h: 26, bg: '#fffcf4', r: 2 })
+      out.push({ k: 'div', x: 204, y: 244, w: 8, h: 26, bg: '#fffcf4', r: 2, bw: 0, bc: null, op: 1, rot: 0, origin: null })
+      out.push({ k: 'div', x: 220, y: 244, w: 8, h: 26, bg: '#fffcf4', r: 2, bw: 0, bc: null, op: 1, rot: 0, origin: null })
       return
     }
     if (p.position === 'absolute' && cls !== 'view') {

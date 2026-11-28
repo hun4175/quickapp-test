@@ -82,7 +82,12 @@ import {
   sweepAngle,
   sweepFrame,
   sweepParts,
-  viewModel
+  viewModel,
+  suspendState,
+  serializeSession,
+  deserializeSession,
+  SESSION_KEY,
+  RESUME_PILL
 } from '../src/common/timer.js'
 
 const T0 = 1_000_000_000_000
@@ -109,8 +114,8 @@ describe('formatTime', () => {
 })
 
 describe('설정 값 범위', () => {
-  it('기본값은 집중 25분, 휴식 5분, 반복 켬, 테마 SAND', () => {
-    assert.deepEqual(defaultSettings(), { focusMs: 25 * MIN, breakMs: 5 * MIN, repeat: true, theme: 'sand' })
+  it('기본값은 집중 25분, 휴식 5분, 반복 켬, 테마 SWEEP(0.1.10)', () => {
+    assert.deepEqual(defaultSettings(), { focusMs: 25 * MIN, breakMs: 5 * MIN, repeat: true, theme: 'sweep' })
     assert.deepEqual(normalizeSettings(null), defaultSettings())
   })
   it('집중은 5분 단위 5~60분, 휴식은 1분 단위 1~30분', () => {
@@ -154,12 +159,21 @@ describe('설정 값 범위', () => {
 })
 
 describe('테마 저장 · 기본값', () => {
-  it('테마 4개, 기본은 SAND, 모르는 값은 SAND', () => {
-    assert.deepEqual(THEMES, ['sand', 'booster', 'battery', 'sweep'])
-    assert.equal(THEME_DEFAULT, 'sand')
-    assert.deepEqual(THEMES.map((t) => THEME_INFO[t].name), ['SAND', 'BOOSTER', 'BATTERY', 'SWEEP'])
+  it('테마 순서 1 SWEEP · 2 SAND · 3 BATTERY · 4 BOOSTER, 기본은 SWEEP, 모르는 값은 SWEEP', () => {
+    assert.deepEqual(THEMES, ['sweep', 'sand', 'battery', 'booster'])
+    assert.equal(THEME_DEFAULT, 'sweep')
+    assert.deepEqual(THEMES.map((t) => THEME_INFO[t].name), ['SWEEP', 'SAND', 'BATTERY', 'BOOSTER'])
+    assert.deepEqual(Object.keys(THEME_INFO), THEMES)
     for (const t of THEMES) assert.equal(normalizeTheme(t), t)
-    for (const bad of [undefined, null, '', 'SAND', 'tomato', 3, {}]) assert.equal(normalizeTheme(bad), 'sand')
+    for (const bad of [undefined, null, '', 'SAND', 'tomato', 3, 0, {}]) assert.equal(normalizeTheme(bad), 'sweep')
+  })
+  it('0.1.9 에 저장된 theme(이름 문자열)은 순서가 바뀌어도 그대로, 다시 저장해도 이름', () => {
+    for (const t of ['sand', 'booster', 'battery', 'sweep']) {
+      const v019 = JSON.stringify({ focusMs: 30 * MIN, breakMs: 7 * MIN, repeat: true, theme: t })
+      const s = deserializeSettings(v019, '')
+      assert.equal(s.theme, t)
+      assert.equal(JSON.parse(serializeSettings(s)).theme, t)
+    }
   })
   it('theme 은 기존 키(pomodoro.settings.v1) 안의 필드로 저장·복원된다', () => {
     assert.equal(SETTINGS_KEY, 'pomodoro.settings.v1')
@@ -170,16 +184,16 @@ describe('테마 저장 · 기본값', () => {
       assert.deepEqual(deserializeSettings(raw, ''), s)
     }
   })
-  it('theme 이 없는 0.1.8 저장값은 값은 그대로, 테마는 SAND', () => {
+  it('theme 이 없는 0.1.8 저장값은 값은 그대로, 테마는 기본 SWEEP', () => {
     const v018 = JSON.stringify({ focusMs: 40 * MIN, breakMs: 12 * MIN, repeat: false })
-    assert.deepEqual(deserializeSettings(v018, ''), S(40, 12, false, 'sand'))
+    assert.deepEqual(deserializeSettings(v018, ''), S(40, 12, false, 'sweep'))
     const bad = JSON.stringify({ focusMs: 40 * MIN, breakMs: 12 * MIN, repeat: false, theme: 'lcd' })
-    assert.equal(deserializeSettings(bad, '').theme, 'sand')
+    assert.equal(deserializeSettings(bad, '').theme, 'sweep')
   })
   it('setTheme 은 테마만 바꾸고, 관·반복 조작은 테마를 지우지 않는다', () => {
     const s = setTheme(S(35, 8, false, 'sand'), 'booster')
     assert.deepEqual(s, S(35, 8, false, 'booster'))
-    assert.equal(setTheme(s, 'nope').theme, 'sand')
+    assert.equal(setTheme(s, 'nope').theme, 'sweep')
     assert.equal(tubeSetting(s, 'focus', 100).theme, 'booster')
     assert.equal(tubeSetting(s, 'break', 100).theme, 'booster')
     assert.equal(toggleRepeat(s).theme, 'booster')
@@ -192,7 +206,7 @@ describe('테마 저장 · 기본값', () => {
     assert.equal(LEGACY_STATE_KEY, 'pomodoro.state.v1')
     const legacy = JSON.stringify({ phase: 'break', running: true, endAt: T0, remainMs: 1000, focusMs: 35 * MIN, idle: false })
     const s = deserializeSettings('', legacy)
-    assert.deepEqual(s, { focusMs: 35 * MIN, breakMs: BREAK_MS, repeat: true, theme: 'sand' })
+    assert.deepEqual(s, { focusMs: 35 * MIN, breakMs: BREAK_MS, repeat: true, theme: 'sweep' })
     assert.equal('running' in s, false)
   })
 })
@@ -354,12 +368,12 @@ describe('테마 고르기 화면', () => {
   it('줄 4개: x 40~392, y 96+88i, 높이 80, 줄 사이 틈은 null', () => {
     assert.deepEqual(themeRowZone(0), [40, 96, 392, 176])
     assert.deepEqual(themeRowZone(3), [40, 360, 392, 440])
-    assert.equal(themeHit(200, 96), 'sand')
-    assert.equal(themeHit(200, 175), 'sand')
+    assert.equal(themeHit(200, 96), 'sweep')
+    assert.equal(themeHit(200, 175), 'sweep')
     assert.equal(themeHit(200, 180), null)
-    assert.equal(themeHit(200, 184), 'booster')
+    assert.equal(themeHit(200, 184), 'sand')
     assert.equal(themeHit(391, 300), 'battery')
-    assert.equal(themeHit(200, 439), 'sweep')
+    assert.equal(themeHit(200, 439), 'booster')
     assert.equal(themeHit(200, 440), null)
     assert.equal(themeHit(35, 300), null)
     assert.equal(themeHit(200, 50), null)
@@ -372,13 +386,14 @@ describe('테마 고르기 화면', () => {
     assert.equal(themeTap(200, 300, null, null), null)
   })
   it('현재 테마는 흰 테두리 + ✓, 누른 줄은 밝은 바탕', () => {
-    const v = themesViewModel(S(25, 5, true, 'battery'), 'sand')
+    const v = themesViewModel(S(25, 5, true, 'battery'), 'sweep')
     assert.deepEqual([v.cur0, v.cur1, v.cur2, v.cur3], [false, false, true, false])
     assert.equal(v.rowBc2, '#FFFFFF')
     assert.equal(v.rowBc0, '#1A1A1A')
     assert.equal(v.rowBg0, '#333333')
     assert.equal(v.rowBg2, '#1A1A1A')
-    assert.equal(themesViewModel({}).cur0, true) // 기본 SAND
+    assert.equal(themesViewModel({}).cur0, true) // 기본 SWEEP = 1번 줄
+    assert.equal(themesViewModel(S(25, 5, true, 'booster')).cur3, true) // BOOSTER = 4번 줄
   })
 })
 
@@ -654,10 +669,82 @@ describe('viewModel 공통', () => {
       assert.equal(v.theme, t)
       for (const k of VIEW_KEYS.common.concat(VIEW_KEYS[t])) assert.ok(k in v, t + ' ' + k)
     }
-    assert.equal(viewModel(st, 'lcd').theme, 'sand')
-    assert.equal(viewModel(st).theme, 'sand')
+    assert.equal(viewModel(st, 'lcd').theme, 'sweep')
+    assert.equal(viewModel(st).theme, 'sweep')
   })
   it('진동 간격은 0.5초 간격 3회', () => {
     assert.deepEqual(VIBRATE_OFFSETS_MS, [0, 500, 1000])
+  })
+})
+
+describe('백그라운드 일시정지 · 세션 보존 (0.1.10)', () => {
+  const running = (phase, remainMs, repeat) => {
+    let st = start(armedState(S(25, 5, repeat !== false)), T0)
+    if (phase === 'break') st = advance(st, T0 + 25 * MIN).state
+    const now = st.endAt - remainMs
+    return { st, now }
+  }
+  it('suspendState: 실행 중이면 그 순간 일시정지(남은 시간·단계·반복 유지), 이미 멈춘 상태는 그대로', () => {
+    const { st, now } = running('break', 3 * MIN)
+    const p = suspendState(st, now)
+    assert.deepEqual([p.running, p.endAt, p.phase, p.remainMs, p.repeat, p.done], [false, null, 'break', 3 * MIN, true, false])
+    assert.deepEqual(suspendState(p, now + 99 * MIN), p) // 숨긴 동안 줄지 않는다
+    const armed = armedState(S(25, 5, true))
+    assert.deepEqual(suspendState(armed, T0), armed) // 시작 애니메이션 중 = 시작 전 상태 그대로
+  })
+  it('suspendState: 구간 경계를 지나 있으면 먼저 진행, 반복 끔이 끝났으면 done', () => {
+    const st = start(armedState(S(25, 5, true)), T0)
+    const p = suspendState(st, T0 + 26 * MIN)
+    assert.deepEqual([p.phase, p.running, p.remainMs], ['break', false, 4 * MIN])
+    const off = start(armedState(S(25, 5, false)), T0)
+    assert.equal(suspendState(off, T0 + 31 * MIN).done, true)
+  })
+  it('세션 저장 키는 설정과 별개, 직렬화 → 복원하면 항상 일시정지·같은 테마', () => {
+    assert.equal(SESSION_KEY, 'pomodoro.session.v1')
+    assert.notEqual(SESSION_KEY, SETTINGS_KEY)
+    const { st, now } = running('focus', 10 * MIN)
+    const p = suspendState(st, now)
+    const raw = serializeSession(p, 'battery')
+    const r = deserializeSession(raw, now + 3 * 60 * MIN)
+    assert.equal(r.theme, 'battery')
+    assert.deepEqual(r.state, p)
+  })
+  it('실행 중으로 저장된 세션(onHide 없이 종료)은 지난 시간만큼 진행한 뒤 일시정지로 복원', () => {
+    const { st, now } = running('focus', 10 * MIN)
+    const raw = serializeSession(st, 'sweep')
+    const r = deserializeSession(raw, now + 4 * MIN)
+    assert.deepEqual([r.state.running, r.state.phase, r.state.remainMs], [false, 'focus', 6 * MIN])
+    const r2 = deserializeSession(raw, now + 12 * MIN)
+    assert.deepEqual([r2.state.phase, r2.state.remainMs], ['break', 3 * MIN])
+  })
+  it('지울 값·깨진 값·끝난 세션은 복원하지 않는다', () => {
+    assert.equal(serializeSession(null, 'sand'), '')
+    const off = start(armedState(S(25, 5, false)), T0)
+    assert.equal(serializeSession(suspendState(off, T0 + 31 * MIN), 'sand'), '')
+    assert.equal(deserializeSession(serializeSession(off, 'sand'), T0 + 40 * MIN), null)
+    for (const bad of ['', 'nope', '{}', '{"v":2}', 'null', undefined]) assert.equal(deserializeSession(bad, T0), null)
+    const r = deserializeSession(JSON.stringify({ v: 1, theme: 'lcd', phase: 'focus', remainMs: 60000, focusMs: 25 * MIN, breakMs: 5 * MIN, repeat: true }), T0)
+    assert.equal(r.theme, 'sweep')
+  })
+  it('일시정지 화면: SAND·BATTERY·SWEEP 은 재개 안내 표시, BOOSTER 는 기존 중심 막대(paused)만', () => {
+    const p = pause(runAt('focus', 12.5 * MIN), T0)
+    for (const t of THEMES) {
+      const v = viewModel(p, t)
+      assert.equal(v.paused, true)
+      assert.equal(v.resumeShow, t !== 'booster')
+      assert.equal(v.resumeLeft, t === 'battery' ? RESUME_PILL.batteryLeft : RESUME_PILL.left)
+      assert.equal(viewModel(runAt('focus', 12.5 * MIN), t).resumeShow, false)
+    }
+    // 둥근 화면(432x514, 모서리 반경 80) 안: 알약 네 꼭짓점이 모두 화면 안
+    const inScreen = (x, y) => {
+      const cx = x < 80 ? 80 : x > 352 ? 352 : x
+      const cy = y < 80 ? 80 : y > 434 ? 434 : y
+      return x >= 0 && x <= 432 && y >= 0 && y <= 514 && Math.hypot(x - cx, y - cy) <= 80
+    }
+    const { top, h, w } = RESUME_PILL
+    for (const left of [RESUME_PILL.left, RESUME_PILL.batteryLeft]) {
+      for (const [x, y] of [[left, top], [left + w, top], [left, top + h], [left + w, top + h]]) assert.ok(inScreen(x, y), x + ',' + y)
+    }
+    assert.ok(RESUME_PILL.batteryLeft >= 54 + 150) // 배터리 몸통(54~204) 오른쪽
   })
 })

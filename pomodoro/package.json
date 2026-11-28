@@ -1,6 +1,6 @@
 {
   "name": "pomodoro",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "REDMI Watch 6(글로벌)용 뽀모도로 타이머 Vela 퀵앱 BOOST",
   "license": "MIT",
   "private": true,
@@ -11,7 +11,7 @@
     "start": "aiot start --watch",
     "build": "aiot build",
     "test": "node --test test/*.test.mjs",
-    "preview": "python3 scripts/gen-preview.py && python3 scripts/gen-booster.py && python3 scripts/gen-preview-0.1.9.py"
+    "preview": "python3 scripts/gen-preview.py && python3 scripts/gen-booster.py && python3 scripts/gen-preview-ui.py"
   },
   "devDependencies": {
     "@aiot-toolkit/jsc": "^1.0.3",

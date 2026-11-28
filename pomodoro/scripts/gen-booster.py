@@ -7,7 +7,7 @@
 - src/common/booster/m0~m9.png(분), s0~s9.png(초), colon.png, focus.png, rest.png(라벨+네온 밑줄),
   : 투명 PNG 오버레이(v11 text_layer 와 같은 2단 글로우).
 - 0.1.9 부터 BOOSTER 는 테마 4개 중 하나이고, 설정 화면(TWIN TUBES)은 CSS 만 쓴다(THERMO PNG 52장 제거).
-  미리보기는 scripts/gen-preview-0.1.9.py 가 실제 index.ux 를 평가해 만든다(이 스크립트의 previews() 는 0.1.8 기록용).
+  미리보기는 scripts/gen-preview-ui.py 가 실제 index.ux 를 평가해 만든다(이 스크립트의 previews() 는 0.1.8 기록용).
 앱은 게이지 image 하나의 src 만 바꾸고, 숫자 image 몇 개를 겹쳐 둔다.
 라벨 글꼴(Barlow Semi Condensed, SIL OFL 1.1)은 PNG 에 구워 넣고 rpk 에는 넣지 않는다.
 """

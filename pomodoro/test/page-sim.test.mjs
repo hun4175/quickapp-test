@@ -18,7 +18,7 @@ const MIN = 60000
 function loadPage(env) {
   let body = script
     .replace(/import vibrator from '@system\.vibrator'/, 'const vibrator = __vib')
-    .replace(/import \{ loadSettings, saveSettings \} from '\.\.\/\.\.\/common\/persist\.js'/, 'const { loadSettings, saveSettings } = __persist')
+    .replace(/import \{ loadSettings, saveSettings, loadSession, saveSession \} from '\.\.\/\.\.\/common\/persist\.js'/, 'const { loadSettings, saveSettings, loadSession, saveSession } = __persist')
     .replace(/import \{([\s\S]*?)\} from '\.\.\/\.\.\/common\/timer\.js'/, 'const {$1} = __timer')
     .replace('export default {', 'return {')
   assert.ok(!/^\s*import /m.test(body), 'import 가 남음')
@@ -28,12 +28,15 @@ function loadPage(env) {
   return page
 }
 
-function makeEnv(stored) {
-  const env = { saved: [], vibes: 0, keep: [] }
+/** storedSession: SESSION_KEY 에 들어 있는 문자열(실제 persist.js 와 같은 serialize/deserialize 를 거친다). */
+function makeEnv(stored, storedSession) {
+  const env = { saved: [], vibes: 0, keep: [], session: storedSession || '', sessionWrites: 0 }
   env.vib = { vibrate: () => { env.vibes++ } }
   env.persist = {
     loadSettings: () => Promise.resolve(stored || timer.defaultSettings()),
-    saveSettings: (s) => { env.saved.push(s); return Promise.resolve(true) }
+    saveSettings: (s) => { env.saved.push(s); return Promise.resolve(true) },
+    loadSession: () => Promise.resolve(timer.deserializeSession(env.session, Date.now())),
+    saveSession: (st, th) => { env.session = timer.serializeSession(st, th); env.sessionWrites++; return Promise.resolve(true) }
   }
   env.require = (m) => (m === '@system.brightness' ? { setKeepScreenOn: (o) => env.keep.push(o.keepScreenOn) } : null)
   return env
@@ -49,8 +52,8 @@ const flush = () => new Promise((r) => setImmediate(r))
 
 describe('페이지 시뮬레이션(index.ux script)', () => {
   let page, env
-  const boot = async (stored) => {
-    env = makeEnv(stored)
+  const boot = async (stored, storedSession) => {
+    env = makeEnv(stored, storedSession)
     page = loadPage(env)
     page.onInit()
     page.onShow()
@@ -62,11 +65,11 @@ describe('페이지 시뮬레이션(index.ux script)', () => {
   })
   afterEach(() => mock.timers.reset())
 
-  it('처음엔 설정 뷰, 25/05, 관 채움 5칸·5칸, 테마 값이 없으면 SAND', () => {
+  it('처음엔 설정 뷰, 25/05, 관 채움 5칸·5칸, 테마 값이 없으면 SWEEP(0.1.10 기본)', () => {
     assert.equal(page.view, 'setup')
     assert.deepEqual([page.focusNum, page.restNum], ['25', '05'])
     assert.deepEqual([page.focusFillTop, page.focusFillH, page.restFillTop, page.restFillH], [273, 147, 361, 59])
-    assert.equal(page._settings.theme, 'sand')
+    assert.equal(page._settings.theme, 'sweep')
   })
 
   it('집중 관을 위로 끌면 칸마다 숫자·채움이 따라오고, 저장은 손 뗄 때 한 번', () => {
@@ -82,7 +85,7 @@ describe('페이지 시뮬레이션(index.ux script)', () => {
     page.onTouchEnd(ev(128, 60))
     assert.equal(env.saved.length, 1)
     assert.equal(env.saved[0].focusMs, 60 * MIN)
-    assert.equal(env.saved[0].theme, 'sand')
+    assert.equal(env.saved[0].theme, 'sweep')
     assert.deepEqual([page.focusNum, page.focusFillTop, page.focusFillH], ['60', 68, 352])
     assert.equal(page.fActive, false)
     assert.equal(new Set(nums).size, 8) // 25..60
@@ -117,7 +120,7 @@ describe('페이지 시뮬레이션(index.ux script)', () => {
     page.onTouchEnd(ev(81, 469))
     assert.equal(page.view, 'themes')
     assert.equal(page.themeBtnColor, timer.THEME_BTN)
-    assert.deepEqual([page.cur0, page.cur1, page.cur2, page.cur3], [true, false, false, false])
+    assert.deepEqual([page.cur0, page.cur1, page.cur2, page.cur3], [true, false, false, false]) // 1번 줄 = SWEEP(기본)
     assert.equal(page.rowBc0, '#FFFFFF')
     page.onTouchStart(ev(200, 300))
     assert.equal(page.rowBg2, '#333333') // 눌림
@@ -143,7 +146,7 @@ describe('페이지 시뮬레이션(index.ux script)', () => {
     page.onTouchMove(ev(200, 300)) // 오른쪽 스와이프(뒤로)
     assert.equal(page.onBackPress(), true)
     assert.equal(page.view, 'setup')
-    assert.equal(page._settings.theme, 'sand')
+    assert.equal(page._settings.theme, 'sweep')
     assert.equal(env.saved.length, 0)
   })
 
@@ -221,19 +224,122 @@ describe('페이지 시뮬레이션(index.ux script)', () => {
     assert.ok(env.vibes >= 3)
   })
 
-  it('onHide/onShow 하면 진행 중 타이머·테마 고르기를 버리고 설정 뷰로', async () => {
+  it('0.1.9 에 SAND 를 저장한 사용자는 SAND 그대로(이름으로 저장, 순서와 무관)', async () => {
+    await boot(timer.deserializeSettings(JSON.stringify({ focusMs: 25 * MIN, breakMs: 5 * MIN, repeat: true, theme: 'sand' }), ''))
+    assert.equal(page._settings.theme, 'sand')
+    swipe(page, [[80, 468], [80, 468]])
+    assert.deepEqual([page.cur0, page.cur1, page.cur2, page.cur3], [false, true, false, false]) // 2번 줄 = SAND
+    swipe(page, [[216, 140], [216, 140]]) // 1번 줄 = SWEEP 을 고르면 그때 바뀐다
+    assert.equal(page._settings.theme, 'sweep')
+    await boot({ focusMs: 25 * MIN, breakMs: 5 * MIN, repeat: true, theme: 'booster' })
+    assert.equal(page._settings.theme, 'booster')
+  })
+
+  it('타이머 중 onHide: 그 순간 일시정지, 남은 시간·단계·화면 유지 → onShow: 같은 화면 일시정지, 탭해야 재개', async () => {
+    await boot({ focusMs: 25 * MIN, breakMs: 5 * MIN, repeat: true, theme: 'sand' })
     swipe(page, [[216, 470], [216, 470]])
-    mock.timers.tick(2000)
-    assert.equal(page.view, 'timer')
+    mock.timers.tick(timer.INTRO_MS + 100)
+    mock.timers.tick(25 * MIN + 2 * MIN) // 휴식 2분째
+    assert.equal(page.phaseLabel, 'REST')
+    assert.equal(page.timeText, '03:00')
     page.onHide()
-    assert.equal(page.view, 'setup')
+    assert.equal(page.view, 'timer')
+    assert.equal(page.paused, true)
+    assert.equal(page.resumeShow, true)
+    assert.equal(page._state.running, false)
+    assert.equal(page._state.phase, 'break')
+    assert.equal(page._state.remainMs, 3 * MIN)
+    assert.equal(page._state.repeat, true)
+    assert.equal(env.keep[env.keep.length - 1], false) // 화면 켜짐 유지 해제
+    const vib = env.vibes
+    mock.timers.tick(10 * MIN) // 백그라운드 10분: 줄지 않는다
     page.onShow()
     await flush()
-    assert.equal(page.view, 'setup')
-    assert.equal(page._state, null)
-    swipe(page, [[80, 468], [80, 468]])
-    assert.equal(page.view, 'themes')
+    assert.equal(page.view, 'timer')
+    assert.equal(page.timerTheme, 'sand')
+    assert.equal(page.paused, true)
+    assert.equal(page.timeText, '03:00')
+    assert.equal(page.phaseLabel, 'REST')
+    mock.timers.tick(5000)
+    assert.equal(page.timeText, '03:00') // 재개 전에는 그대로
+    assert.equal(env.vibes, vib)
+    swipe(page, [[216, 257], [216, 257]]) // 탭 = 재개
+    assert.equal(page.paused, false)
+    assert.equal(page.resumeShow, false)
+    mock.timers.tick(1000)
+    assert.equal(page.timeText, '02:59')
+  })
+
+  it('시작 애니메이션 중 onHide: 시작 전(가득) 일시정지로 멈추고, 복귀 후 탭하면 카운트다운', async () => {
+    swipe(page, [[216, 470], [216, 470]])
+    mock.timers.tick(timer.INTRO_MS / 3)
     page.onHide()
+    mock.timers.tick(5000)
+    page.onShow()
+    await flush()
+    assert.deepEqual([page.view, page.paused, page.timeText], ['timer', true, '25:00'])
+    swipe(page, [[216, 257], [216, 257]])
+    mock.timers.tick(1000)
+    assert.equal(page.timeText, '24:59')
+  })
+
+  it('설정·테마 고르기 화면에서 onHide/onShow: 화면과 바꾼 값 그대로', async () => {
+    swipe(page, [[126, 160], [126, 160]]) // 집중 값 변경
+    const n = page.focusNum
+    page.onHide()
+    page.onShow()
+    await flush()
+    assert.deepEqual([page.view, page.focusNum], ['setup', n])
+    swipe(page, [[80, 468], [80, 468]])
+    page.onHide()
+    page.onShow()
+    await flush()
+    assert.equal(page.view, 'themes')
+    assert.equal(page.onBackPress(), true)
+    assert.equal(page.view, 'setup')
+  })
+
+  it('프로세스 재시작: 저장된 세션을 일시정지 상태로 복원(같은 테마·단계·남은 시간)', async () => {
+    await boot({ focusMs: 25 * MIN, breakMs: 5 * MIN, repeat: false, theme: 'battery' })
+    swipe(page, [[216, 470], [216, 470]])
+    mock.timers.tick(timer.INTRO_MS + 100)
+    mock.timers.tick(10 * MIN)
+    page.onHide()
+    page.onDestroy()
+    const saved = env.session
+    assert.ok(saved.length > 0)
+    mock.timers.tick(60 * MIN) // 꺼져 있던 시간은 세지 않는다
+    await boot({ focusMs: 25 * MIN, breakMs: 5 * MIN, repeat: false, theme: 'battery' }, saved)
+    assert.equal(page.view, 'timer')
+    assert.equal(page.timerTheme, 'battery')
+    assert.deepEqual([page.paused, page.resumeShow, page.timeText, page.phaseLabel], [true, true, '15:00', 'FOCUS'])
+    assert.equal(page._state.repeat, false)
+    assert.equal(page.resumeLeft, timer.RESUME_PILL.batteryLeft)
+    swipe(page, [[216, 257], [216, 257]])
+    mock.timers.tick(1000)
+    assert.equal(page.timeText, '14:59')
+  })
+
+  it('실행 중 저장된 채 프로세스가 끝났으면(onHide 없음) 지난 시간만큼 진행한 뒤 일시정지로 복원', async () => {
+    swipe(page, [[216, 470], [216, 470]])
+    mock.timers.tick(timer.INTRO_MS + 100)
+    const saved = env.session // 시작할 때 저장된 실행 중 세션
+    assert.equal(JSON.parse(saved).running, true)
+    mock.timers.tick(5 * MIN)
+    await boot({ focusMs: 25 * MIN, breakMs: 5 * MIN, repeat: true }, saved)
+    assert.deepEqual([page.view, page.paused, page.timeText], ['timer', true, '20:00'])
+  })
+
+  it('길게 눌러 설정으로 가거나 반복 끔 세션이 끝나면 저장 세션을 지운다', async () => {
+    swipe(page, [[216, 470], [216, 470]])
+    mock.timers.tick(timer.INTRO_MS + 100)
+    assert.ok(env.session.length > 0)
+    page.onTouchStart(ev(216, 257))
+    mock.timers.tick(timer.LONGPRESS_MS + 10)
+    page.onTouchEnd(ev(216, 257))
+    assert.equal(page.view, 'setup')
+    assert.equal(env.session, '')
+    await boot({ focusMs: 25 * MIN, breakMs: 5 * MIN, repeat: true }, env.session)
     assert.equal(page.view, 'setup')
   })
 })

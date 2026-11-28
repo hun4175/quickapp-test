@@ -3,6 +3,7 @@
 > **0.1.9 구현 (2026-11-27):** 앱에는 01 SAND(기본) · 02 BOOSTER(0.1.8 PNG 게이지 그대로) · 03 BATTERY · 08 SWEEP 4종이 들어갔고,
 > 설정 화면은 모든 테마 공통으로 `settings-merged/A-final`(TWIN TUBES, `A-final/touch-zones.json`)을 쓴다. 위의 THERMO 설정 설명은 시안 당시 기록이다.
 > SWEEP은 (b) CSS `transform: rotate`가 기본이고, (a) PNG 60프레임(`08-sweep/assets`)은 `scripts/sweep-mode.py frames`로 바꾸는 대체 경로다.
+> **0.1.10:** 테마 순서를 1 SWEEP(기본) · 2 SAND · 3 BATTERY · 4 BOOSTER로 바꿨다(저장값은 이름이라 기존 선택 유지).
 > 레포에는 01 · 03 · 08 · `settings-merged/A-final`과 이 README · `themes.json` · `gen_full_themes.py` · `overview-final.png`만 올렸다(나머지 시안 폴더와 이미지는 로컬 기록).
 
 REDMI Watch 6 (432×514, 모서리 반경 80, OLED). 테마마다 **타이머 레이아웃 · 게이지 표시 방식 · 색 · 글자 느낌**을 통째로 바꾼다.

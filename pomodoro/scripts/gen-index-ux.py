@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""src/pages/index/index.ux 의 <template> 과 <style> 을 디자인 기준 좌표로 만든다(0.1.9).
+"""src/pages/index/index.ux 의 <template> 과 <style> 을 디자인 기준 좌표로 만든다(0.1.9, 0.1.10 테마 순서·재개 안내).
 
 - 설정 화면: docs/full-theme-design/settings-merged/A-final/settings.ux.txt 의 m-* 클래스를 그대로 가져오고
   (눈금 opacity 0.45 는 elements.json 값), 휴식 관 끌기 테두리(m-restActive)와 왼쪽 아래 톱니 버튼(m-gear*)을 더한다.
@@ -95,6 +95,13 @@ def main():
     css.append(block("w-frame", SW["t-sweep"]))
     for i in range(12):
         css.append(block(f"w-tick{i}", SW[f"t-tick{i}"]))
+    # ---------- 일시정지 재개 안내(0.1.10) ----------
+    # 아래 가운데 200x48(y 438~486). 모서리 원 중심 (80,434)·(352,434)에서 바깥 모서리까지 63.2px(BATTERY 는 오른쪽 열 207~407, 75.7px) ≤ 80
+    css.append(block("rs-pill", props(position="absolute", left="116px", top="438px", width="200px", height="48px",
+                                        background_color="#000000", border_width="2px", border_color="#FFFFFF",
+                                        border_radius="24px")))
+    css.append(block("rs-txt", props(position="absolute", left="116px", top="438px", width="200px", height="48px",
+                                       font_size="20px", color="#FFFFFF", text_align="center", font_weight="bold")))
 
     ux = open(UX, encoding="utf8").read()
     head, rest = ux.split("<style>", 1)
@@ -155,8 +162,9 @@ def template():
     # 테마 고르기
     a("    <div class=\"view\" if=\"{{view === 'themes'}}\">")
     a('      <text class="th-title">THEME</text>')
-    from_info = [("sand", "SAND", "FULL SCREEN FILL"), ("booster", "BOOSTER", "NEON 36-CELL GAUGE"),
-                 ("battery", "BATTERY", "DRAIN / CHARGE"), ("sweep", "SWEEP", "CLOCKWISE SWEEP")]
+    # 순서 = timer.js THEMES (0.1.10: SWEEP 기본 · SAND · BATTERY · BOOSTER). test/project.test.mjs 가 같은지 확인한다.
+    from_info = [("sweep", "SWEEP", "CLOCKWISE SWEEP"), ("sand", "SAND", "FULL SCREEN FILL"),
+                 ("battery", "BATTERY", "DRAIN / CHARGE"), ("booster", "BOOSTER", "NEON 36-CELL GAUGE")]
     for i, (tid, name, sub) in enumerate(from_info):
         a(f'      <div class="th-row{i}" style="background-color: {{{{rowBg{i}}}}}; border-color: {{{{rowBc{i}}}}};"></div>')
         a(f'      <image class="th-thumb{i}" src="/common/ui/thumb-{tid}.png"></image>')
@@ -213,6 +221,9 @@ def template():
     a('        <text class="t-time">{{timeText}}</text>')
     a('        <text class="t-total">{{totalText}}</text>')
     a('      </div>')
+    # 0.1.10: 일시정지(백그라운드 복귀 포함) 때 SAND·BATTERY·SWEEP 에 재개 안내. BOOSTER 는 기존 중심 막대 두 개.
+    a('      <div class="rs-pill" if="{{resumeShow}}" style="left: {{resumeLeft}}px;"></div>')
+    a('      <text class="rs-txt" if="{{resumeShow}}" style="left: {{resumeLeft}}px;">TAP TO RESUME</text>')
     a('    </div>')
     a('  </div>')
     a('</template>')

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""0.1.9 UI 리소스와 미리보기를 만든다.
+"""UI 리소스와 미리보기를 만든다(0.1.9 에서 시작, 0.1.10 은 테마 순서·일시정지 화면 미리보기).
 
 - src/common/ui/gear.png : 설정 화면 왼쪽 아래 톱니 아이콘(32x32, 투명 PNG).
 - src/common/ui/thumb-<테마>.png : 테마 고르기 화면 견본(54x64). 아래 집중 미리보기를 줄인 것.
-- docs/preview-0.1.9-*.png : 실제 src/pages/index/index.ux 를 scripts/render-tree.mjs 로 평가한 요소 목록을 그린 미리보기.
+- docs/preview-<VERSION>-*.png : 실제 src/pages/index/index.ux 를 scripts/render-tree.mjs 로 평가한 요소 목록을 그린 미리보기.
   (기기 렌더링이 아니라 근사: 글꼴은 Roboto 로 대신, 텍스트는 상자 안 세로 가운데로 그린다.)
 """
 from __future__ import annotations
@@ -19,13 +19,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "src")
 UI = os.path.join(SRC, "common", "ui")
 DOCS = os.path.join(ROOT, "docs")
-VERSION = "0.1.9"
+VERSION = "0.1.10"
 W, H, R, SS = 432, 514, 80, 3
 FONT_SYS = "/usr/share/fonts/truetype/sand-box/google/Roboto/Roboto-VariableFont_wdth,wght.ttf"
 FONT_SYM = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"  # Roboto 에 없는 ✓ 만 (기기 시스템 글꼴에는 있음: yeomju 설정 화면)
-THEMES = ["sand", "booster", "battery", "sweep"]
-SCENES = ["setup", "setup-changing", "setup-repeat-off"] + \
-    [f"{t}-{c}" for t in THEMES for c in ("focus", "rest")] + ["sweep-focus-late", "themes"]
+THEMES = ["sweep", "sand", "battery", "booster"]  # = timer.js THEMES 순서(0.1.10)
+# 저장하는 미리보기. 썸네일은 {테마}-focus 를 그려 만든다(파일로는 저장 안 함).
+# 0.1.9 의 설정·테마별 집중/휴식 미리보기는 docs/preview-0.1.9-*.png 로 남겨 둔다(화면이 같음).
+SCENES = ["themes", "sweep-focus"] + [f"{t}-paused" for t in THEMES]
 
 
 def rgb(c):
@@ -144,10 +145,9 @@ def thumb(im, theme):
 def main():
     gear_icon()
     done = {}
+    for t in THEMES:
+        thumb(render(tree(f"{t}-focus")["elements"]), t)
     for s in SCENES:
-        if s == "themes":
-            for t in THEMES:
-                thumb(done[f"{t}-focus"], t)
         im = render(tree(s)["elements"])
         done[s] = im
         im.save(os.path.join(DOCS, f"preview-{VERSION}-{s}.png"), optimize=True)

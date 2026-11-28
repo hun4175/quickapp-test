@@ -1,7 +1,7 @@
 /**
- * BOOST(뽀모도로) 순수 로직(0.1.9).
- * - 설정(settings): 집중 시간, 휴식 시간, 반복 여부, 테마. 마지막 값만 저장한다.
- * - 세션(state): 진행 중 타이머. 저장하지 않는다(앱을 다시 열거나 백그라운드에서 돌아오면 설정부터).
+ * BOOST(뽀모도로) 순수 로직(0.1.10).
+ * - 설정(settings): 집중 시간, 휴식 시간, 반복 여부, 테마(이름 문자열). 마지막 값만 저장한다.
+ * - 세션(state): 진행 중 타이머. 백그라운드로 가면 일시정지해 SESSION_KEY 에 저장하고, 다시 켜면 일시정지 상태로 복원한다.
  * 남은 시간은 끝시각(endAt)에서 매번 계산한다. 누적 감산은 쓰지 않는다.
  */
 
@@ -61,18 +61,22 @@ export function clampBreakMs(ms) {
 
 /* ---------------- 테마 ---------------- */
 
-/** 테마 id(저장값). 목록 순서 = 테마 고르기 화면 순서. */
-export const THEMES = ['sand', 'booster', 'battery', 'sweep']
-export const THEME_DEFAULT = 'sand'
+/**
+ * 테마 id(저장값은 이 이름 문자열, 인덱스가 아니다). 목록 순서 = 테마 고르기 화면 순서.
+ * 0.1.10: 1 SWEEP(기본) · 2 SAND · 3 BATTERY · 4 BOOSTER. 0.1.9 는 SAND·BOOSTER·BATTERY·SWEEP 순이었지만
+ * 저장값이 이름이라 순서를 바꿔도 이미 저장된 선택은 그대로다.
+ */
+export const THEMES = ['sweep', 'sand', 'battery', 'booster']
+export const THEME_DEFAULT = 'sweep'
 /** 테마 고르기 화면 표시용 이름·한 줄 설명(시스템 글꼴에 없을 수 있는 기호는 쓰지 않는다). */
 export const THEME_INFO = {
+  sweep: { name: 'SWEEP', sub: 'CLOCKWISE SWEEP' },
   sand: { name: 'SAND', sub: 'FULL SCREEN FILL' },
-  booster: { name: 'BOOSTER', sub: 'NEON 36-CELL GAUGE' },
   battery: { name: 'BATTERY', sub: 'DRAIN / CHARGE' },
-  sweep: { name: 'SWEEP', sub: 'CLOCKWISE SWEEP' }
+  booster: { name: 'BOOSTER', sub: 'NEON 36-CELL GAUGE' }
 }
 
-/** 알 수 없는 값·빈 값이면 기본 SAND. */
+/** 알 수 없는 값·빈 값이면 기본 SWEEP. 알려진 이름은 그대로 둔다. */
 export function normalizeTheme(theme) {
   return THEMES.indexOf(theme) >= 0 ? theme : THEME_DEFAULT
 }
@@ -99,7 +103,7 @@ export function serializeSettings(settings) {
 
 /**
  * 저장 문자열 → 설정. 새 키가 없으면 옛 상태(0.1.5 이하)의 focusMs 만 이어받는다.
- * 옛 상태의 진행 중 타이머(running/endAt)는 버린다. theme 이 없는 0.1.8 이하 저장값은 SAND.
+ * 옛 상태의 진행 중 타이머(running/endAt)는 버린다. theme 이 없는 0.1.8 이하 저장값은 기본(0.1.10 부터 SWEEP).
  */
 export function deserializeSettings(raw, legacyRaw) {
   const parse = (str) => {
@@ -537,6 +541,67 @@ export function advance(state, now) {
   }
 }
 
+/* ---------------- 백그라운드 · 세션 보존 (0.1.10) ---------------- */
+
+/**
+ * 진행 중 세션 저장 키. 설정(SETTINGS_KEY)과 따로 둔다. 빈 문자열 = 보존할 세션 없음.
+ * 0.1.5 이하의 LEGACY_STATE_KEY 와는 다른 키다.
+ */
+export const SESSION_KEY = 'pomodoro.session.v1'
+
+/**
+ * 앱이 백그라운드로 갈 때의 타이머 상태: 실행 중이면 now 기준으로 일시정지(남은 시간 고정),
+ * 시작 애니메이션 중(running=false 인 시작 전 상태)·이미 일시정지면 그대로.
+ * 단계(집중/휴식)·반복 여부·각 구간 길이는 유지한다.
+ */
+export function suspendState(state, now) {
+  const s = normalizeState(state)
+  if (!s.running) return s
+  // 지나간 구간 경계가 있으면 먼저 진행시킨 뒤 멈춘다(반복 끔이 끝났으면 done).
+  const r = advance(s, now)
+  return r.state.running ? pause(r.state, now) : r.state
+}
+
+/** 타이머 화면 세션 → 저장 문자열. done(끝난 세션)이나 없음이면 '' (지울 값). 설정·테마 화면은 저장하지 않는다(설정값은 따로 저장). */
+export function serializeSession(state, theme) {
+  if (!state) return ''
+  const s = normalizeState(state)
+  if (s.done) return ''
+  return JSON.stringify({
+    v: 1,
+    theme: normalizeTheme(theme),
+    phase: s.phase,
+    running: s.running,
+    endAt: s.endAt,
+    remainMs: s.remainMs,
+    focusMs: s.focusMs,
+    breakMs: s.breakMs,
+    repeat: s.repeat
+  })
+}
+
+/**
+ * 저장 문자열 → { state, theme } (항상 일시정지 상태) 또는 null.
+ * 실행 중으로 저장돼 있으면(onHide 없이 프로세스가 끝난 경우) now 까지 진행시킨 뒤 일시정지한다.
+ * 그 사이 반복 끔 세션이 끝났으면 null(설정 화면부터).
+ */
+export function deserializeSession(raw, now) {
+  if (!raw || typeof raw !== 'string') return null
+  let p
+  try {
+    p = JSON.parse(raw)
+  } catch (e) {
+    return null
+  }
+  if (!p || typeof p !== 'object' || p.v !== 1) return null
+  const s = suspendState(normalizeState(p), now)
+  if (s.done) return null
+  return { state: s, theme: normalizeTheme(p.theme) }
+}
+
+/** 일시정지 화면의 "TAP TO RESUME" 표시(SAND·BATTERY·SWEEP; BOOSTER 는 기존 게이지 중심 막대 두 개). */
+export const RESUME_PILL = { left: 116, batteryLeft: 207, top: 438, w: 200, h: 48 }
+
 /** 남은 ms → MM:SS. 초는 올림이라 25:00에서 바로 24:59로 떨어지지 않는다. */
 export function formatTime(ms) {
   const total = Math.max(0, Math.ceil(Number(ms) / 1000) || 0)
@@ -709,7 +774,9 @@ export function viewModel(state, theme, intro) {
     timeText: t,
     phaseLabel: brk ? 'REST' : 'FOCUS',
     totalText: Math.round(dur / MIN) + ' MIN',
-    paused: paused
+    paused: paused,
+    resumeShow: paused && th !== 'booster',
+    resumeLeft: th === 'battery' ? RESUME_PILL.batteryLeft : RESUME_PILL.left
   }
   if (th === 'booster') {
     const lit = isIntro ? Math.ceil(ratio * GAUGE_CELLS - 1e-9) : litCells(s.phase, s.remainMs, dur)
@@ -747,7 +814,7 @@ export function viewModel(state, theme, intro) {
 
 /** 테마별 index.ux 바인딩 키(applyTimer 가 바뀐 값만 넣는다). */
 export const VIEW_KEYS = {
-  common: ['theme', 'timeText', 'phaseLabel', 'totalText', 'paused'],
+  common: ['theme', 'timeText', 'phaseLabel', 'totalText', 'paused', 'resumeShow', 'resumeLeft'],
   booster: ['gaugeSrc', 'labelSrc', 'm1Src', 'm2Src', 's1Src', 's2Src'],
   sand: ['sandShow', 'sandTop', 'sandH', 'sandColor', 'levelShow', 'levelTop', 'levelColor'],
   battery: ['batShow', 'batTop', 'batH', 'batColor', 'mmText', 'ssText', 'pctText'],

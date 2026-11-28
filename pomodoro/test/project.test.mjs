@@ -22,9 +22,9 @@ describe('프로젝트 구성', () => {
   it('manifest: 패키지명·버전·feature', () => {
     assert.equal(manifest.package, 'com.hun4175.pomodoro')
     assert.equal(manifest.name, 'BOOST')
-    assert.equal(manifest.versionName, '0.1.9')
-    assert.equal(manifest.versionCode, 10)
-    assert.equal(pkg.version, '0.1.9')
+    assert.equal(manifest.versionName, '0.1.10')
+    assert.equal(manifest.versionCode, 11)
+    assert.equal(pkg.version, '0.1.10')
     assert.ok(manifest.deviceTypeList.includes('watch'))
     assert.deepEqual(
       manifest.features.map((f) => f.name).sort(),
@@ -81,28 +81,39 @@ describe('프로젝트 구성', () => {
     const back = c.match(/\n  onBackPress\(\) \{([\s\S]*?)\n  \},/)
     assert.ok(back && back[1].includes('shouldSwallowBack(this.view, this._touchActive, this._touchZone, this._lastSetupTouchAt, Date.now())'))
     assert.ok(c.includes('this._lastSetupTouchAt = Date.now()'))
-    // 길게 누르기 → goSetup
-    assert.match(c, /_lpTimer = setTimeout\(function \(\) \{[\s\S]*?self\.goSetup\(false\)[\s\S]*?\}, LONGPRESS_MS\)/)
+    // 길게 누르기 → 세션 끝내고(저장 세션 지움) 설정으로
+    assert.match(c, /_lpTimer = setTimeout\(function \(\) \{[\s\S]*?self\.endSession\(false\)[\s\S]*?\}, LONGPRESS_MS\)/)
+    assert.match(c, /\n  endSession\(keepVibe\) \{[\s\S]*?this\.goSetup\(!!keepVibe\)[\s\S]*?saveSession\(null\)/)
     assert.ok(!/pages\/settings/.test(ux))
     assert.ok(!existsSync(path.join(SRC, 'pages/settings')))
   })
 
-  it('초기화 정책: onInit·onShow·onHide 에서 설정 뷰로, 진행 상태는 저장하지 않는다', () => {
+  it('백그라운드 정책(0.1.10): onShow·onHide 는 설정으로 초기화하지 않고, 숨길 때 일시정지·세션 저장, 새 프로세스는 복원', () => {
     const c = stripComments(ux)
     const body = (name) => {
       const m = c.match(new RegExp('\\n  ' + name + '\\(\\) \\{([\\s\\S]*?)\\n  \\},'))
       assert.ok(m, name)
       return m[1]
     }
-    assert.ok(body('onInit').includes('this.goSetup(false)'))
-    assert.ok(body('onShow').includes('this.goSetup(false)'))
-    assert.ok(body('onHide').includes('this.goSetup(false)'))
+    assert.ok(body('onInit').includes('this.goSetup(false)')) // 첫 화면은 설정(복원은 onShow 에서)
+    assert.ok(!body('onShow').includes('goSetup'))
+    assert.ok(!body('onHide').includes('goSetup'))
+    assert.ok(body('onHide').includes('this.suspend()'))
+    assert.ok(body('onDestroy').includes('this.suspend()'))
+    assert.ok(body('onShow').includes('loadSession()'))
+    const sus = body('suspend')
+    assert.ok(sus.includes('suspendState(this._state, Date.now())'))
+    assert.ok(sus.includes('this.stopTick()') && sus.includes('this.stopIntro()'))
+    assert.ok(sus.includes('saveSession(this._state, this.timerTheme)'))
+    assert.ok(!sus.includes("this.view = 'setup'"))
     const g = c.match(/\n  goSetup\(keepVibe\) \{([\s\S]*?)\n  \},/)
     assert.ok(g && g[1].includes('this._state = null') && g[1].includes("this.view = 'setup'"))
-    assert.ok(!/saveState|loadState/.test(c))
     const pc = stripComments(persist)
-    assert.ok(pc.includes('SETTINGS_KEY'))
-    assert.ok(!/serializeState|endAt|running/.test(pc))
+    assert.ok(pc.includes('SETTINGS_KEY') && pc.includes('SESSION_KEY'))
+    assert.ok(pc.includes('serializeSession') && pc.includes('deserializeSession'))
+    // 재개 안내: SAND·BATTERY·SWEEP 공통, 타이머 뷰 안
+    assert.ok(ux.includes('<div class="rs-pill" if="{{resumeShow}}" style="left: {{resumeLeft}}px;"></div>'))
+    assert.ok(ux.includes('<text class="rs-txt" if="{{resumeShow}}" style="left: {{resumeLeft}}px;">TAP TO RESUME</text>'))
   })
 
   it('시작 애니메이션은 setInterval 로 진행 비율을 바꾸고, CSS 애니메이션(@keyframes)은 쓰지 않는다', () => {

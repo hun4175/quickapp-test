@@ -46,14 +46,14 @@
     <div class="view" if="{{view === 'themes'}}">
       <text class="th-title">THEME</text>
       <div class="th-row0" style="background-color: {{rowBg0}}; border-color: {{rowBc0}};"></div>
-      <image class="th-thumb0" src="/common/ui/thumb-sand.png"></image>
-      <text class="th-name0">SAND</text>
-      <text class="th-sub0">FULL SCREEN FILL</text>
+      <image class="th-thumb0" src="/common/ui/thumb-sweep.png"></image>
+      <text class="th-name0">SWEEP</text>
+      <text class="th-sub0">CLOCKWISE SWEEP</text>
       <text class="th-mark0" if="{{cur0}}">✓</text>
       <div class="th-row1" style="background-color: {{rowBg1}}; border-color: {{rowBc1}};"></div>
-      <image class="th-thumb1" src="/common/ui/thumb-booster.png"></image>
-      <text class="th-name1">BOOSTER</text>
-      <text class="th-sub1">NEON 36-CELL GAUGE</text>
+      <image class="th-thumb1" src="/common/ui/thumb-sand.png"></image>
+      <text class="th-name1">SAND</text>
+      <text class="th-sub1">FULL SCREEN FILL</text>
       <text class="th-mark1" if="{{cur1}}">✓</text>
       <div class="th-row2" style="background-color: {{rowBg2}}; border-color: {{rowBc2}};"></div>
       <image class="th-thumb2" src="/common/ui/thumb-battery.png"></image>
@@ -61,9 +61,9 @@
       <text class="th-sub2">DRAIN / CHARGE</text>
       <text class="th-mark2" if="{{cur2}}">✓</text>
       <div class="th-row3" style="background-color: {{rowBg3}}; border-color: {{rowBc3}};"></div>
-      <image class="th-thumb3" src="/common/ui/thumb-sweep.png"></image>
-      <text class="th-name3">SWEEP</text>
-      <text class="th-sub3">CLOCKWISE SWEEP</text>
+      <image class="th-thumb3" src="/common/ui/thumb-booster.png"></image>
+      <text class="th-name3">BOOSTER</text>
+      <text class="th-sub3">NEON 36-CELL GAUGE</text>
       <text class="th-mark3" if="{{cur3}}">✓</text>
     </div>
     <div class="view" if="{{view === 'timer'}}">
@@ -128,31 +128,35 @@
         <text class="t-time">{{timeText}}</text>
         <text class="t-total">{{totalText}}</text>
       </div>
+      <div class="rs-pill" if="{{resumeShow}}" style="left: {{resumeLeft}}px;"></div>
+      <text class="rs-txt" if="{{resumeShow}}" style="left: {{resumeLeft}}px;">TAP TO RESUME</text>
     </div>
   </div>
 </template>
 
 <script>
 /**
- * BOOST(뽀모도로) 0.1.9 (REDMI Watch 6 글로벌 · 432x514).
+ * BOOST(뽀모도로) 0.1.10 (REDMI Watch 6 글로벌 · 432x514).
  * 한 페이지 안에 독립 뷰 세 개: view === 'setup'(설정) / 'themes'(테마 고르기) / 'timer'(타이머).
  * 별도 페이지(router) 대신 한 페이지로 둔 이유:
- *  - "백그라운드에서 돌아오면 항상 설정부터"를 onShow 하나로 처리한다. 페이지를 나누면
+ *  - 백그라운드 숨김/복귀를 onHide/onShow 하나로 처리한다. 페이지를 나누면
  *    설정 → 타이머(또는 테마 고르기) → (router.back) 때도 onShow 가 불려 복귀와 구분이 안 된다.
  *  - 페이지 스택이 없어 시스템 뒤로(오른쪽 스와이프)가 숨은 페이지로 가는 경우가 없다.
  *  - router 를 쓰지 않으면 manifest·권한이 그대로다.
  * 설정(TWIN TUBES, 모든 테마 공통): 세로 관 두 개(집중 12칸 5~60분, 휴식 30칸 1~30분)를 짚거나 위아래로 끌면
  *       그 높이 칸 값으로 바뀐다. 조작은 전부 세로이고 가로 제스처는 없다. REPEAT 탭=반복 토글, START 탭=시작,
  *       왼쪽 아래 톱니 탭=테마 고르기. 터치 판정은 timer.js setupTouchStart/Move/End(순수 함수, touch-zones.json 기준).
- * 테마 고르기: SAND·BOOSTER·BATTERY·SWEEP 줄 하나를 탭하면 저장(pomodoro.settings.v1 의 theme)하고 설정으로.
+ * 테마 고르기: SWEEP(기본)·SAND·BATTERY·BOOSTER 줄 하나를 탭하면 저장(pomodoro.settings.v1 의 theme)하고 설정으로.
  *       시스템 뒤로도 설정으로 돌아간다(앱을 닫지 않음).
  * 시작: 설정 뷰를 닫고 게이지(테마별)를 0 → 가득으로 약 0.9초 채운 뒤 카운트다운 시작.
  * 타이머: 탭=일시정지/재개, 길게 누르기=중지 후 설정으로.
- * 초기화: onInit/onShow/onHide 에서 항상 설정 뷰, 진행 중 타이머는 버린다(설정값만 저장).
+ * 백그라운드(0.1.10): onHide 때 타이머를 그 순간 일시정지하고(남은 시간·집중/휴식 단계·반복·테마 유지) 화면은 그대로 둔다.
+ *       onShow 로 돌아오면 같은 화면에 일시정지 상태로 보이고, 탭해야 재개한다. 타이머 세션은 storage(SESSION_KEY)에도
+ *       저장해 프로세스가 새로 떠도(onInit) 일시정지 상태로 복원한다. 길게 눌러 설정으로 가거나 세션이 끝나면 지운다.
  * 소리·audio·muted·볼륨 API는 쓰지 않는다.
  */
 import vibrator from '@system.vibrator'
-import { loadSettings, saveSettings } from '../../common/persist.js'
+import { loadSettings, saveSettings, loadSession, saveSession } from '../../common/persist.js'
 import {
   TICK_MS,
   LONGPRESS_MS,
@@ -174,6 +178,7 @@ import {
   themeTap,
   themesViewModel,
   armedState,
+  suspendState,
   start,
   toggle,
   advance,
@@ -213,11 +218,13 @@ export default {
     rowBc1: '#1A1A1A',
     rowBc2: '#1A1A1A',
     rowBc3: '#1A1A1A',
-    timerTheme: 'sand',
+    timerTheme: 'sweep',
     timeText: '25:00',
     phaseLabel: 'FOCUS',
     totalText: '25 MIN',
     paused: false,
+    resumeShow: false,
+    resumeLeft: 116,
     gaugeSrc: '/common/booster/g36.png',
     labelSrc: '/common/booster/focus.png',
     m1Src: '/common/booster/m2.png',
@@ -266,28 +273,86 @@ export default {
     this._touchZone = null
     this._lastSetupTouchAt = 0
     this._settingsTouched = false
+    this._sessionTouched = false
+    this._restoreTried = false
     this.goSetup(false)
   },
 
   onShow() {
-    // 첫 실행이든 백그라운드에서 돌아온 것이든 항상 설정부터. 진행 중 타이머는 버린다.
-    this.goSetup(false)
-    this._settingsTouched = false
+    // 0.1.10: 초기화하지 않는다. 숨길 때(onHide) 일시정지한 화면을 그대로 보여 주고, 재개는 사용자가 탭으로.
     const self = this
-    loadSettings().then(function (s) {
-      if (self._settingsTouched || self.view !== 'setup') return
-      self._settings = normalizeSettings(s)
-      self.applySetup()
-    })
+    if (!this._settingsTouched) {
+      loadSettings().then(function (s) {
+        if (self._settingsTouched) return
+        self._settings = normalizeSettings(s)
+        self.applySetup()
+        if (self.view === 'themes') self.applyThemes(null)
+      })
+    }
+    if (this.view === 'timer' && this._state) {
+      this.applyTimer()
+      return
+    }
+    // 프로세스가 새로 뜬 첫 onShow: 저장된 타이머 세션이 있으면 일시정지 상태로 복원(한 번만).
+    if (!this._restoreTried) {
+      this._restoreTried = true
+      loadSession().then(function (sess) {
+        if (!sess || self._sessionTouched || self._state || self.view !== 'setup') return
+        self.restoreSession(sess)
+      })
+    }
   },
 
   onHide() {
-    this.goSetup(false)
+    this.suspend()
     saveSettings(this._settings)
   },
 
   onDestroy() {
+    this.suspend()
     this.stopAll(false)
+  },
+
+  /** 백그라운드로 갈 때: 화면은 그대로, 타이머는 그 순간 일시정지하고 세션을 저장한다. 손가락 상태는 버린다. */
+  suspend() {
+    this.clearLpTimer()
+    this._touchActive = false
+    this._longPressed = false
+    if (this.view === 'setup') {
+      this._gesture = null
+      this.applyGestureUi(null)
+    } else if (this.view === 'themes') {
+      this.applyThemes(null)
+    }
+    if (this.view !== 'timer' || !this._state) return
+    this.stopIntro()
+    this.stopTick()
+    this.clearVibrateTimers()
+    this._state = suspendState(this._state, Date.now())
+    if (this._state.done) {
+      // 숨기는 사이 반복 끔 세션이 끝났다: 설정으로
+      this.endSession()
+      return
+    }
+    this.applyTimer()
+    this.setKeepScreen(false)
+    saveSession(this._state, this.timerTheme)
+  },
+
+  /** 저장된 세션(항상 일시정지)을 타이머 화면으로 복원. */
+  restoreSession(sess) {
+    this.stopAll(false)
+    this._state = sess.state
+    this.timerTheme = sess.theme
+    this.applyTimer()
+    this.view = 'timer'
+  },
+
+  /** 세션을 끝내고(저장값 지움) 설정으로. keepVibe: 끝 진동은 계속 울린다. */
+  endSession(keepVibe) {
+    this._sessionTouched = true
+    this.goSetup(!!keepVibe)
+    saveSession(null)
   },
 
   onBackPress() {
@@ -371,10 +436,12 @@ export default {
   beginSession() {
     saveSettings(this._settings)
     this.stopAll(false)
+    this._sessionTouched = true
     this._state = armedState(this._settings)
     this.timerTheme = this._settings.theme
     this.applyTimer(0)
     this.view = 'timer'
+    saveSession(this._state, this.timerTheme)
     this.setKeepScreen(true)
     this._introAt = Date.now()
     const self = this
@@ -393,6 +460,7 @@ export default {
     this._state = start(this._state, Date.now())
     this.applyTimer()
     this.startTick()
+    saveSession(this._state, this.timerTheme)
   },
 
   stopIntro() {
@@ -434,7 +502,7 @@ export default {
     if (result.crossed > 0) this.pulseVibrate()
     if (result.finished) {
       // 반복 끔: 집중+휴식 한 번이 끝나면 진동 후 설정으로
-      this.goSetup(true)
+      this.endSession(true)
       return
     }
     this.applyTimer()
@@ -444,6 +512,7 @@ export default {
     if (!this._state || this._introTimer) return
     this._state = toggle(this._state, Date.now())
     this.applyTimer()
+    saveSession(this._state, this.timerTheme)
     if (this._state.running) {
       this.startTick()
       this.setKeepScreen(true)
@@ -540,7 +609,7 @@ export default {
       if (!self._touchActive) return
       self._longPressed = true
       self._touchActive = false
-      self.goSetup(false)
+      self.endSession(false)
     }, LONGPRESS_MS)
   },
 
@@ -1541,6 +1610,28 @@ export default {
   height: 6px;
   background-color: #9A9A9A;
   border-radius: 3px;
+}
+.rs-pill {
+  position: absolute;
+  left: 116px;
+  top: 438px;
+  width: 200px;
+  height: 48px;
+  background-color: #000000;
+  border-width: 2px;
+  border-color: #FFFFFF;
+  border-radius: 24px;
+}
+.rs-txt {
+  position: absolute;
+  left: 116px;
+  top: 438px;
+  width: 200px;
+  height: 48px;
+  font-size: 20px;
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: bold;
 }
 .gauge {
   position: absolute;
